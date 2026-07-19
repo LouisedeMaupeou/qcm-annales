@@ -303,7 +303,10 @@ function Champ({
           {aide}
         </p>
       )}
-      {erreurs?.map((e) => (
+      {/* Zod peut produire deux fois le même libellé pour un seul champ (la
+          date de naissance échoue au format et à la borne d'âge). On dédoublonne
+          plutôt que d'afficher deux lignes identiques. */}
+      {[...new Set(erreurs ?? [])].map((e) => (
         <p key={e} id={idErreur} role="alert" className="mt-1 text-sm text-negatif">
           {e}
         </p>
@@ -333,7 +336,7 @@ function Case({
         />
         <span className="text-[0.95rem]">{libelle}</span>
       </label>
-      {erreurs?.map((e) => (
+      {[...new Set(erreurs ?? [])].map((e) => (
         <p key={e} role="alert" className="mt-1 text-sm text-negatif">
           {e}
         </p>

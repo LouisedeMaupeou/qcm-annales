@@ -8,7 +8,9 @@
 -- ⚠️ Les barèmes ci-dessous sont repris du tableau §2 des specs, qui porte
 -- lui-même l'avertissement : « Barèmes exacts (notamment Avenir) à vérifier sur
 -- le règlement officiel de la session concernée avant affichage aux élèves ».
--- Tous sont donc seedés avec verifie_le = NULL. Le back-office (§6.1) doit
+-- Tous sont donc seedés avec source_officielle ET verifie_le à NULL : l'absence
+-- de vérification s'exprime par NULL, jamais par un texte d'avertissement logé
+-- dans un champ de données. Le back-office (§6.1) doit
 -- refuser d'afficher un barème non vérifié, ou l'afficher comme provisoire.
 --
 -- Les épreuves ne sont pas seedées : les specs ne les énumèrent pas. Elles
@@ -32,22 +34,22 @@ from public.concours c
 join (values
   ('ACCÈS',            1.0, -1.0, 0.0,
    'Vrai/faux par proposition : 1 énoncé = 4 propositions, scoring tout ou rien (§2.3).',
-   'À VÉRIFIER — règlement officiel ACCÈS'),
+   null),
   ('SÉSAME',           1.0,  0.0, 0.0,
    'Pas de points négatifs.',
-   'À VÉRIFIER — règlement officiel SÉSAME'),
+   null),
   ('Avenir',           1.0, -1.0, 0.0,
    'Specs §2 : barème explicitement signalé comme à vérifier.',
-   'À VÉRIFIER — règlement officiel Avenir'),
+   null),
   ('Advance',          2.0, -0.5, 0.0,
    null,
-   'À VÉRIFIER — règlement officiel Advance'),
+   null),
   ('Puissance Alpha',  1.0, -0.5, 0.0,
    'Sciences : vrai/faux par affirmation, 1 exercice = 4 V/F. Anglais : choix unique.',
-   'À VÉRIFIER — règlement officiel Puissance Alpha'),
+   null),
   ('GEIPI Polytech',   1.0,  0.0, 0.0,
    'Pas de points négatifs.',
-   'À VÉRIFIER — règlement officiel GEIPI Polytech')
+   null)
 ) as b(nom, bonne, mauvaise, abstention, regle, source)
   on b.nom = c.nom
 on conflict (concours_id, epreuve_id) do nothing;
