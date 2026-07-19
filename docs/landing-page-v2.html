@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admissible — Entraîne-toi sur les vraies annales des concours post-bac</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800;900&display=swap" rel="stylesheet">
+<style>
+  /* =========================================================
+     THÈME PARKOURS — à caler sur le guide de style Webflow :
+     remplacer les valeurs ci-dessous par les codes exacts.
+     ========================================================= */
+  :root{
+    --primaire:#2563EB;        /* bleu Parkours — remplacer par le code exact du guide de style Webflow */
+    --primaire-fonce:#1B4FC4;
+    --encre:#12263A;           /* titres */
+    --texte:#3D4B5C;           /* corps de texte */
+    --fond:#FFFFFF;
+    --fond-doux:#F1F5FD;       /* sections alternées (bleuté doux) */
+    --carte:#FFFFFF;
+    --ligne:#E2E8F3;
+    --soleil:#FFC53D;          /* accent secondaire */
+    --rayon:18px;              /* arrondis généreux façon Parkours */
+    --police:'Nunito',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:var(--police);color:var(--texte);line-height:1.6;
+    background:linear-gradient(rgba(255,255,255,.93),rgba(255,255,255,.93)),url('hero-eleves.jpg') center/cover no-repeat fixed}
+  h1,h2,h3{color:var(--encre);line-height:1.15}
+  :focus-visible{outline:3px solid var(--primaire);outline-offset:3px;border-radius:6px}
+  .page{max-width:1100px;margin:0 auto;padding:0 22px}
+
+  .btn{display:inline-flex;align-items:center;gap:8px;font-family:var(--police);font-weight:800;text-decoration:none;
+    background:var(--primaire);color:#fff;border:none;border-radius:999px;padding:14px 28px;font-size:1.02rem;
+    cursor:pointer;transition:background .12s ease, transform .12s ease;box-shadow:0 6px 18px rgba(31,164,91,.28)}
+  .btn:hover{background:var(--primaire-fonce)}
+  .btn:active{transform:translateY(1px)}
+  .btn.grand{font-size:1.18rem;padding:17px 36px}
+  .btn.discret{background:transparent;color:var(--encre);box-shadow:none;border:2px solid var(--ligne);font-weight:700}
+  .btn.discret:hover{background:var(--fond-doux)}
+  .btn .fleche{transition:transform .12s ease}
+  .btn:hover .fleche{transform:translateX(3px)}
+
+  header{display:flex;align-items:center;justify-content:space-between;padding:20px 0}
+  .logo{font-weight:900;font-size:1.4rem;color:var(--encre);letter-spacing:-0.01em}
+  .logo .point{color:var(--primaire)}
+  .logo small{display:block;font-size:.72rem;font-weight:700;color:var(--texte);letter-spacing:.04em}
+
+  /* Hero — photo en fond */
+  .hero{position:relative;border-radius:var(--rayon);overflow:hidden;margin-top:6px;padding:64px 48px 72px;
+    background:linear-gradient(rgba(13,30,66,.62),rgba(13,30,66,.72)),url('hero-eleves.jpg') center 32%/cover no-repeat;
+    display:flex;flex-direction:column;align-items:flex-start;margin-bottom:64px}
+  .pastille{display:inline-block;background:rgba(255,255,255,.16);color:#fff;font-weight:800;font-size:.85rem;
+    border-radius:999px;padding:7px 16px;margin-bottom:16px;backdrop-filter:blur(4px)}
+  h1{font-weight:900;font-size:clamp(2.1rem,4.8vw,3.2rem);letter-spacing:-0.015em;margin-bottom:16px}
+  .hero h1{color:#fff;max-width:22ch;text-shadow:0 2px 14px rgba(0,0,0,.25)}
+  .hero .sub{font-size:1.15rem;margin-bottom:26px;max-width:52ch;color:#fff;opacity:.95}
+  .hero .ctas{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+  .hero .btn.discret{background:rgba(255,255,255,.92);border-color:transparent;color:var(--encre)}
+  .hero .btn.discret:hover{background:#fff}
+  .hero .note{font-size:.85rem;color:#fff;opacity:.85;margin-top:14px}
+
+  /* Concours en relief */
+  .concours{background:rgba(241,245,253,.94);border-radius:var(--rayon);padding:36px;margin-bottom:64px}
+  .concours h2{font-weight:900;font-size:1.7rem;margin-bottom:22px;text-align:center}
+  .filiere{margin-bottom:22px}
+  .filiere:last-child{margin-bottom:0}
+  .filiere .nom{font-weight:800;font-size:.9rem;letter-spacing:.08em;text-transform:uppercase;color:var(--primaire-fonce);margin-bottom:12px}
+  .cartes-concours{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px}
+  .carte-concours{background:var(--carte);border:1px solid var(--ligne);border-radius:14px;padding:20px 16px;text-align:center;
+    box-shadow:0 4px 14px rgba(18,38,58,.05)}
+  .carte-concours .titre{font-weight:900;color:var(--encre);font-size:1.25rem;letter-spacing:-0.01em}
+  .carte-concours .detail{font-size:.82rem;font-weight:600;margin-top:4px;color:var(--texte)}
+
+  /* Comment ça marche (repliable) */
+  .marche{padding-bottom:64px;text-align:center}
+  .marche .contenu{display:none;margin-top:28px;text-align:left}
+  .marche .contenu.ouvert{display:block}
+  .etapes{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .etape{background:var(--carte);border:1px solid var(--ligne);border-radius:var(--rayon);padding:24px;
+    box-shadow:0 4px 14px rgba(18,38,58,.05)}
+  .etape .num{display:inline-flex;width:34px;height:34px;border-radius:50%;background:var(--primaire);color:#fff;
+    align-items:center;justify-content:center;font-weight:900;margin-bottom:12px}
+  .etape h3{font-size:1.08rem;font-weight:800;margin-bottom:6px}
+  .etape p{font-size:.95rem}
+
+  /* Barèmes */
+  .bareme{display:grid;grid-template-columns:1.1fr .9fr;gap:36px;align-items:center;padding-bottom:64px}
+  .bareme h2{font-weight:900;font-size:1.7rem;margin-bottom:10px}
+  .bareme .intro{margin-bottom:20px}
+  .bareme table{width:100%;border-collapse:collapse;background:var(--carte);border:1px solid var(--ligne);
+    border-radius:14px;overflow:hidden;font-size:.95rem;font-weight:700}
+  .bareme th,.bareme td{padding:12px 16px;text-align:left;border-bottom:1px solid var(--ligne)}
+  .bareme th{background:var(--fond-doux);color:var(--encre);font-weight:800}
+  .bareme td.neg{color:#C43D2F}
+  .bareme tr:last-child td{border-bottom:none}
+  .bareme .legende{font-size:.8rem;margin-top:8px;opacity:.8}
+
+  /* Parents */
+  .parents{background:rgba(241,245,253,.94);border-radius:var(--rayon);padding:32px;margin-bottom:72px;
+    display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+  .parents .titre{grid-column:1/-1}
+  .parents h2{font-weight:900;font-size:1.7rem}
+  .parents h3{font-size:1.02rem;font-weight:800;margin-bottom:4px}
+  .parents p{font-size:.93rem}
+
+  .final{text-align:center;padding:8px 0 84px}
+  .final h2{font-weight:900;font-size:clamp(1.6rem,3.4vw,2.2rem);margin-bottom:12px}
+  .final p{margin-bottom:24px}
+
+  footer{border-top:1px solid var(--ligne);padding:26px 0 100px;display:flex;flex-wrap:wrap;gap:18px;
+    justify-content:space-between;font-size:.86rem}
+  footer nav{display:flex;flex-wrap:wrap;gap:16px}
+  footer a{color:var(--texte)}
+  #mode-admin-lien{opacity:.55}
+
+  /* Cookies */
+  .cookies{position:fixed;left:16px;right:16px;bottom:16px;z-index:60;background:var(--encre);color:#fff;
+    border-radius:var(--rayon);padding:16px 20px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;
+    justify-content:space-between;box-shadow:0 12px 30px rgba(0,0,0,.25)}
+  .cookies p{font-size:.88rem;max-width:60ch}
+  .cookies a{color:#fff}
+  .cookies .choix{display:flex;gap:10px}
+  .cookies button{font-family:var(--police);font-weight:800;border-radius:999px;padding:10px 20px;cursor:pointer;font-size:.9rem}
+  .cookies .ok{background:var(--primaire);color:#fff;border:2px solid var(--primaire)}
+  .cookies .non{background:transparent;color:#fff;border:2px solid rgba(255,255,255,.6)}
+
+  /* Mode admin */
+  body.admin [data-edit]{outline:2px dashed var(--soleil);outline-offset:3px;border-radius:4px;cursor:text}
+  .barre-admin{display:none;position:fixed;top:0;left:0;right:0;z-index:70;background:var(--encre);color:#fff;
+    padding:10px 18px;align-items:center;gap:14px;font-size:.9rem;font-weight:700}
+  body.admin .barre-admin{display:flex}
+  .barre-admin button{font-family:var(--police);font-weight:800;border-radius:999px;padding:8px 16px;cursor:pointer;
+    border:2px solid #fff;background:transparent;color:#fff;font-size:.85rem}
+  .barre-admin button.plein{background:var(--primaire);border-color:var(--primaire)}
+  body.admin{padding-top:54px}
+  .export-zone{display:none;position:fixed;inset:0;z-index:80;background:rgba(18,38,58,.55);align-items:center;justify-content:center;padding:20px}
+  .export-zone.ouvert{display:flex}
+  .export-boite{background:#fff;border-radius:var(--rayon);padding:22px;max-width:640px;width:100%}
+  .export-boite h3{margin-bottom:10px}
+  .export-boite textarea{width:100%;height:220px;font-family:monospace;font-size:.8rem;border:1px solid var(--ligne);border-radius:10px;padding:12px}
+  .export-boite .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:12px}
+
+  @media (max-width:840px){
+    body{background-attachment:scroll}
+    .hero{padding:44px 24px 52px;background-position:center 30%}
+    .etapes,.bareme,.parents{grid-template-columns:1fr}
+    .cookies{flex-direction:column;align-items:flex-start}
+  }
+</style>
+</head>
+<body>
+
+<div class="barre-admin" role="region" aria-label="Barre d'administration">
+  <span>Mode admin — cliquez sur un texte pour le modifier</span>
+  <button class="plein" id="admin-exporter" type="button">Exporter les textes</button>
+  <button id="admin-quitter" type="button">Terminer</button>
+</div>
+
+<div class="page">
+
+  <header>
+    <div class="logo" data-edit="logo">Admissible<span class="point">.</span><small data-edit="logo-sous">un service Parkours</small></div>
+    <a class="btn" href="#inscription" data-edit="cta-header">Je me lance !</a>
+  </header>
+
+  <section class="hero">
+      <span class="pastille" data-edit="pastille">Concours post-bac · commerce &amp; ingénieur</span>
+      <h1 data-edit="titre">Entraîne-toi sur les vraies annales. Gratuitement.</h1>
+      <p class="sub" data-edit="sous-titre">Des annales officielles des 6 grands concours, corrigées et expliquées, avec les vrais barèmes et ta progression, matière par matière.</p>
+      <div class="ctas">
+        <a class="btn grand" href="#inscription" data-edit="cta-hero">Je me lance !</a>
+        <button class="btn discret" id="voir-marche" type="button" aria-expanded="false" aria-controls="marche-contenu" data-edit="cta-marche">Comment ça marche ? <span class="fleche">↓</span></button>
+      </div>
+      <p class="note" data-edit="note-hero">Gratuit · sans engagement · pensé pour réviser depuis ton téléphone</p>
+  </section>
+  <!-- Photo : hero-eleves.jpg (Unsplash — Rut Miit), à conserver dans le même dossier que ce fichier -->
+
+  <section class="concours" aria-label="Concours couverts">
+    <h2 data-edit="concours-titre">Les 6 grands concours, au même endroit</h2>
+    <div class="filiere">
+      <p class="nom" data-edit="filiere-commerce">Écoles de commerce</p>
+      <div class="cartes-concours">
+        <div class="carte-concours"><div class="titre" data-edit="c-acces">ACCÈS</div><div class="detail" data-edit="c-acces-d">ESDES · ESSCA · IÉSEG</div></div>
+        <div class="carte-concours"><div class="titre" data-edit="c-sesame">SÉSAME</div><div class="detail" data-edit="c-sesame-d">14 programmes post-bac</div></div>
+      </div>
+    </div>
+    <div class="filiere">
+      <p class="nom" data-edit="filiere-inge">Écoles d'ingénieurs</p>
+      <div class="cartes-concours">
+        <div class="carte-concours"><div class="titre" data-edit="c-avenir">Avenir</div><div class="detail" data-edit="c-avenir-d">7 écoles</div></div>
+        <div class="carte-concours"><div class="titre" data-edit="c-advance">Advance</div><div class="detail" data-edit="c-advance-d">4 écoles</div></div>
+        <div class="carte-concours"><div class="titre" data-edit="c-alpha">Puissance Alpha</div><div class="detail" data-edit="c-alpha-d">17 écoles</div></div>
+        <div class="carte-concours"><div class="titre" data-edit="c-geipi">GEIPI Polytech</div><div class="detail" data-edit="c-geipi-d">36 écoles publiques</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="marche">
+    <div class="contenu" id="marche-contenu">
+      <div class="etapes">
+        <div class="etape"><span class="num">1</span><h3 data-edit="e1-t">Choisis ton concours et ta matière</h3><p data-edit="e1-p">Logique, maths, anglais, enjeux contemporains… tu t'entraînes exactement sur les épreuves de ton concours.</p></div>
+        <div class="etape"><span class="num">2</span><h3 data-edit="e2-t">Joue une session</h3><p data-edit="e2-p">Des questions tirées des annales officielles, dans le vrai format de l'épreuve : choix unique ou vrai/faux, exercices liés servis ensemble.</p></div>
+        <div class="etape"><span class="num">3</span><h3 data-edit="e3-t">Progresse chapitre par chapitre</h3><p data-edit="e3-p">Correction immédiate, explication quand tu te trompes, et un tableau de bord qui te montre où tu gagnes des points.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bareme">
+    <div>
+      <h2 data-edit="bareme-t">Les vraies règles du jeu</h2>
+      <p class="intro" data-edit="bareme-p">La plupart des concours retirent des points en cas de mauvaise réponse. S'entraîner sans cette règle, c'est prendre de mauvais réflexes. Ici, chaque session applique le barème officiel de ton concours — et t'apprend quand il vaut mieux ne pas répondre.</p>
+      <a class="btn" href="#inscription" data-edit="bareme-cta">Tester avec le vrai barème</a>
+    </div>
+    <div>
+      <table aria-label="Exemples de barèmes officiels">
+        <tr><th>Concours</th><th>Bonne</th><th>Mauvaise</th></tr>
+        <tr><td>Avenir</td><td>+1</td><td class="neg">−1</td></tr>
+        <tr><td>Advance</td><td>+2</td><td class="neg">−0,5</td></tr>
+        <tr><td>Puissance Alpha</td><td>+1</td><td class="neg">−0,5</td></tr>
+        <tr><td>SÉSAME</td><td>+1</td><td>0</td></tr>
+      </table>
+      <p class="legende" data-edit="bareme-legende">Barèmes indicatifs — vérifiés sur les règlements officiels de chaque session.</p>
+    </div>
+  </section>
+
+  <section class="parents">
+    <div class="titre"><h2 data-edit="parents-t">Parents, on a pensé à vous</h2></div>
+    <div><h3 data-edit="p1-t">Gratuit, vraiment</h3><p data-edit="p1-p">L'entraînement est en accès libre : pas de carte bancaire, pas d'abonnement caché.</p></div>
+    <div><h3 data-edit="p2-t">Des données protégées</h3><p data-edit="p2-p">Consentement explicite, autorisation parentale pour les moins de 15 ans, suppression du compte en un clic.</p></div>
+    <div><h3 data-edit="p3-t">Un œil sur la progression</h3><p data-edit="p3-p">Vous recevez un accès en lecture seule pour suivre la régularité et les progrès de votre enfant — et l'encourager.</p></div>
+  </section>
+
+  <section class="final" id="inscription">
+    <h2 data-edit="final-t">Ton concours se prépare maintenant.</h2>
+    <p data-edit="final-p">Crée ton compte en deux minutes et joue ta première session dans la foulée.</p>
+    <a class="btn grand" href="/inscription" data-edit="final-cta">Je me lance !</a>
+  </section>
+
+  <footer>
+    <span data-edit="footer-copy">© Admissible — un service Parkours</span>
+    <nav aria-label="Liens légaux">
+      <a href="/mentions-legales">Mentions légales</a>
+      <a href="/cgu">CGU</a>
+      <a href="/confidentialite">Confidentialité</a>
+      <a href="#" id="gerer-cookies">Gérer les cookies</a>
+      <a href="#" id="mode-admin-lien">Mode admin</a>
+    </nav>
+  </footer>
+</div>
+
+<div class="cookies" id="cookies" role="dialog" aria-label="Consentement aux cookies">
+  <p data-edit="cookies-p">On aimerait mesurer l'audience du site avec des cookies. Rien d'essentiel n'en dépend : tu peux refuser et tout fonctionne pareil. <a href="/confidentialite">En savoir plus</a></p>
+  <div class="choix">
+    <button class="non" id="cookies-non" type="button">Refuser</button>
+    <button class="ok" id="cookies-ok" type="button">Accepter</button>
+  </div>
+</div>
+
+<div class="export-zone" id="export-zone" role="dialog" aria-label="Export des textes">
+  <div class="export-boite">
+    <h3>Textes de la page (JSON)</h3>
+    <textarea id="export-json" readonly></textarea>
+    <div class="actions">
+      <button class="btn discret" id="export-fermer" type="button">Fermer</button>
+      <button class="btn" id="export-copier" type="button">Copier</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ---- Comment ça marche : repliable derrière un bouton discret ----
+  const btnMarche = document.getElementById('voir-marche');
+  const contenu = document.getElementById('marche-contenu');
+  btnMarche.addEventListener('click', () => {
+    const ouvert = contenu.classList.toggle('ouvert');
+    btnMarche.setAttribute('aria-expanded', ouvert);
+    if (ouvert) contenu.scrollIntoView({behavior:'smooth', block:'nearest'});
+  });
+
+  // ---- Mode admin : édition de tous les textes ----
+  // Prototype : l'accès réel sera protégé par l'authentification admin du site,
+  // et les textes persistés en base. Ici, édition en mémoire + export JSON.
+  const editables = document.querySelectorAll('[data-edit]');
+  function activerAdmin(on){
+    document.body.classList.toggle('admin', on);
+    editables.forEach(el => el.setAttribute('contenteditable', on ? 'true' : 'false'));
+  }
+  document.getElementById('mode-admin-lien').addEventListener('click', e => {
+    e.preventDefault();
+    const code = prompt('Code administrateur :');
+    if (code === 'parkours') activerAdmin(true); // prototype — remplacé par l'auth réelle
+    else if (code !== null) alert('Code incorrect.');
+  });
+  document.getElementById('admin-quitter').addEventListener('click', () => activerAdmin(false));
+
+  const zone = document.getElementById('export-zone');
+  document.getElementById('admin-exporter').addEventListener('click', () => {
+    const data = {};
+    editables.forEach(el => data[el.dataset.edit] = el.innerText.trim());
+    document.getElementById('export-json').value = JSON.stringify(data, null, 2);
+    zone.classList.add('ouvert');
+  });
+  document.getElementById('export-fermer').addEventListener('click', () => zone.classList.remove('ouvert'));
+  document.getElementById('export-copier').addEventListener('click', () => {
+    navigator.clipboard.writeText(document.getElementById('export-json').value);
+  });
+
+  // ---- Cookies (prototype : état en mémoire ; l'implémentation réelle persiste le choix) ----
+  const bandeau = document.getElementById('cookies');
+  const fermer = () => { bandeau.style.display = 'none'; };
+  document.getElementById('cookies-ok').addEventListener('click', fermer);
+  document.getElementById('cookies-non').addEventListener('click', fermer);
+  document.getElementById('gerer-cookies').addEventListener('click', e => { e.preventDefault(); bandeau.style.display = 'flex'; });
+</script>
+</body>
+</html>
