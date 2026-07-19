@@ -1,6 +1,10 @@
 -- =============================================================================
--- Seed du référentiel concours (specs §2)
+-- Référentiel concours (specs §2)
 -- =============================================================================
+-- Données de référence, donc migration et non supabase/seed.sql : les 6 concours
+-- doivent exister en production comme en local, et seed.sql n'est joué que par
+-- `supabase db reset` en local. Idempotent (ON CONFLICT DO NOTHING).
+--
 -- ⚠️ Les barèmes ci-dessous sont repris du tableau §2 des specs, qui porte
 -- lui-même l'avertissement : « Barèmes exacts (notamment Avenir) à vérifier sur
 -- le règlement officiel de la session concernée avant affichage aux élèves ».
