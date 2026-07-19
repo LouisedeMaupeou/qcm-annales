@@ -1,26 +1,62 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* =============================================================================
+   Thème Admissible — repris du prototype docs/landing-page-v2.html.
+   Les valeurs sont à caler sur le guide de style Webflow de Parkours quand il
+   sera disponible ; le prototype porte la même réserve sur --primaire.
+   ============================================================================= */
+@theme {
+  --color-primaire: #2563eb;
+  --color-primaire-fonce: #1b4fc4;
+  --color-encre: #12263a; /* titres */
+  --color-texte: #3d4b5c; /* corps de texte */
+  --color-fond-doux: #f1f5fd; /* sections alternées */
+  --color-ligne: #e2e8f3;
+  --color-soleil: #ffc53d; /* accent secondaire */
+  --color-negatif: #c43d2f; /* points négatifs des barèmes */
+
+  --radius-carte: 18px;
+
+  --font-sans: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Ces règles doivent vivre dans @layer base : du CSS écrit hors layer l'emporte
+   sur tout CSS layered, donc un `h1 { color: … }` non layered battrait les
+   utilitaires Tailwind et rendrait `text-white` inopérant sur le titre du hero. */
+@layer base {
+  /* Le fond reprend la photo du hero, très fortement délavée. `fixed` est
+     retiré sous 840px : sur iOS background-attachment: fixed provoque des
+     sauts au scroll, et le front élève doit être fluide sur mobile (§3). */
+  body {
+    color: var(--color-texte);
+    line-height: 1.6;
+    background:
+      linear-gradient(rgba(255, 255, 255, 0.93), rgba(255, 255, 255, 0.93)),
+      url("/hero-eleves.jpg") center / cover no-repeat fixed;
   }
-}
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  @media (max-width: 840px) {
+    body {
+      background-attachment: scroll;
+    }
+  }
+
+  h1,
+  h2,
+  h3 {
+    color: var(--color-encre);
+    line-height: 1.15;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-primaire);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
 }
