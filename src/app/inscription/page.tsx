@@ -1,31 +1,50 @@
 import type { Metadata } from "next";
-import { BoutonLien } from "@/components/bouton";
+import Link from "next/link";
 import { PiedDePage } from "@/components/pied-de-page";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { FormulaireInscription, type ConcoursOption } from "./formulaire";
 
 export const metadata: Metadata = {
-  title: "Inscription — Admissible",
-  robots: { index: false },
+  title: "Créer mon compte — Admissible",
 };
 
-/**
- * Marque-page. Le vrai formulaire (date de naissance, parcours mineur, double
- * opt-in) arrive à l'étape 3 du §12 ; cette page évite que les CTA de la
- * landing pointent vers un 404 pendant la revue.
- */
-export default function Inscription() {
+export const dynamic = "force-dynamic";
+
+export default async function Inscription() {
+  // Lecture avec le service_role : la RLS ferme `concours` aux visiteurs non
+  // connectés (§9), or le formulaire d'inscription en a besoin. Seuls le nom et
+  // la filière sont transmis au navigateur — aucune donnée sensible.
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("concours")
+    .select("id, nom, filiere")
+    .eq("actif", true)
+    .order("filiere")
+    .order("nom");
+
+  const concours = (data ?? []) as ConcoursOption[];
+
   return (
-    <div className="mx-auto flex w-full max-w-[820px] flex-1 flex-col px-[22px]">
-      <main className="flex-1 py-20 text-center">
-        <h1 className="mb-3 text-[clamp(1.8rem,4vw,2.4rem)] font-black">
-          L&apos;inscription arrive
+    <div className="mx-auto flex w-full max-w-[720px] flex-1 flex-col px-[22px]">
+      <header className="py-5">
+        <Link href="/" className="text-encre no-underline">
+          <span className="text-[1.4rem] leading-none font-black tracking-tight">
+            Admissible<span className="text-primaire">.</span>
+          </span>
+        </Link>
+      </header>
+
+      <main className="pb-16">
+        <h1 className="mb-2 text-[clamp(1.8rem,4vw,2.4rem)] font-black">
+          Crée ton compte
         </h1>
-        <p className="mx-auto mb-8 max-w-[48ch]">
-          Le formulaire d&apos;inscription est en cours de développement
-          (étape 3 du plan). En attendant, tu peux revenir à la présentation du
-          site.
+        <p className="mb-8">
+          Gratuit, sans engagement. Deux minutes et tu joues ta première
+          session.
         </p>
-        <BoutonLien href="/">Retour à l&apos;accueil</BoutonLien>
+        <FormulaireInscription concours={concours} />
       </main>
+
       <PiedDePage />
     </div>
   );
