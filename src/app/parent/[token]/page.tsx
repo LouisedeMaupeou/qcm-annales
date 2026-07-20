@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { PiedDePage } from "@/components/pied-de-page";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { empreinteJeton } from "@/lib/parent";
+import { parMatiere, regularite, type SessionJouee } from "@/lib/progression";
 import { BoutonAutoriser } from "./bouton-autoriser";
 
 export const metadata: Metadata = {
@@ -70,11 +71,13 @@ export default async function EspaceParent({
 
   const { data: sessions } = await admin
     .from("sessions")
-    .select("score_normalise, completed_at, epreuves(nom)")
+    .select(
+      "id, concours_id, epreuve_id, score_normalise, points, points_max, nb_questions, nb_correctes, completed_at, concours(nom), epreuves(nom)",
+    )
     .eq("user_id", acces.user_id)
     .not("completed_at", "is", null)
     .order("completed_at", { ascending: false })
-    .limit(50);
+    .limit(200);
 
   // Trace de consultation, sans bloquer le rendu si l'écriture échoue.
   await admin
@@ -87,6 +90,25 @@ export default async function EspaceParent({
     jouees.length > 0
       ? jouees.reduce((s, x) => s + (x.score_normalise ?? 0), 0) / jouees.length
       : null;
+
+  // §5.1 : le parent voit « scores par matière, régularité » — un niveau
+  // d'agrégat, jamais le détail des réponses de l'enfant.
+  const pourAgregats: SessionJouee[] = jouees.map((s) => ({
+    id: s.id as string,
+    concoursId: s.concours_id as string,
+    concoursNom: (s.concours as unknown as { nom: string } | null)?.nom ?? "—",
+    epreuveId: s.epreuve_id as string,
+    epreuveNom: nomEpreuve(s.epreuves),
+    scoreNormalise: Number(s.score_normalise ?? 0),
+    points: Number(s.points ?? 0),
+    pointsMax: Number(s.points_max ?? 0),
+    nbQuestions: s.nb_questions as number,
+    nbCorrectes: s.nb_correctes as number,
+    termineeLe: s.completed_at as string,
+  }));
+
+  const matieres = parMatiere(pourAgregats);
+  const rythme = regularite(pourAgregats);
 
   return (
     <Cadre>
@@ -119,7 +141,7 @@ export default async function EspaceParent({
         </p>
       )}
 
-      <div className="mb-8 grid gap-4 sm:grid-cols-2">
+      <div className="mb-8 grid gap-4 sm:grid-cols-3">
         <Compteur
           valeur={String(jouees.length)}
           libelle={jouees.length <= 1 ? "session jouée" : "sessions jouées"}
@@ -127,6 +149,14 @@ export default async function EspaceParent({
         <Compteur
           valeur={moyenne === null ? "—" : `${Math.round(moyenne * 100)} %`}
           libelle="score moyen"
+        />
+        <Compteur
+          valeur={
+            jouees.length === 0
+              ? "—"
+              : `${rythme.semainesJouees}/${rythme.semainesObservees}`
+          }
+          libelle="semaines actives (2 mois)"
         />
       </div>
 
@@ -137,34 +167,75 @@ export default async function EspaceParent({
             : `Le compte de ${eleve.prenom} n'est pas encore actif.`}
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-carte border border-ligne bg-white">
-          <table className="w-full border-collapse text-[0.95rem]">
-            <thead>
-              <tr className="bg-fond-doux text-left">
-                <th className="px-4 py-3 font-extrabold text-encre">Épreuve</th>
-                <th className="px-4 py-3 font-extrabold text-encre">Score</th>
-                <th className="px-4 py-3 font-extrabold text-encre">Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {jouees.slice(0, 10).map((s, i) => (
-                <tr key={i} className="border-t border-ligne">
-                  <td className="px-4 py-3">{nomEpreuve(s.epreuves)}</td>
-                  <td className="px-4 py-3 font-bold">
-                    {s.score_normalise === null
-                      ? "—"
-                      : `${Math.round(s.score_normalise * 100)} %`}
-                  </td>
-                  <td className="px-4 py-3">
-                    {s.completed_at
-                      ? new Date(s.completed_at).toLocaleDateString("fr-FR")
-                      : "—"}
-                  </td>
+        <>
+          <h2 className="mb-3 text-lg font-extrabold">Par matière</h2>
+          <div className="mb-8 overflow-x-auto rounded-carte border border-ligne bg-white">
+            <table className="w-full border-collapse text-[0.95rem]">
+              <thead>
+                <tr className="bg-fond-doux text-left">
+                  <th className="px-4 py-3 font-extrabold text-encre">Matière</th>
+                  <th className="px-4 py-3 font-extrabold text-encre">Sessions</th>
+                  <th className="px-4 py-3 font-extrabold text-encre">
+                    Score moyen
+                  </th>
+                  <th className="px-4 py-3 font-extrabold text-encre">Tendance</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {matieres.map((m) => (
+                  <tr key={m.epreuveId} className="border-t border-ligne">
+                    <td className="px-4 py-3 font-bold text-encre">
+                      {m.epreuveNom}
+                    </td>
+                    <td className="px-4 py-3 tabular-nums">{m.nbSessions}</td>
+                    <td className="px-4 py-3 tabular-nums">
+                      {Math.round(m.scoreMoyen * 100)} %
+                    </td>
+                    <td className="px-4 py-3">
+                      {m.tendance === "hausse"
+                        ? "en progrès"
+                        : m.tendance === "baisse"
+                          ? "en baisse"
+                          : m.tendance === "stable"
+                            ? "stable"
+                            : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <h2 className="mb-3 text-lg font-extrabold">Dernières sessions</h2>
+          <div className="overflow-x-auto rounded-carte border border-ligne bg-white">
+            <table className="w-full border-collapse text-[0.95rem]">
+              <thead>
+                <tr className="bg-fond-doux text-left">
+                  <th className="px-4 py-3 font-extrabold text-encre">Épreuve</th>
+                  <th className="px-4 py-3 font-extrabold text-encre">Score</th>
+                  <th className="px-4 py-3 font-extrabold text-encre">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {jouees.slice(0, 10).map((s, i) => (
+                  <tr key={i} className="border-t border-ligne">
+                    <td className="px-4 py-3">{nomEpreuve(s.epreuves)}</td>
+                    <td className="px-4 py-3 font-bold tabular-nums">
+                      {s.score_normalise === null
+                        ? "—"
+                        : `${Math.round(s.score_normalise * 100)} %`}
+                    </td>
+                    <td className="px-4 py-3">
+                      {s.completed_at
+                        ? new Date(s.completed_at).toLocaleDateString("fr-FR")
+                        : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       <p className="mt-8 rounded-carte bg-fond-doux p-5 text-[0.95rem]">
