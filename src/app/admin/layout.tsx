@@ -31,11 +31,21 @@ export default async function AdminLayout({
               <Link href="/admin/relecture" className="hover:text-primaire">
                 Relecture
               </Link>
-              {/* §6 : les sections Élèves et Pilotage arrivent à l'étape 8. */}
+              {/* §4 : le contributeur ne voit que le contenu. Les fiches
+                  élèves et le pilotage portent des données personnelles de
+                  mineurs, les barèmes engagent la note affichée. */}
               {role === "admin" && (
-                <Link href="/admin/baremes" className="hover:text-primaire">
-                  Barèmes
-                </Link>
+                <>
+                  <Link href="/admin/eleves" className="hover:text-primaire">
+                    Élèves
+                  </Link>
+                  <Link href="/admin/pilotage" className="hover:text-primaire">
+                    Pilotage
+                  </Link>
+                  <Link href="/admin/baremes" className="hover:text-primaire">
+                    Barèmes
+                  </Link>
+                </>
               )}
             </nav>
           </div>

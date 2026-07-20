@@ -48,17 +48,26 @@ export default async function AdminAccueil() {
           texte="Importer une annale, gérer les épreuves, blocs et questions."
         />
         <Carte
+          href="/admin/relecture"
+          titre="Relecture"
+          texte="Questions sous le seuil de confiance et questions signalées par les élèves."
+        />
+        <Carte
+          href="/admin/eleves"
+          titre="Élèves"
+          texte="Liste filtrable, fiches, actions RGPD et export vers Zoho."
+        />
+        <Carte
+          href="/admin/pilotage"
+          titre="Pilotage"
+          texte="Usage, progression, taux d'annales réalisées et scores moyens."
+        />
+        <Carte
           href="/admin/baremes"
-          titre="Barèmes"
-          texte="Points par concours et par épreuve, taille de session, source officielle."
+          titre="Barèmes et seuils"
+          texte="Points par concours, taille de session, seuil d'auto-publication."
         />
       </div>
-
-      <p className="mt-10 rounded-carte bg-fond-doux p-5 text-sm">
-        Les sections <strong>Élèves</strong> et <strong>Pilotage</strong> du §6,
-        ainsi que la file de relecture et l&apos;import en masse, arrivent aux
-        étapes suivantes du plan de développement.
-      </p>
     </>
   );
 }
