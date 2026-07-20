@@ -58,13 +58,21 @@ Trois concours importés, une même leçon : **les épreuves de langue passent, 
 | Cas | Exemple | Verdict |
 |---|---|---|
 | Texte véritable, prose | anglais Advance et Avenir | extractible |
-| Pages en images | maths Advance (~180 p.) | OCR nécessaire |
-| Texte véritable, notation 2D | maths et sciences Avenir | **illisible une fois linéarisé** |
+| Pages en images | maths Advance, affirmations Puissance Alpha | OCR nécessaire |
+| Texte véritable, notation 2D | maths et sciences Avenir, QCM GEIPI | **illisible une fois linéarisé** |
 
 Le troisième cas est le plus trompeur : le PDF *contient* du texte, le diagnostic
 le déclare exploitable, mais `u_n = (n³+1)/(2n³+5)` ressort en fragments empilés
-et `5,97×10²⁴ kg` devient « 5,97.10kg ». Vérifier le rendu d'une question avant
-d'importer une épreuve scientifique.
+et `5,97×10²⁴ kg` devient « 5,97.10kg ». Le QCM GEIPI y ajoute un doublement de
+caractères (`𝑥𝑥` pour `x`). **Vérifier le rendu d'une question avant d'importer
+une épreuve scientifique** — le diagnostic automatique ne suffit pas.
+
+### Concours examinés mais non importés
+
+| Concours | Motif |
+|---|---|
+| GEIPI Polytech | Seul le QCM maths relève de la V1 (le reste est rédactionnel, type `redaction` en V2), et sa notation ne survit pas à la linéarisation. |
+| Puissance Alpha | Les affirmations sont des images ; le texte extrait ne contient que titres et pied de page. Mention de droits explicite (article L111-1 du CPI). |
 
 ## Base de données
 
@@ -118,9 +126,18 @@ plateforme de déploiement doivent pouvoir joindre `cdn.sheetjs.com`.**
 
 Ces points sont connus et documentés, aucun n'est un oubli :
 
-- [ ] **Barèmes** — tous enregistrés sans source ni date de vérification. Le §2
-      impose de les relever sur le règlement officiel de chaque session avant
-      qu'un élève voie une note. Écran : back-office → Barèmes et seuils.
+- [ ] **Barèmes** — Avenir et Puissance Alpha sont sourcés et datés d'après
+      leurs sujets officiels. Restent à vérifier : ACCÈS, SÉSAME, Advance, et
+      le cas GEIPI ci-dessous. Écran : back-office → Barèmes et seuils.
+- [ ] **GEIPI Polytech : le §2 des specs est faux sur deux points.** Le sujet
+      officiel 2026 décrit un QCM **vrai/faux par affirmation** (et non un choix
+      unique) **avec points négatifs** (et non « pas de points négatifs »),
+      plafonnés par la règle « pour chaque exercice, le total ne peut être
+      strictement négatif ». Ce plancher **par exercice** n'est pas exprimable
+      dans le modèle actuel, qui ne plafonne qu'au niveau de la session.
+      Appliquer les points négatifs sans ce plancher surpénaliserait les élèves,
+      donc le barème reste sans point négatif et non vérifié. À trancher :
+      implémenter un plancher par bloc, ou assumer l'écart.
 - [ ] **Pages légales** — mentions légales, CGU et politique de confidentialité
       sont des trames. Les passages surlignés (raison sociale, SIRET, directeur
       de publication, hébergeur, durées de conservation, clause de
