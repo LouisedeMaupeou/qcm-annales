@@ -76,12 +76,20 @@ export default async function TableauDeBord({
 
         <div className="rounded-carte border border-ligne bg-white p-8 text-center">
           <p className="mb-2 text-lg font-extrabold text-encre">
-            L&apos;entraînement arrive bientôt
+            Prêt à t&apos;entraîner ?
           </p>
-          <p className="mx-auto max-w-[48ch] text-[0.95rem]">
-            Les sessions de questions et le suivi de progression sont en cours
-            de développement. Ton compte est prêt : tu pourras t&apos;entraîner
-            dès leur mise en ligne.
+          <p className="mx-auto mb-6 max-w-[48ch] text-[0.95rem]">
+            Choisis ton concours et joue une session sur des annales
+            officielles, avec le vrai barème.
+          </p>
+          <Link
+            href="/entrainement"
+            className="inline-flex cursor-pointer rounded-full bg-primaire px-8 py-3.5 font-extrabold text-white no-underline transition hover:bg-primaire-fonce"
+          >
+            Commencer une session
+          </Link>
+          <p className="mt-6 text-[0.85rem] opacity-70">
+            Le suivi détaillé de ta progression arrive prochainement.
           </p>
         </div>
       </main>
