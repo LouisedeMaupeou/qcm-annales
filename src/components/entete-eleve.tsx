@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { seDeconnecter } from "@/app/connexion/actions";
 
+const LIEN_NAV =
+  "inline-flex min-h-11 items-center font-bold hover:underline";
+
 /** Bandeau commun aux écrans élève connectés. */
 export function EnteteEleve() {
   return (
@@ -10,18 +13,21 @@ export function EnteteEleve() {
           Admissible<span className="text-primaire">.</span>
         </span>
       </Link>
-      <nav className="flex flex-wrap items-center gap-4 text-sm">
-        <Link href="/entrainement" className="font-bold hover:underline">
+      {/* §3 : les élèves réviseront majoritairement au téléphone. Chaque entrée
+          garde une zone tactile d'au moins 44 px de haut — un lien de texte nu
+          en fait 20 et se rate au pouce. */}
+      <nav className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+        <Link href="/entrainement" className={LIEN_NAV}>
           M&apos;entraîner
         </Link>
-        <Link href="/tableau-de-bord" className="font-bold hover:underline">
+        <Link href="/tableau-de-bord" className={LIEN_NAV}>
           Ma progression
         </Link>
-        <Link href="/compte" className="hover:underline">
+        <Link href="/compte" className={`${LIEN_NAV} font-normal`}>
           Mon compte
         </Link>
-        <form action={seDeconnecter}>
-          <button type="submit" className="cursor-pointer hover:underline">
+        <form action={seDeconnecter} className="flex">
+          <button type="submit" className={`${LIEN_NAV} cursor-pointer font-normal`}>
             Se déconnecter
           </button>
         </form>
