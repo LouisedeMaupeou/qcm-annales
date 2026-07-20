@@ -6,7 +6,7 @@ import { PiedDePage } from "@/components/pied-de-page";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { chargerBareme } from "@/lib/session-entrainement";
-import { coutEvite, formaterPoints } from "@/lib/scoring";
+import { coutEvite, formaterPenalite, formaterPoints } from "@/lib/scoring";
 import { QuestionCorrigee } from "./question-corrigee";
 import { demarrerSession } from "../../../actions";
 
@@ -134,13 +134,17 @@ export default async function Correction({
 
           {session.nb_abstentions > 0 && evite > 0 && (
             <p className="mt-4 rounded-[14px] bg-fond-doux p-4 text-[0.95rem]">
-              En ne répondant pas {session.nb_abstentions} fois, tu as évité
-              jusqu&apos;à{" "}
+              {/* Espaces explicites autour des expressions : collées au texte
+                  voisin, JSX rendait « 2fois ». */}
+              En ne répondant pas{" "}
+              {session.nb_abstentions === 1
+                ? "une fois"
+                : `${session.nb_abstentions} fois`}
+              , tu as évité jusqu&apos;à{" "}
               <strong className="text-encre">
-                {formaterPoints(-evite * session.nb_abstentions)} point
-                {evite * session.nb_abstentions > 1 ? "s" : ""}
+                {formaterPenalite(evite * session.nb_abstentions)}
               </strong>{" "}
-              : sur ce concours, une mauvaise réponse coûte{" "}
+              de pénalité : sur ce concours, une mauvaise réponse coûte{" "}
               {formaterPoints(bareme.pointsMauvaise)}.
             </p>
           )}

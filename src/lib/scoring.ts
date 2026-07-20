@@ -118,6 +118,20 @@ function arrondir(n: number) {
   return Math.round(n * 100) / 100;
 }
 
+/**
+ * Formate une pénalité évitée, en valeur absolue et accordée.
+ *
+ * « tu as évité jusqu'à −1 point » se lit comme une double négation : on
+ * annonce donc un montant positif, qualifié de pénalité par la phrase.
+ */
+export function formaterPenalite(n: number): string {
+  const valeur = Math.abs(Math.round(n * 100) / 100);
+  const texte = Number.isInteger(valeur)
+    ? String(valeur)
+    : valeur.toFixed(2).replace(/0$/, "").replace(".", ",");
+  return `${texte} point${valeur > 1 ? "s" : ""}`;
+}
+
 /** Formatage français des points, sans décimale inutile. */
 export function formaterPoints(n: number): string {
   const arrondi = arrondir(n);

@@ -40,6 +40,10 @@ node --env-file=.env.local scripts/creer-admin.mjs <email> <motdepasse> [admin|c
 
 # Importer l'annale ACCÈS 2025 du POC
 node --env-file=.env.local scripts/seed-acces-2025.mjs
+
+# Importer l'annale Advance 2026 (anglais ; les PDF de maths sont archivés
+# mais leurs pages sont des images, cf. commentaire en tête du script)
+node --env-file=.env.local scripts/importer-advance-2026.mjs <dossier-des-pdf>
 ```
 
 ## Base de données
@@ -109,6 +113,15 @@ Ces points sont connus et documentés, aucun n'est un oubli :
       `contributeur.test@` et les sessions de démonstration.
 - [ ] **Figures manquantes** — 3 questions de l'annale ACCÈS 2025 exigent une
       illustration absente ; elles sont en file de relecture et non jouables.
+- [ ] **Advance : deux questions « 22 » par test** — le sujet source numérote
+      deux fois la question 22 et n'a pas de 23, dans les trois tests d'anglais.
+      Six questions sont en file de relecture : il faut décider laquelle prend
+      quelle entrée du corrigé. L'une d'elles n'a par ailleurs que trois
+      propositions et un corrigé désignant une quatrième inexistante.
+- [ ] **Advance : mathématiques non transcrites** — les deux PDF (spécialité et
+      complémentaires, ~180 pages) ont des pages en images. Leur transcription
+      demande un OCR de notation mathématique, hors périmètre V1 (§3), ou une
+      saisie manuelle via l'import XLSX du back-office.
 
 ## Périmètre livré
 

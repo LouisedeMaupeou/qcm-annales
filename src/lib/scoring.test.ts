@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   coutEvite,
   evaluer,
+  formaterPenalite,
   pointsDe,
   totaliser,
   type Bareme,
@@ -133,6 +134,16 @@ test("score normalisé : comparable entre barèmes différents", () => {
   assert.equal(advance.points, 3.5);
   assert.equal(acces.scoreNormalise, 0.25);
   assert.equal(advance.scoreNormalise, 0.4375);
+});
+
+test("pénalité évitée : montant positif et accord du pluriel", () => {
+  // Une double négation (« évité −1 point ») se lit mal : on annonce un
+  // montant positif, la phrase le qualifiant de pénalité.
+  assert.equal(formaterPenalite(1), "1 point");
+  assert.equal(formaterPenalite(2), "2 points");
+  assert.equal(formaterPenalite(0.5), "0,5 point");
+  assert.equal(formaterPenalite(1.5), "1,5 points");
+  assert.equal(formaterPenalite(-3), "3 points");
 });
 
 test("totaux : session vide ne divise pas par zéro", () => {
