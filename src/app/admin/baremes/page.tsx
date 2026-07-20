@@ -1,12 +1,19 @@
 import { exigerAdmin } from "@/lib/admin";
 import { createClient } from "@/lib/supabase/server";
 import { CarteBareme } from "./carte";
+import { ReglageSeuil } from "./seuil";
 
 export const dynamic = "force-dynamic";
 
 export default async function Baremes() {
   await exigerAdmin();
   const supabase = await createClient();
+
+  const { data: parametre } = await supabase
+    .from("parametres")
+    .select("valeur")
+    .eq("cle", "seuil_confiance")
+    .maybeSingle();
 
   const { data: concours } = await supabase
     .from("concours")
@@ -34,7 +41,7 @@ export default async function Baremes() {
 
   return (
     <>
-      <h1 className="mb-2 text-3xl font-black">Barèmes</h1>
+      <h1 className="mb-2 text-3xl font-black">Barèmes et seuils</h1>
       <p className="mb-6 max-w-[70ch]">
         Points attribués par réponse et taille de session, par concours. Ces
         valeurs déterminent la note affichée aux élèves.
@@ -51,6 +58,12 @@ export default async function Baremes() {
           source et la date de vérification une fois le contrôle fait.
         </p>
       )}
+
+      <div className="mb-8">
+        <ReglageSeuil seuil={Number(parametre?.valeur ?? 90)} />
+      </div>
+
+      <h2 className="mb-4 text-xl font-black">Barèmes par concours</h2>
 
       <div className="space-y-5">
         {lignes.map(({ concours: c, bareme }) =>

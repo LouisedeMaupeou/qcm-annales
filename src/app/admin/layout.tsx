@@ -28,6 +28,9 @@ export default async function AdminLayout({
               <Link href="/admin/annales" className="hover:text-primaire">
                 Annales
               </Link>
+              <Link href="/admin/relecture" className="hover:text-primaire">
+                Relecture
+              </Link>
               {/* §6 : les sections Élèves et Pilotage arrivent à l'étape 8. */}
               {role === "admin" && (
                 <Link href="/admin/baremes" className="hover:text-primaire">

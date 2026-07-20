@@ -6,6 +6,38 @@ import { exigerAdmin } from "@/lib/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export type EtatBareme = { message?: string; enregistre?: boolean };
+export type EtatSeuil = { message?: string; enregistre?: boolean };
+
+/** §6.1 : « ≥ 90 % (configurable) ». */
+export async function enregistrerSeuil(
+  _precedent: EtatSeuil,
+  donnees: FormData,
+): Promise<EtatSeuil> {
+  await exigerAdmin();
+
+  const analyse = z.coerce
+    .number()
+    .int("Le seuil doit être un entier.")
+    .min(0, "Le seuil va de 0 à 100.")
+    .max(100, "Le seuil va de 0 à 100.")
+    .safeParse(donnees.get("seuil"));
+
+  if (!analyse.success) {
+    return { message: analyse.error.issues[0]?.message };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("parametres")
+    .update({ valeur: String(analyse.data), maj_le: new Date().toISOString() })
+    .eq("cle", "seuil_confiance");
+
+  if (error) return { message: `Enregistrement impossible : ${error.message}` };
+
+  revalidatePath("/admin/baremes");
+  revalidatePath("/admin/relecture");
+  return { enregistre: true };
+}
 
 const schema = z.object({
   baremeId: z.uuid(),

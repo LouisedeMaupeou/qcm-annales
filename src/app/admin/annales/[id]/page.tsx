@@ -112,9 +112,17 @@ export default async function DetailAnnale({
           ← Annales
         </Link>
       </p>
-      <h1 className="mb-1 text-3xl font-black">
-        {concours} {annale.annee}
-      </h1>
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-4">
+        <h1 className="text-3xl font-black">
+          {concours} {annale.annee}
+        </h1>
+        <Link
+          href={`/admin/annales/${id}/import`}
+          className="cursor-pointer rounded-full bg-primaire px-7 py-3 font-extrabold text-white no-underline transition hover:bg-primaire-fonce"
+        >
+          Import en masse
+        </Link>
+      </div>
       <p className="mb-8 text-sm">
         {annale.statut} ·{" "}
         {annale.format_source === "deux_documents"
