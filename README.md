@@ -44,7 +44,27 @@ node --env-file=.env.local scripts/seed-acces-2025.mjs
 # Importer l'annale Advance 2026 (anglais ; les PDF de maths sont archivés
 # mais leurs pages sont des images, cf. commentaire en tête du script)
 node --env-file=.env.local scripts/importer-advance-2026.mjs <dossier-des-pdf>
+
+# Importer les annales Avenir 2025 et 2026 (anglais ; maths, sciences et
+# physique archivés seulement, leur notation ne survit pas à l'extraction)
+node --env-file=.env.local scripts/importer-avenir.mjs <dossier-des-pdf>
 ```
+
+### Ce qui s'extrait d'un PDF, et ce qui ne s'extrait pas
+
+Trois concours importés, une même leçon : **les épreuves de langue passent, les
+épreuves scientifiques non.**
+
+| Cas | Exemple | Verdict |
+|---|---|---|
+| Texte véritable, prose | anglais Advance et Avenir | extractible |
+| Pages en images | maths Advance (~180 p.) | OCR nécessaire |
+| Texte véritable, notation 2D | maths et sciences Avenir | **illisible une fois linéarisé** |
+
+Le troisième cas est le plus trompeur : le PDF *contient* du texte, le diagnostic
+le déclare exploitable, mais `u_n = (n³+1)/(2n³+5)` ressort en fragments empilés
+et `5,97×10²⁴ kg` devient « 5,97.10kg ». Vérifier le rendu d'une question avant
+d'importer une épreuve scientifique.
 
 ## Base de données
 
@@ -122,6 +142,18 @@ Ces points sont connus et documentés, aucun n'est un oubli :
       complémentaires, ~180 pages) ont des pages en images. Leur transcription
       demande un OCR de notation mathématique, hors périmètre V1 (§3), ou une
       saisie manuelle via l'import XLSX du back-office.
+- [ ] **Avenir : droits de reproduction** — les corrigés de la session 2025
+      portent « Propriété exclusive du Concours Avenir. Reproduction
+      interdite. ». L'import a été autorisé explicitement par le responsable du
+      projet, qui a déclaré disposer des droits. À documenter par écrit avant
+      mise en ligne publique.
+- [ ] **Avenir : barème variable selon la session** — +3 / −1 en 2025, +1 / −1 en 2026,
+      les deux énoncés dans les sujets officiels. Le schéma ne portant qu'un
+      barème par concours × épreuve, c'est celui de 2026 qui s'applique à tout.
+      Si l'écart devient gênant, il faudra une dimension année sur `baremes`.
+- [ ] **Avenir : mathématiques, sciences et physique non transcrites** — leur
+      notation scientifique ne survit pas à la linéarisation du texte et les
+      figures sont absentes. PDF archivés, saisie manuelle à prévoir.
 
 ## Périmètre livré
 

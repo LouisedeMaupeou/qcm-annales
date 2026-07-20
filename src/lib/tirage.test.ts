@@ -81,6 +81,36 @@ test("pool vide : session vide, sans planter", () => {
   assert.equal(r.reduite, true);
 });
 
+test("un gros bloc reste servi à hauteur de ce qu'il représente", () => {
+  // Cas réel rencontré sur Avenir : 70 questions isolées et un texte de
+  // compréhension de 10 questions. Sans pondération par la taille, le gros bloc
+  // ne pouvait ouvrir la session que s'il sortait premier parmi 72, et 22 % du
+  // contenu n'était servi que dans 3 % des sessions.
+  const blocs = [
+    ...Array.from({ length: 70 }, (_, i) => bloc(`g${i}`, 1)),
+    bloc("lecture", 10),
+  ];
+
+  let questionsServies = 0;
+  let questionsDeLecture = 0;
+  const N = 3000;
+  for (let i = 0; i < N; i++) {
+    const r = tirerSession(blocs, 10);
+    questionsServies += r.nbQuestions;
+    questionsDeLecture += r.blocs
+      .filter((b) => b.id === "lecture")
+      .reduce((s, b) => s + b.taille, 0);
+  }
+
+  const partServie = questionsDeLecture / questionsServies;
+  const partDuStock = 10 / 80;
+  // Tolérance large : c'est l'ordre de grandeur qui compte, pas la décimale.
+  assert.ok(
+    Math.abs(partServie - partDuStock) < 0.04,
+    `le bloc de 10 représente ${(partDuStock * 100).toFixed(0)} % du stock mais ${(partServie * 100).toFixed(0)} % des questions servies`,
+  );
+});
+
 test("deux tirages successifs ne donnent pas le même ordre", () => {
   const candidats = Array.from({ length: 12 }, (_, i) => bloc(`b${i}`, 1));
   const a = tirerSession(candidats, 5, fixe([0.1, 0.9, 0.3, 0.7, 0.5]));

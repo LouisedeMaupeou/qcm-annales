@@ -65,21 +65,36 @@ export function tirerSession(
 }
 
 /**
- * Les blocs jamais vus passent devant, puis les moins vus. À nombre de vues
- * égal, l'ordre est aléatoire — sans quoi un élève rejouerait toujours la même
- * session dans le même ordre.
+ * Ordonne les blocs par tirage pondéré sans remise.
+ *
+ * Le poids d'un bloc est proportionnel à sa taille, et inversement
+ * proportionnel au nombre de fois où l'élève l'a déjà vu.
+ *
+ * La taille compte, et ce n'est pas cosmétique. Un bloc n'étant retenu que s'il
+ * tient entièrement dans la place restante, un gros bloc ne peut être servi que
+ * s'il arrive en tête. À poids égal par *bloc*, un bloc de 10 questions parmi 70
+ * blocs d'une question n'était tiré que dans 3 % des sessions : un cinquième du
+ * contenu devenait pratiquement inatteignable. En pondérant par la taille, la
+ * probabilité qu'un bloc ouvre la session devient proportionnelle au nombre de
+ * questions qu'il apporte — chaque *question* a donc une chance comparable
+ * d'être servie, ce qui est l'équité recherchée.
+ *
+ * La clé suit la méthode d'Efraimidis-Spirakis : trier par −ln(U)/poids revient
+ * à échantillonner sans remise proportionnellement au poids.
  */
 function ordonnerParPriorite(
   blocs: BlocTirable[],
   aleatoire: () => number,
 ): BlocTirable[] {
   return [...blocs]
-    .map((bloc) => ({
-      bloc,
-      // Poids décroissant avec le nombre de vues, jamais nul : un bloc déjà vu
-      // reste tirable, il est seulement moins probable (§5.3.3).
-      cle: (1 + bloc.vues) * (0.35 + aleatoire()),
-    }))
+    .map((bloc) => {
+      // Jamais nul : un bloc déjà vu reste tirable, seulement moins probable
+      // (§5.3.3).
+      const poids = bloc.taille / (1 + bloc.vues);
+      // Borne basse sur le tirage uniforme : ln(0) diverge.
+      const u = Math.min(Math.max(aleatoire(), 1e-9), 1 - 1e-9);
+      return { bloc, cle: -Math.log(u) / poids };
+    })
     .sort((a, b) => a.cle - b.cle)
     .map((x) => x.bloc);
 }
