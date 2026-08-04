@@ -29,14 +29,10 @@ const TABLES_CLES = [
 ] as const;
 
 /** Compte les lignes d'une table sans les rapatrier (head + count exact). */
-async function compter(
-  db: SupabaseClient,
-  table: string,
-  filtre?: (q: ReturnType<SupabaseClient["from"]>) => unknown,
-) {
-  let requete = db.from(table).select("*", { count: "exact", head: true });
-  if (filtre) requete = filtre(requete) as typeof requete;
-  const { count, error } = await requete;
+async function compter(db: SupabaseClient, table: string) {
+  const { count, error } = await db
+    .from(table)
+    .select("*", { count: "exact", head: true });
   if (error) throw new Error(error.message);
   return count ?? 0;
 }
@@ -213,18 +209,24 @@ async function construireVoyants(): Promise<Voyant[]> {
       if (eB) throw new Error(eB.message);
       const ids = (blocs ?? []).map((b) => b.id);
 
-      const total = ids.length
-        ? await compter(admin, "questions", (q) =>
-            (q as ReturnType<SupabaseClient["from"]>).in("bloc_id", ids),
-          )
-        : 0;
-      const publiees = ids.length
-        ? await compter(admin, "questions", (q) =>
-            (q as ReturnType<SupabaseClient["from"]>)
-              .in("bloc_id", ids)
-              .eq("statut", "publie"),
-          )
-        : 0;
+      let total = 0;
+      let publiees = 0;
+      if (ids.length) {
+        const { count: cTotal, error: eT } = await admin
+          .from("questions")
+          .select("*", { count: "exact", head: true })
+          .in("bloc_id", ids);
+        if (eT) throw new Error(eT.message);
+        total = cTotal ?? 0;
+
+        const { count: cPub, error: eP } = await admin
+          .from("questions")
+          .select("*", { count: "exact", head: true })
+          .in("bloc_id", ids)
+          .eq("statut", "publie");
+        if (eP) throw new Error(eP.message);
+        publiees = cPub ?? 0;
+      }
 
       voyants.push({
         titre: "Données du POC ACCÈS 2025",
