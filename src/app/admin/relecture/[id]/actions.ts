@@ -61,7 +61,7 @@ export async function deciderRelecture(
 
   const { data: question } = await supabase
     .from("questions")
-    .select("type, bloc_id")
+    .select("type, bloc_id, explication_origine")
     .eq("id", d.id)
     .single();
 
@@ -81,6 +81,13 @@ export async function deciderRelecture(
     return { message: "Impossible de marquer relue une explication vide." };
   }
 
+  // Contrainte explication_a_une_origine : une explication non nulle doit porter
+  // une origine. On garde l'origine « generee » d'une explication IA relue ;
+  // une explication saisie ici sur une question qui n'en avait pas est humaine.
+  const explicationOrigine = explication
+    ? ((question.explication_origine as string | null) ?? "humaine")
+    : null;
+
   const maintenant = new Date().toISOString();
 
   const { error } = await supabase
@@ -89,6 +96,7 @@ export async function deciderRelecture(
       enonce: d.enonce,
       chapitre: d.chapitre,
       explication,
+      explication_origine: explicationOrigine,
       explication_relue: explication ? d.explicationRelue : false,
       // La validation humaine lève la réserve d'extraction : c'est tout l'objet
       // du passage en file.
