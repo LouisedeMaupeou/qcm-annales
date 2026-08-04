@@ -11,7 +11,6 @@ const PUBLIQUES = [
   "/mentions-legales",
   "/cgu",
   "/confidentialite",
-  "/health",
 ];
 
 /** L'espace parent s'authentifie par son jeton d'URL, pas par une session. */

@@ -1,6 +1,7 @@
 import "server-only";
 import type { Metadata } from "next";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { exigerAdmin } from "@/lib/admin";
 
 // Page de contrôle d'infrastructure (§12, fin d'étape 1). Cinq voyants vérifiés
 // à chaque chargement : configuration, connexion au projet, clé service_role,
@@ -266,6 +267,10 @@ const LIBELLE: Record<Etat, string> = {
 };
 
 export default async function PageSante() {
+  // Réservée aux administrateurs : la page révèle l'état de l'infrastructure et
+  // les volumes en base. exigerAdmin redirige tout le reste (§4).
+  await exigerAdmin();
+
   const voyants = await construireVoyants();
   const nbOk = voyants.filter((v) => v.etat === "ok").length;
   const global: Etat = voyants.some((v) => v.etat === "ko")
@@ -339,8 +344,8 @@ export default async function PageSante() {
         </ul>
 
         <p className="mt-6 text-xs text-texte">
-          Page rechargée à chaque visite (aucun cache). Non indexée, non liée
-          depuis le site — à retirer ou protéger avant la mise en production.
+          Réservée aux administrateurs. Rechargée à chaque visite (aucun cache),
+          non indexée, non liée depuis le site.
         </p>
       </main>
     </div>
