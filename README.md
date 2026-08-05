@@ -67,12 +67,21 @@ et `5,97×10²⁴ kg` devient « 5,97.10kg ». Le QCM GEIPI y ajoute un doubleme
 caractères (`𝑥𝑥` pour `x`). **Vérifier le rendu d'une question avant d'importer
 une épreuve scientifique** — le diagnostic automatique ne suffit pas.
 
-### Concours examinés mais non importés
+### Concours importés en base (hors seed committé)
 
-| Concours | Motif |
-|---|---|
-| GEIPI Polytech | Seul le QCM maths relève de la V1 (le reste est rédactionnel, type `redaction` en V2), et sa notation ne survit pas à la linéarisation. |
-| Puissance Alpha | Les affirmations sont des images ; le texte extrait ne contient que titres et pied de page. Mention de droits explicite (article L111-1 du CPI). |
+Ces imports ont été faits **directement en base** (scripts service_role ad hoc, non
+committés) : contrairement au seed ACCÈS, ils ne sont pas reproductibles depuis le
+dépôt seul.
+
+| Concours | Contenu | Modélisation · barème |
+|---|---|---|
+| GEIPI Polytech | QCM maths 2023-2026 (115 questions), reconstruit depuis les corrigés officiels | 1 affirmation = 1 question `choix_unique` Vrai/Faux ; +1/−1. Le plancher de points par exercice de GEIPI n'est pas exprimable (écart assumé). |
+| Puissance Alpha | QCM maths : générale 2022 & 2025 (saisie manuelle depuis les corrigés), technologique 2024 (reconstruction partielle du texte extractible), banque « entraînement inédit » 2026 | Filières = épreuves distinctes ; +1/−0,5. Droits de reproduction autorisés par le responsable projet, à documenter (§8.9). |
+| SÉSAME | QCM « aptitudes numériques » 2019 (30 questions), étiqueté **entraînement** | `choix_unique` à 4 options ; +1/0. |
+
+**Restent non importés** : les épreuves rédactionnelles (type `redaction`, V2), les
+affirmations Puissance Alpha *générale* restées en images (OCR requis pour la part
+non saisie à la main) et tout exercice dépendant d'une figure absente.
 
 ## Base de données
 
