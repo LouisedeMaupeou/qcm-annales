@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { repondre } from "../../actions";
+import { formaterMath } from "@/lib/notation-math";
 import type { QuestionJouable } from "@/lib/session-entrainement";
 
 /**
@@ -46,12 +47,12 @@ export function CarteQuestion({
 
       {question.enonceCommun && (
         <p className="mb-4 rounded-[14px] bg-fond-doux p-4 text-[0.95rem]">
-          {question.enonceCommun}
+          {formaterMath(question.enonceCommun)}
         </p>
       )}
 
       <p className="mb-6 text-[1.05rem] whitespace-pre-line text-encre">
-        {question.enonce}
+        {formaterMath(question.enonce)}
       </p>
 
       {question.type === "choix_unique" ? (
@@ -74,7 +75,7 @@ export function CarteQuestion({
                 onChange={() => setChoix(p.id)}
                 className="mt-1 size-4.5 shrink-0 accent-primaire"
               />
-              <span>{p.texte}</span>
+              <span>{formaterMath(p.texte)}</span>
             </label>
           ))}
         </fieldset>
@@ -92,7 +93,7 @@ export function CarteQuestion({
               <legend className="sr-only">Proposition {i + 1}</legend>
               <p className="mb-3 flex gap-2.5">
                 <span className="font-black text-encre">{i + 1}</span>
-                <span>{p.texte}</span>
+                <span>{formaterMath(p.texte)}</span>
               </p>
               <div className="flex gap-2">
                 {(["vrai", "faux"] as const).map((v) => {

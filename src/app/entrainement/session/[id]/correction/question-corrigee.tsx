@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { signalerErreur, type EtatSignalement } from "../../../actions";
 import { formaterPoints } from "@/lib/scoring";
+import { formaterMath } from "@/lib/notation-math";
 
 type Question = {
   questionId: string;
@@ -54,7 +55,7 @@ export function QuestionCorrigee({
           {formaterPoints(question.points)}
         </span>
         <span className="line-clamp-1 flex-1 text-[0.9rem]">
-          {question.enonce}
+          {formaterMath(question.enonce)}
         </span>
         <span aria-hidden className="opacity-50">
           {ouvert ? "▲" : "▼"}
@@ -64,7 +65,7 @@ export function QuestionCorrigee({
       {ouvert && (
         <div className="border-t border-ligne p-5">
           <p className="mb-4 whitespace-pre-line text-[0.95rem] text-encre">
-            {question.enonce}
+            {formaterMath(question.enonce)}
           </p>
 
           <ul className="mb-4 space-y-2">
@@ -85,7 +86,7 @@ export function QuestionCorrigee({
                 Explication
               </p>
               <p className="text-[0.95rem] whitespace-pre-line">
-                {question.explication}
+                {formaterMath(question.explication)}
               </p>
             </div>
           ) : (
@@ -144,7 +145,7 @@ function Proposition({
       <div className="flex flex-wrap items-start gap-2.5">
         <span className="font-black text-encre">{index + 1}</span>
         <span className="min-w-[160px] flex-1 text-[0.95rem]">
-          {proposition.texte}
+          {formaterMath(proposition.texte)}
         </span>
 
         {type === "vrai_faux" ? (
