@@ -1,25 +1,41 @@
 import React from "react";
 
 /**
- * Rend les exposants notés « ^ » en vrais exposants (<sup>), à l'affichage.
+ * Rend à l'affichage les notations mathématiques peu lisibles en texte brut,
+ * sans jamais modifier les données (réversible) :
  *
- * Les données stockent déjà en exposant Unicode les cas simples (e⁵, x², eᵃ) ;
- * ne subsistent en « ^ » que les exposants qu'aucun caractère Unicode ne sait
- * écrire — π, ln, fractions, racines, exposants imbriqués. `<sup>`, lui, accepte
- * n'importe quel contenu, y compris imbriqué. Aucune donnée n'est modifiée.
+ *   ^   exposant   → <sup>   e^(iπ/12), x^4, imbriqués e^(1/2^(n−1))
+ *   _   indice     → <sub>   P_B(A), x_A, z_C
+ *   ·   produit    → ×       UNIQUEMENT hors contexte vectoriel
  *
- * Formes reconnues :
- *   e^(iπ/12)      → e + exposant « iπ/12 »          (parenthèses, profondeur gérée)
- *   e^x, x^4, 2^n  → base + exposant d'un seul token
- *   e^(1/2^(n−1))  → exposant lui-même exposé (récursif)
+ * Deux pièges, vérifiés dans les données réelles :
+ *
+ *  - « _ » sert aussi de trou à compléter dans les questions d'anglais
+ *    (« The __________ for… »). Une SUITE de « _ » est donc laissée telle
+ *    quelle ; seul un « _ » isolé introduit un indice.
+ *  - « · » entre vecteurs est un produit scalaire (u⃗ · v⃗) : le passer en « × »
+ *    en ferait un produit vectoriel, une faute. On ne convertit donc que les
+ *    « · » sans flèche de vecteur à proximité.
  */
 
-type Noeud = string | { sup: Noeud[] };
+const FLECHE = "⃗"; // ⃗ combinante (marque un vecteur)
+
+/** « · »/« ⋅ » → « × », sauf s'il y a une flèche de vecteur à proximité. */
+function multiplication(s: string): string {
+  return s.replace(/[·⋅]/g, (m, i: number) => {
+    const fenetre = s.slice(Math.max(0, i - 3), i + 4);
+    return fenetre.includes(FLECHE) ? m : "×";
+  });
+}
+
+type Noeud = string | { haut: Noeud[] } | { bas: Noeud[] };
+
+const TOKEN = /^[A-Za-zÀ-ÿ0-9π]+/;
 
 function tokeniser(texte: string): Noeud[] {
   const sortie: Noeud[] = [];
   let tampon = "";
-  const viderTampon = () => {
+  const vider = () => {
     if (tampon) {
       sortie.push(tampon);
       tampon = "";
@@ -28,69 +44,77 @@ function tokeniser(texte: string): Noeud[] {
 
   let i = 0;
   while (i < texte.length) {
-    if (texte[i] !== "^") {
-      tampon += texte[i];
-      i += 1;
+    const c = texte[i];
+
+    // Suite de « _ » : un trou à compléter (anglais), jamais un indice.
+    if (c === "_" && texte[i + 1] === "_") {
+      let j = i;
+      while (j < texte.length && texte[j] === "_") j += 1;
+      tampon += texte.slice(i, j);
+      i = j;
       continue;
     }
 
-    // Un « ^ » : on ferme le texte courant et on lit l'exposant.
-    if (texte[i + 1] === "(") {
-      // Exposant parenthésé : on cherche la parenthèse fermante correspondante.
-      let profondeur = 0;
-      let j = i + 1;
-      for (; j < texte.length; j += 1) {
-        if (texte[j] === "(") profondeur += 1;
-        else if (texte[j] === ")") {
-          profondeur -= 1;
-          if (profondeur === 0) break;
+    if (c === "^" || c === "_") {
+      const clef = c === "^" ? "haut" : "bas";
+
+      if (texte[i + 1] === "(") {
+        let profondeur = 0;
+        let j = i + 1;
+        for (; j < texte.length; j += 1) {
+          if (texte[j] === "(") profondeur += 1;
+          else if (texte[j] === ")") {
+            profondeur -= 1;
+            if (profondeur === 0) break;
+          }
         }
-      }
-      if (j < texte.length) {
-        viderTampon();
-        sortie.push({ sup: tokeniser(texte.slice(i + 2, j)) });
-        i = j + 1;
+        if (j < texte.length) {
+          vider();
+          sortie.push({ [clef]: tokeniser(texte.slice(i + 2, j)) } as Noeud);
+          i = j + 1;
+          continue;
+        }
+        tampon += c;
+        i += 1;
         continue;
       }
-      // Parenthèse jamais fermée : on garde le « ^ » littéral.
-      tampon += texte[i];
+
+      const m = TOKEN.exec(texte.slice(i + 1));
+      if (m) {
+        vider();
+        sortie.push({ [clef]: [m[0]] } as Noeud);
+        i += 1 + m[0].length;
+        continue;
+      }
+
+      tampon += c;
       i += 1;
       continue;
     }
 
-    // Exposant d'un seul token : lettres, chiffres, π (mais pas un signe, qui
-    // en notation sans parenthèses appartient au niveau de base : e^x−1).
-    const m = /^[A-Za-zÀ-ÿ0-9π]+/.exec(texte.slice(i + 1));
-    if (m) {
-      viderTampon();
-      sortie.push({ sup: [m[0]] });
-      i += 1 + m[0].length;
-      continue;
-    }
-
-    tampon += texte[i];
+    tampon += c;
     i += 1;
   }
 
-  viderTampon();
+  vider();
   return sortie;
 }
 
 function enNoeuds(noeuds: Noeud[], cle: string): React.ReactNode[] {
-  return noeuds.map((n, k) =>
-    typeof n === "string" ? (
-      <React.Fragment key={`${cle}-${k}`}>{n}</React.Fragment>
-    ) : (
-      <sup key={`${cle}-${k}`}>{enNoeuds(n.sup, `${cle}-${k}`)}</sup>
-    ),
-  );
+  return noeuds.map((n, k) => {
+    if (typeof n === "string")
+      return <React.Fragment key={`${cle}-${k}`}>{n}</React.Fragment>;
+    if ("haut" in n)
+      return <sup key={`${cle}-${k}`}>{enNoeuds(n.haut, `${cle}-${k}`)}</sup>;
+    return <sub key={`${cle}-${k}`}>{enNoeuds(n.bas, `${cle}-${k}`)}</sub>;
+  });
 }
 
-/** Rend un texte mathématique avec ses exposants ; renvoie le texte tel quel s'il n'y a pas de « ^ ». */
+/** Rend un texte mathématique ; renvoie la chaîne inchangée s'il n'y a rien à traiter. */
 export function formaterMath(
   texte: string | null | undefined,
 ): React.ReactNode {
   if (!texte) return texte ?? null;
-  if (!texte.includes("^")) return texte;
-  return enNoeuds(tokeniser(texte), "m");
+  if (!/[\^_·⋅]/.test(texte)) return texte;
+  return enNoeuds(tokeniser(multiplication(texte)), "m");
 }
