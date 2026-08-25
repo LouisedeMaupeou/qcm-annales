@@ -75,7 +75,6 @@ export function FiltresListe({
           { valeur: "", libelle: "Tous" },
           { valeur: "actifs", libelle: "Actifs" },
           { valeur: "inactifs", libelle: "Inactifs" },
-          { valeur: "attente_parent", libelle: "Attente parent" },
         ]}
       />
 

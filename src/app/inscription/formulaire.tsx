@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useId, useState } from "react";
+import { useActionState, useId } from "react";
 import { inscrire, type EtatInscription } from "./actions";
-import { parcoursAge } from "@/lib/validation";
 
 export type ConcoursOption = {
   id: string;
@@ -25,13 +24,8 @@ export function FormulaireInscription({
     inscrire,
     {},
   );
-  const [dateNaissance, setDateNaissance] = useState("");
 
   if (etat.succes) return <Confirmation {...etat.succes} />;
-
-  // Prévient l'élève de moins de 15 ans avant l'envoi : le compte ne sera pas
-  // utilisable tout de suite (§5.1).
-  const parcours = dateNaissance ? parcoursAge(dateNaissance) : null;
 
   const groupes = (["commerce", "ingenieur"] as const)
     .map((f) => ({
@@ -71,25 +65,8 @@ export function FormulaireInscription({
           libelle="Date de naissance"
           type="date"
           autoComplete="bday"
-          aide="Elle détermine si l'accord d'un parent est nécessaire."
           erreurs={etat.erreurs?.dateNaissance}
-          onChange={(e) => setDateNaissance(e.target.value)}
         />
-
-        {parcours === "moins_de_15" && (
-          <p className="rounded-carte border-2 border-soleil bg-soleil/10 p-4 text-sm">
-            Tu as moins de 15 ans : ton compte sera créé, mais il restera{" "}
-            <strong>inactif tant qu&apos;un parent n&apos;aura pas donné son
-            accord</strong> depuis l&apos;email que nous lui enverrons. Vérifie
-            bien son adresse plus bas.
-          </p>
-        )}
-        {parcours === "mineur_15_17" && (
-          <p className="rounded-carte bg-fond-doux p-4 text-sm">
-            Tu pourras utiliser ton compte dès que tu auras confirmé ton adresse
-            email. Un de tes parents sera simplement informé de ton inscription.
-          </p>
-        )}
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Champ
@@ -123,16 +100,6 @@ export function FormulaireInscription({
           autoComplete="new-password"
           aide="8 caractères minimum."
           erreurs={etat.erreurs?.motDePasse}
-        />
-      </Groupe>
-
-      <Groupe titre="Ton parent">
-        <Champ
-          nom="emailParent"
-          libelle="Adresse email d'un parent"
-          type="email"
-          aide="Elle sert à recueillir son accord si tu as moins de 15 ans, et à lui donner un accès en lecture seule à ta progression. Elle n'est pas utilisée à d'autres fins."
-          erreurs={etat.erreurs?.emailParent}
         />
       </Groupe>
 
@@ -210,31 +177,19 @@ export function FormulaireInscription({
   );
 }
 
-function Confirmation({
-  parcours,
-  emailParent,
-}: NonNullable<EtatInscription["succes"]>) {
+function Confirmation({ email }: NonNullable<EtatInscription["succes"]>) {
   return (
     <div className="rounded-carte border border-ligne bg-white p-8">
       <h2 className="mb-3 text-2xl font-black">Ton compte est créé</h2>
       <p className="mb-4">
-        Nous venons de t&apos;envoyer un email : clique sur le lien qu&apos;il
-        contient pour confirmer ton adresse.
+        Nous venons d&apos;envoyer un email à <strong>{email}</strong> : clique
+        sur le lien qu&apos;il contient pour confirmer ton adresse, et ton compte
+        sera actif.
       </p>
-      {parcours === "moins_de_15" && (
-        <p className="rounded-carte border-2 border-soleil bg-soleil/10 p-4 text-sm">
-          Comme tu as moins de 15 ans, un email a aussi été envoyé à{" "}
-          <strong>{emailParent}</strong> pour demander son accord. Ton compte
-          s&apos;activera une fois les deux étapes faites.
-        </p>
-      )}
-      {parcours === "mineur_15_17" && (
-        <p className="rounded-carte bg-fond-doux p-4 text-sm">
-          Un email d&apos;information a également été envoyé à{" "}
-          <strong>{emailParent}</strong>, avec un accès en lecture seule à ta
-          progression.
-        </p>
-      )}
+      <p className="rounded-carte bg-fond-doux p-4 text-sm">
+        Pas d&apos;email dans quelques minutes ? Pense à vérifier tes courriers
+        indésirables.
+      </p>
     </div>
   );
 }

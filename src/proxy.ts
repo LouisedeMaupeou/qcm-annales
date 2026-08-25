@@ -13,8 +13,8 @@ const PUBLIQUES = [
   "/confidentialite",
 ];
 
-/** L'espace parent s'authentifie par son jeton d'URL, pas par une session. */
-const PREFIXES_PUBLICS = ["/parent/", "/auth/"];
+/** Les liens de confirmation/réinitialisation portent leur propre jeton. */
+const PREFIXES_PUBLICS = ["/auth/"];
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -57,14 +57,10 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Avoir une session ne suffit pas : le compte doit être actif.
-  //
-  // Sans ce contrôle, un élève de moins de 15 ans dont le parent n'a pas encore
-  // autorisé l'inscription entrerait malgré tout — la confirmation d'adresse
-  // email ouvre une session, et vérifier `actif` uniquement à la connexion
-  // laisse cette porte ouverte. Le §5.1 impose que le compte reste inutilisable
-  // jusqu'à l'accord parental, donc le contrôle appartient à la requête, pas au
-  // seul formulaire de connexion.
+  // Avoir une session ne suffit pas : le compte doit être actif, c'est-à-dire
+  // l'adresse email confirmée (et le compte non suspendu). Le contrôle appartient
+  // à la requête et non au seul formulaire de connexion : un compte peut être
+  // désactivé pendant une session déjà ouverte.
   //
   // La lecture passe par la politique users_select_self : pas besoin du
   // service_role ici.

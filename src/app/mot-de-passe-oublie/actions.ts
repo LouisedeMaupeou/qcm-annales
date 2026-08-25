@@ -2,7 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { emailReinitialisation, envoyerEmail } from "@/lib/emails";
-import { urlSite } from "@/lib/parent";
+import { urlSite } from "@/lib/site";
 import { schemaEmail } from "@/lib/validation";
 
 export type EtatOubli = { envoye?: boolean; message?: string };

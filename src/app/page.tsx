@@ -63,12 +63,12 @@ const PARENTS = [
   {
     titre: "Des données protégées",
     texte:
-      "Consentement explicite, autorisation parentale pour les moins de 15 ans, suppression du compte en un clic.",
+      "Consentement explicite au moment de l'inscription et suppression du compte en un clic, à tout moment.",
   },
   {
-    titre: "Un œil sur la progression",
+    titre: "Un entraînement sérieux",
     texte:
-      "Vous recevez un accès en lecture seule pour suivre la régularité et les progrès de votre enfant — et l'encourager.",
+      "Des annales officielles, les vrais barèmes et un suivi de progression — pour réviser dans les conditions du concours.",
   },
 ];
 

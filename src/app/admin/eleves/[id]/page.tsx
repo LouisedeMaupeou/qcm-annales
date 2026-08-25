@@ -2,16 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { exigerAdmin } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { ageAns, parcoursAge } from "@/lib/validation";
+import { ageAns } from "@/lib/validation";
 import { ActionsEleve } from "./actions-eleve";
 
 export const dynamic = "force-dynamic";
-
-const PARCOURS = {
-  moins_de_15: "moins de 15 ans — accord parental obligatoire",
-  mineur_15_17: "mineur de 15 à 17 ans — parent informé",
-  majeur: "majeur",
-} as const;
 
 /** §6.2 : fiche élève — coordonnées, consentements horodatés, historique. */
 export default async function FicheEleve({
@@ -26,14 +20,14 @@ export default async function FicheEleve({
   const { data: eleve } = await admin
     .from("users")
     .select(
-      "id, email, nom, prenom, date_naissance, ville, etablissement, email_parent, consent_marketing, consent_marketing_date, cgu_acceptees_date, email_verifie, autorisation_parentale, actif, suspendu, created_at, role",
+      "id, email, nom, prenom, date_naissance, ville, etablissement, consent_marketing, consent_marketing_date, cgu_acceptees_date, email_verifie, actif, suspendu, created_at, role",
     )
     .eq("id", id)
     .maybeSingle();
 
   if (!eleve || eleve.role !== "eleve") notFound();
 
-  const [{ data: vises }, { data: sessions }, { data: acces }, { data: signalements }] =
+  const [{ data: vises }, { data: sessions }, { data: signalements }] =
     await Promise.all([
       admin.from("user_concours_vises").select("concours(nom)").eq("user_id", id),
       admin
@@ -45,11 +39,6 @@ export default async function FicheEleve({
         .not("completed_at", "is", null)
         .order("completed_at", { ascending: false })
         .limit(30),
-      admin
-        .from("parent_access")
-        .select("email_parent, dernier_acces, expires_at")
-        .eq("user_id", id)
-        .maybeSingle(),
       admin
         .from("signalements")
         .select("id, motif, created_at, traite")
@@ -66,8 +55,6 @@ export default async function FicheEleve({
     jouees.length > 0
       ? jouees.reduce((s, x) => s + Number(x.score_normalise ?? 0), 0) / jouees.length
       : null;
-
-  const parcours = parcoursAge(eleve.date_naissance);
 
   return (
     <>
@@ -90,11 +77,10 @@ export default async function FicheEleve({
             <dl className="space-y-2 text-[0.95rem]">
               <Ligne libelle="Date de naissance">
                 {new Date(eleve.date_naissance).toLocaleDateString("fr-FR")} (
-                {ageAns(eleve.date_naissance)} ans — {PARCOURS[parcours]})
+                {ageAns(eleve.date_naissance)} ans)
               </Ligne>
               <Ligne libelle="Ville">{eleve.ville ?? "—"}</Ligne>
               <Ligne libelle="Établissement">{eleve.etablissement ?? "—"}</Ligne>
-              <Ligne libelle="Email du parent">{eleve.email_parent ?? "—"}</Ligne>
               <Ligne libelle="Concours visés">
                 {concours.join(", ") || "aucun"}
               </Ligne>
@@ -117,32 +103,7 @@ export default async function FicheEleve({
               <Ligne libelle="Adresse email confirmée">
                 {eleve.email_verifie ? "oui" : "non"}
               </Ligne>
-              <Ligne libelle="Autorisation parentale">
-                {eleve.autorisation_parentale}
-              </Ligne>
             </dl>
-          </Section>
-
-          <Section titre="Accès parent">
-            {acces ? (
-              <dl className="space-y-2 text-[0.95rem]">
-                <Ligne libelle="Adresse">{acces.email_parent}</Ligne>
-                <Ligne libelle="Dernière consultation">
-                  {acces.dernier_acces
-                    ? new Date(acces.dernier_acces).toLocaleString("fr-FR")
-                    : "jamais"}
-                </Ligne>
-                <Ligne libelle="Expire le">
-                  {acces.expires_at
-                    ? new Date(acces.expires_at).toLocaleDateString("fr-FR")
-                    : "—"}
-                </Ligne>
-              </dl>
-            ) : (
-              <p className="text-[0.95rem]">
-                Aucun accès parent — l&apos;élève était majeur à l&apos;inscription.
-              </p>
-            )}
           </Section>
 
           <Section titre={`Historique (${jouees.length} session${jouees.length > 1 ? "s" : ""})`}>
@@ -210,7 +171,7 @@ export default async function FicheEleve({
                 ? "Compte désactivé par un administrateur."
                 : eleve.actif
                   ? "Compte actif."
-                  : "Compte inactif : double opt-in ou autorisation parentale en attente."}
+                  : "Compte inactif : adresse email pas encore confirmée."}
             </p>
             {moyenne !== null && (
               <p className="mt-3 text-[0.95rem]">

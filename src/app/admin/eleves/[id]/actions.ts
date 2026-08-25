@@ -6,7 +6,7 @@ import { z } from "zod";
 import { exigerAdmin } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { emailReinitialisation, envoyerEmail } from "@/lib/emails";
-import { urlSite } from "@/lib/parent";
+import { urlSite } from "@/lib/site";
 
 export type EtatAction = { message?: string; succes?: string };
 

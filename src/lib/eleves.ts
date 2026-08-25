@@ -14,7 +14,7 @@ export type FiltresEleves = {
   recherche?: string;
   concoursId?: string;
   consentement?: "oui" | "non";
-  statut?: "actifs" | "inactifs" | "attente_parent";
+  statut?: "actifs" | "inactifs";
 };
 
 export type LigneEleve = {
@@ -25,12 +25,10 @@ export type LigneEleve = {
   dateNaissance: string;
   ville: string | null;
   etablissement: string | null;
-  emailParent: string | null;
   consentMarketing: boolean;
   consentMarketingDate: string | null;
   cguAccepteesDate: string | null;
   emailVerifie: boolean;
-  autorisationParentale: string;
   actif: boolean;
   suspendu: boolean;
   creeLe: string;
@@ -51,7 +49,7 @@ export async function chargerEleves(
       admin
         .from("users")
         .select(
-          "id, email, nom, prenom, date_naissance, ville, etablissement, email_parent, consent_marketing, consent_marketing_date, cgu_acceptees_date, email_verifie, autorisation_parentale, actif, suspendu, created_at",
+          "id, email, nom, prenom, date_naissance, ville, etablissement, consent_marketing, consent_marketing_date, cgu_acceptees_date, email_verifie, actif, suspendu, created_at",
         )
         .eq("role", "eleve")
         .order("created_at", { ascending: false }),
@@ -90,12 +88,10 @@ export async function chargerEleves(
       dateNaissance: u.date_naissance,
       ville: u.ville,
       etablissement: u.etablissement,
-      emailParent: u.email_parent,
       consentMarketing: u.consent_marketing,
       consentMarketingDate: u.consent_marketing_date,
       cguAccepteesDate: u.cgu_acceptees_date,
       emailVerifie: u.email_verifie,
-      autorisationParentale: u.autorisation_parentale,
       actif: u.actif,
       suspendu: u.suspendu,
       creeLe: u.created_at,
@@ -131,8 +127,6 @@ export async function chargerEleves(
     lignes = lignes.filter((l) => l.actif);
   } else if (filtres.statut === "inactifs") {
     lignes = lignes.filter((l) => !l.actif);
-  } else if (filtres.statut === "attente_parent") {
-    lignes = lignes.filter((l) => l.autorisationParentale === "en_attente");
   }
 
   return lignes;

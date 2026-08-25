@@ -40,9 +40,7 @@ export async function GET(request: NextRequest) {
         ? (p.get("consentement") as "oui" | "non")
         : undefined,
     statut:
-      p.get("statut") === "actifs" ||
-      p.get("statut") === "inactifs" ||
-      p.get("statut") === "attente_parent"
+      p.get("statut") === "actifs" || p.get("statut") === "inactifs"
         ? (p.get("statut") as FiltresEleves["statut"])
         : undefined,
   };
@@ -56,7 +54,6 @@ export async function GET(request: NextRequest) {
     Prénom: e.prenom,
     Nom: e.nom,
     Email: e.email,
-    "Email du parent": e.emailParent ?? "",
     "Date de naissance": jour(e.dateNaissance),
     Ville: e.ville ?? "",
     Établissement: e.etablissement ?? "",
@@ -65,7 +62,6 @@ export async function GET(request: NextRequest) {
     "Date du consentement": horodatage(e.consentMarketingDate),
     "CGU acceptées le": horodatage(e.cguAccepteesDate),
     "Inscrit le": horodatage(e.creeLe),
-    "Autorisation parentale": e.autorisationParentale,
     "Compte actif": e.actif ? "oui" : "non",
     "Nombre de sessions": e.nbSessions,
     "Score moyen (%)": e.scoreMoyen === null ? "" : Math.round(e.scoreMoyen * 100),

@@ -91,38 +91,6 @@ export function emailConfirmationEleve(prenom: string, url: string) {
   };
 }
 
-/**
- * Parent d'un élève de moins de 15 ans : autorisation *bloquante*. Le message
- * doit expliquer le site, demander l'autorisation, et donner l'accès à
- * l'espace parent (§5.1).
- */
-export function emailAutorisationParent(prenom: string, url: string) {
-  return {
-    sujet: `${prenom} souhaite s'inscrire sur Admissible — votre autorisation est nécessaire`,
-    html: gabarit(
-      "Votre autorisation est nécessaire",
-      `<p><strong>${prenom}</strong> vient de créer un compte sur Admissible, une plateforme gratuite d'entraînement aux concours post-bac à partir d'annales officielles : l'élève joue des séries de questions corrigées et suit sa progression matière par matière.</p>
-       <p>Votre enfant ayant moins de 15 ans, la loi française nous impose de recueillir votre accord avant toute utilisation. <strong>Son compte reste inactif tant que vous n'avez pas cliqué ci-dessous.</strong></p>
-       <p>Le même lien vous donnera ensuite accès, en lecture seule, au suivi de sa progression. Vous n'aurez pas de mot de passe à créer.</p>`,
-      { url, texte: "Autoriser et voir la progression" },
-    ),
-  };
-}
-
-/** Parent d'un élève de 15 à 17 ans : information, sans blocage (§5.1). */
-export function emailInformationParent(prenom: string, url: string) {
-  return {
-    sujet: `${prenom} s'est inscrit sur Admissible`,
-    html: gabarit(
-      "Votre enfant s'entraîne sur Admissible",
-      `<p><strong>${prenom}</strong> vient de créer un compte sur Admissible, une plateforme gratuite d'entraînement aux concours post-bac à partir d'annales officielles.</p>
-       <p>Vous n'avez rien à faire : à partir de 15 ans, l'inscription ne requiert pas votre autorisation. Nous vous informons simplement, et nous vous donnons un accès en lecture seule au suivi de sa progression — sans mot de passe à créer.</p>
-       <p>Aidez-le à garder le rythme : la régularité compte davantage que la durée des séances.</p>`,
-      { url, texte: "Voir sa progression" },
-    ),
-  };
-}
-
 /** Réinitialisation de mot de passe. */
 export function emailReinitialisation(url: string) {
   return {

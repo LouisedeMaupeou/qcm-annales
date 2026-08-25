@@ -31,7 +31,7 @@ export default function Confidentialite() {
       <p>À la création du compte élève :</p>
       <ul>
         <li>identité : nom, prénom, date de naissance ;</li>
-        <li>contact : adresse email de l&apos;élève, adresse email d&apos;un parent ;</li>
+        <li>contact : adresse email de l&apos;élève ;</li>
         <li>scolarité : ville, établissement scolaire, concours visés ;</li>
         <li>
           consentements : acceptation des CGU et, séparément, consentement
@@ -55,16 +55,6 @@ export default function Confidentialite() {
           sessions, tableau de bord) — exécution du contrat.
         </li>
         <li>
-          <strong>Recueillir l&apos;autorisation du parent</strong> pour les
-          élèves de moins de 15 ans, et informer le parent pour les 15-17 ans —
-          obligation légale (article 8 du RGPD, seuil français de 15 ans).
-        </li>
-        <li>
-          <strong>Donner au parent un accès en lecture seule</strong> à la
-          progression de son enfant — intérêt légitime du parent au suivi de la
-          scolarité de son enfant mineur.
-        </li>
-        <li>
           <strong>Communications commerciales</strong> sur les offres de{" "}
           <ACompleter>entité destinataire</ACompleter> — consentement, recueilli
           par une case décochée par défaut et distincte de l&apos;acceptation des
@@ -77,27 +67,19 @@ export default function Confidentialite() {
         </li>
       </ul>
 
-      <h2>Pourquoi nous demandons l&apos;email d&apos;un parent</h2>
+      <h2>Mineurs</h2>
       <p>
-        L&apos;adresse email du parent est obligatoire à l&apos;inscription car
-        le public de la plateforme est majoritairement mineur. Elle sert à deux
-        choses, et à rien d&apos;autre :
+        La plateforme s&apos;adresse à un public majoritairement mineur.
+        L&apos;inscription se fait sans recueil du consentement d&apos;un parent.
       </p>
-      <ul>
-        <li>
-          si l&apos;élève a <strong>moins de 15 ans</strong>, à demander
-          l&apos;autorisation parentale sans laquelle le compte reste inactif ;
-        </li>
-        <li>
-          à transmettre au parent un lien d&apos;accès personnel lui permettant
-          de consulter, <strong>en lecture seule</strong>, la progression de son
-          enfant. Cet accès ne permet aucune action sur le compte de
-          l&apos;élève.
-        </li>
-      </ul>
-      <p>
-        L&apos;adresse du parent n&apos;est pas utilisée à des fins commerciales
-        sans son propre consentement.
+      <p className="text-sm opacity-80">
+        <ACompleter>
+          À faire valider par un conseil : le RGPD (article 8, seuil français de
+          15 ans) impose en principe le consentement d&apos;un titulaire de
+          l&apos;autorité parentale pour un inscrit de moins de 15 ans. Le
+          mécanisme de recueil de ce consentement, ou une barrière d&apos;âge,
+          reste à définir avant l&apos;ouverture au public.
+        </ACompleter>
       </p>
 
       <h2>Destinataires</h2>
@@ -145,7 +127,7 @@ export default function Confidentialite() {
         d&apos;effacement, de limitation, d&apos;opposition et de portabilité.
         L&apos;élève peut supprimer son compte à tout moment depuis son espace :
         la suppression efface le compte et l&apos;ensemble des données liées
-        (sessions, réponses, signalements, accès parent).
+        (sessions, réponses, signalements).
       </p>
       <p>
         Pour exercer ces droits :{" "}
@@ -171,8 +153,7 @@ export default function Confidentialite() {
       <h2>Sécurité</h2>
       <p>
         Les mots de passe sont stockés hachés. L&apos;accès aux données est
-        cloisonné par rôle au niveau de la base. Les accès parents reposent sur
-        un lien personnel à durée limitée, sans mot de passe à gérer.
+        cloisonné par rôle au niveau de la base.
       </p>
 
       <p className="pt-4">

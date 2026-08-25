@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
- * Point d'arrivée des liens envoyés par email : double opt-in (§5.1) et
+ * Point d'arrivée des liens envoyés par email : double opt-in et
  * réinitialisation de mot de passe.
  */
 export async function GET(request: NextRequest) {
@@ -31,29 +31,21 @@ export async function GET(request: NextRequest) {
     return redirige(request, "/reinitialiser");
   }
 
-  // Double opt-in confirmé. Le trigger users_calculer_actif décide ensuite si
-  // le compte devient actif : pour un moins de 15 ans, l'autorisation
-  // parentale reste attendue (§5.1).
+  // Double opt-in confirmé : le trigger users_calculer_actif active le compte
+  // dès que l'email est vérifié (et le compte non suspendu).
   const admin = createAdminClient();
   const { data: profil } = await admin
     .from("users")
     .update({ email_verifie: true })
     .eq("id", data.user.id)
-    .select("actif, autorisation_parentale")
+    .select("actif")
     .single();
 
-  // verifyOtp a ouvert une session. Si le compte n'est pas encore utilisable —
-  // typiquement un moins de 15 ans en attente de l'accord parental (§5.1) — on
-  // la referme aussitôt plutôt que de laisser une session valide sur un compte
-  // inactif.
+  // verifyOtp a ouvert une session. Si le compte reste inutilisable (compte
+  // suspendu par un admin), on la referme aussitôt.
   if (profil && !profil.actif) {
     await supabase.auth.signOut();
-    return redirige(
-      request,
-      profil.autorisation_parentale === "en_attente"
-        ? "/inscription/en-attente"
-        : "/connexion?erreur=compte_inactif",
-    );
+    return redirige(request, "/connexion?erreur=compte_inactif");
   }
 
   return redirige(request, "/tableau-de-bord?bienvenue=1");

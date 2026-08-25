@@ -22,7 +22,7 @@ export default async function Compte() {
   const { data: profil } = await supabase
     .from("users")
     .select(
-      "prenom, nom, email, ville, etablissement, email_parent, consent_marketing, consent_marketing_date, cgu_acceptees_date, autorisation_parentale",
+      "prenom, nom, email, ville, etablissement, consent_marketing, consent_marketing_date, cgu_acceptees_date",
     )
     .eq("id", user.id)
     .single();
@@ -52,7 +52,6 @@ export default async function Compte() {
             <Ligne libelle="Email" valeur={profil?.email} />
             <Ligne libelle="Ville" valeur={profil?.ville} />
             <Ligne libelle="Établissement" valeur={profil?.etablissement} />
-            <Ligne libelle="Email du parent" valeur={profil?.email_parent} />
           </dl>
         </section>
 
@@ -80,9 +79,8 @@ export default async function Compte() {
             Supprimer mon compte
           </h2>
           <p className="mb-5 text-[0.95rem]">
-            Ton compte, tes sessions, tes résultats et l&apos;accès de ton
-            parent seront définitivement effacés. Cette action est
-            irréversible.
+            Ton compte, tes sessions et tes résultats seront définitivement
+            effacés. Cette action est irréversible.
           </p>
           <FormulaireSuppression />
         </section>

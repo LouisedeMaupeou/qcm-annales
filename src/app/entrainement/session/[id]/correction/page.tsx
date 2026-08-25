@@ -90,10 +90,10 @@ export default async function Correction({
   const concours = (session.concours as unknown as { nom: string } | null)?.nom;
   const epreuve = (session.epreuves as unknown as { nom: string } | null)?.nom;
 
-  const taux =
-    session.nb_questions > 0
-      ? Math.round((session.nb_correctes / session.nb_questions) * 100)
-      : 0;
+  // Indicateur unique dans toute l'app : le score au barème (normalisé), le
+  // même que celui du tableau de bord — pour ne pas afficher deux « % » qui
+  // divergent (une session pouvait montrer 60 % ici et 20 % là).
+  const scorePct = Math.round(Number(session.score_normalise ?? 0) * 100);
 
   const evite = coutEvite(bareme);
   const chapitres = [
@@ -114,19 +114,20 @@ export default async function Correction({
           {concours} · {epreuve}
         </p>
 
-        {/* §2.4 : points bruts selon le barème officiel + taux de bonnes réponses */}
+        {/* §2.4 : score au barème officiel, indicateur unique de l'app. Les
+            points bruts et le nombre de bonnes réponses restent en détail. */}
         <section className="mb-6 rounded-carte border border-ligne bg-white p-6">
           <p className="text-4xl font-black text-encre">
-            {formaterPoints(Number(session.points ?? 0))}{" "}
-            <span className="text-xl font-bold opacity-60">
-              point{Math.abs(Number(session.points ?? 0)) > 1 ? "s" : ""} sur{" "}
-              {Number(session.points_max ?? 0)} possibles
-            </span>
+            {scorePct} %{" "}
+            <span className="text-xl font-bold opacity-60">au barème</span>
           </p>
           <p className="mt-2">
+            {formaterPoints(Number(session.points ?? 0))} point
+            {Math.abs(Number(session.points ?? 0)) > 1 ? "s" : ""} sur{" "}
+            {Number(session.points_max ?? 0)} possibles ·{" "}
             {session.nb_correctes} bonne{session.nb_correctes > 1 ? "s" : ""}{" "}
             réponse{session.nb_correctes > 1 ? "s" : ""} sur{" "}
-            {session.nb_questions} — soit {taux} %
+            {session.nb_questions}
             {session.nb_abstentions > 0 && (
               <> · {session.nb_abstentions} abstention{session.nb_abstentions > 1 ? "s" : ""}</>
             )}

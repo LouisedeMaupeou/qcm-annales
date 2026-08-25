@@ -10,19 +10,6 @@ export function ageAns(dateNaissance: string | Date): number {
   return age;
 }
 
-/**
- * §5.1 : sous 15 ans le consentement parental est bloquant (seuil français de
- * l'article 8 du RGPD) ; de 15 à 17 ans le parent est informé sans blocage.
- */
-export type ParcoursAge = "moins_de_15" | "mineur_15_17" | "majeur";
-
-export function parcoursAge(dateNaissance: string | Date): ParcoursAge {
-  const age = ageAns(dateNaissance);
-  if (age < 15) return "moins_de_15";
-  if (age < 18) return "mineur_15_17";
-  return "majeur";
-}
-
 const MOTIF_MOT_DE_PASSE = "Le mot de passe doit faire au moins 8 caractères.";
 
 export const schemaInscription = z
@@ -44,7 +31,6 @@ export const schemaInscription = z
       .trim()
       .min(1, "L'établissement est obligatoire.")
       .max(160),
-    emailParent: z.email("Adresse email du parent invalide."),
     concoursVises: z
       .array(z.uuid())
       .min(1, "Choisis au moins un concours visé."),
@@ -52,11 +38,6 @@ export const schemaInscription = z
     cguAcceptees: z.literal(true, {
       message: "Tu dois accepter les CGU pour créer un compte.",
     }),
-  })
-  .refine((d) => d.email.toLowerCase() !== d.emailParent.toLowerCase(), {
-    path: ["emailParent"],
-    message:
-      "L'adresse du parent doit être différente de la tienne : c'est elle qui reçoit l'autorisation et le suivi.",
   });
 
 export type DonneesInscription = z.infer<typeof schemaInscription>;

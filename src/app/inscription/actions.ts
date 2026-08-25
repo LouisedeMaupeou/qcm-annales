@@ -1,19 +1,14 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import {
-  emailAutorisationParent,
-  emailConfirmationEleve,
-  emailInformationParent,
-  envoyerEmail,
-} from "@/lib/emails";
-import { creerJetonParent, urlEspaceParent, urlSite } from "@/lib/parent";
-import { parcoursAge, schemaInscription } from "@/lib/validation";
+import { emailConfirmationEleve, envoyerEmail } from "@/lib/emails";
+import { urlSite } from "@/lib/site";
+import { schemaInscription } from "@/lib/validation";
 
 export type EtatInscription = {
   erreurs?: Record<string, string[]>;
   message?: string;
-  succes?: { parcours: ReturnType<typeof parcoursAge>; emailParent: string };
+  succes?: { email: string };
 };
 
 export async function inscrire(
@@ -28,7 +23,6 @@ export async function inscrire(
     dateNaissance: String(donnees.get("dateNaissance") ?? ""),
     ville: String(donnees.get("ville") ?? ""),
     etablissement: String(donnees.get("etablissement") ?? ""),
-    emailParent: String(donnees.get("emailParent") ?? "").trim(),
     concoursVises: donnees.getAll("concoursVises").map(String),
     consentMarketing: donnees.get("consentMarketing") === "on",
     cguAcceptees: donnees.get("cguAcceptees") === "on",
@@ -41,11 +35,11 @@ export async function inscrire(
   const d = analyse.data;
 
   const admin = createAdminClient();
-  const parcours = parcoursAge(d.dateNaissance);
   const maintenant = new Date().toISOString();
 
   // Le compte auth est créé sans confirmation : c'est notre lien de double
-  // opt-in, envoyé plus bas, qui la déclenchera (§5.1).
+  // opt-in, envoyé plus bas, qui l'activera. Version simplifiée : plus de
+  // consentement parental, quel que soit l'âge.
   const { data: cree, error: erreurAuth } = await admin.auth.admin.createUser({
     email: d.email,
     password: d.motDePasse,
@@ -80,13 +74,11 @@ export async function inscrire(
       date_naissance: d.dateNaissance,
       ville: d.ville,
       etablissement: d.etablissement,
-      email_parent: d.emailParent,
       consent_marketing: d.consentMarketing,
       consent_marketing_date: d.consentMarketing ? maintenant : null,
       cgu_acceptees_date: maintenant,
       email_verifie: false,
-      autorisation_parentale:
-        parcours === "moins_de_15" ? "en_attente" : "non_requise",
+      autorisation_parentale: "non_requise",
     });
     if (erreurProfil) throw new Error(erreurProfil.message);
 
@@ -99,20 +91,6 @@ export async function inscrire(
         })),
       );
     if (erreurConcours) throw new Error(erreurConcours.message);
-
-    // Accès parent : créé pour tous les mineurs (§5.1). Un majeur n'a pas de
-    // parent à informer, et l'email parent reste alors inutilisé.
-    let lienParent: string | null = null;
-    if (parcours !== "majeur") {
-      const { jeton, empreinte } = creerJetonParent();
-      const { error: erreurParent } = await admin.from("parent_access").insert({
-        user_id: idUtilisateur,
-        email_parent: d.emailParent,
-        token_hash: empreinte,
-      });
-      if (erreurParent) throw new Error(erreurParent.message);
-      lienParent = urlEspaceParent(jeton);
-    }
 
     // Double opt-in élève : Supabase fabrique le lien, nous l'envoyons via
     // Resend pour garder une identité visuelle cohérente sur tous les emails.
@@ -133,16 +111,7 @@ export async function inscrire(
       emailConfirmationEleve(d.prenom, urlConfirmation),
     );
 
-    if (lienParent) {
-      await envoyerEmail(
-        d.emailParent,
-        parcours === "moins_de_15"
-          ? emailAutorisationParent(d.prenom, lienParent)
-          : emailInformationParent(d.prenom, lienParent),
-      );
-    }
-
-    return { succes: { parcours, emailParent: d.emailParent } };
+    return { succes: { email: d.email } };
   } catch (e) {
     await admin.auth.admin.deleteUser(idUtilisateur);
     console.error("Inscription échouée, compte annulé :", e);

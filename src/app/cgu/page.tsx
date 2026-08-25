@@ -21,20 +21,15 @@ export default function Cgu() {
       <h2>2. Accès au service</h2>
       <p>
         L&apos;inscription est libre et gratuite. Elle requiert une adresse
-        email valide, qui doit être confirmée par l&apos;utilisateur, ainsi que
-        l&apos;adresse email d&apos;un parent ou responsable légal.
+        email valide, que l&apos;utilisateur confirme par un lien : le compte
+        devient actif une fois l&apos;adresse confirmée.
       </p>
-      <p>
-        <strong>Élèves de moins de 15 ans :</strong> conformément à la
-        réglementation française, le compte reste inactif tant que le
-        responsable légal n&apos;a pas donné son autorisation via le lien qui
-        lui est adressé par email.
-      </p>
-      <p>
-        <strong>Élèves de 15 à 17 ans :</strong> le compte est activé après
-        confirmation de l&apos;adresse email de l&apos;élève. Le responsable
-        légal est informé de l&apos;inscription et reçoit un accès en lecture
-        seule à la progression.
+      <p className="text-sm opacity-80">
+        <ACompleter>
+          Mineurs de moins de 15 ans : mécanisme de consentement parental ou
+          barrière d&apos;âge à définir avec un conseil (RGPD, article 8) avant
+          l&apos;ouverture au public.
+        </ACompleter>
       </p>
 
       <h2>3. Compte et mot de passe</h2>
@@ -44,15 +39,7 @@ export default function Cgu() {
         strictement personnel.
       </p>
 
-      <h2>4. Espace parent</h2>
-      <p>
-        Le responsable légal accède, par un lien personnel, à la progression de
-        l&apos;élève : scores par matière et régularité. Cet accès est en
-        lecture seule ; il ne permet ni de modifier le compte, ni de jouer des
-        sessions, ni de consulter le détail des réponses.
-      </p>
-
-      <h2>5. Contenu des annales</h2>
+      <h2>4. Contenu des annales</h2>
       <p>
         Les questions sont issues d&apos;annales officielles de concours. Malgré
         le soin apporté à leur transcription et à leur relecture, des erreurs
@@ -67,14 +54,14 @@ export default function Cgu() {
         concours, ni mandaté par elles.
       </p>
 
-      <h2>6. Absence de garantie de résultat</h2>
+      <h2>5. Absence de garantie de résultat</h2>
       <p>
         La plateforme est un outil d&apos;entraînement. Aucun résultat à un
         concours n&apos;est garanti. Les scores obtenus sur la plateforme ne
         préjugent pas des résultats réels.
       </p>
 
-      <h2>7. Comportement de l&apos;utilisateur</h2>
+      <h2>6. Comportement de l&apos;utilisateur</h2>
       <p>Il est interdit de :</p>
       <ul>
         <li>
@@ -88,7 +75,7 @@ export default function Cgu() {
         </li>
       </ul>
 
-      <h2>8. Suspension et suppression</h2>
+      <h2>7. Suspension et suppression</h2>
       <p>
         L&apos;éditeur peut suspendre ou supprimer un compte en cas de
         manquement aux présentes conditions,{" "}
@@ -102,14 +89,14 @@ export default function Cgu() {
         <Link href="/confidentialite">politique de confidentialité</Link>.
       </p>
 
-      <h2>9. Données personnelles</h2>
+      <h2>8. Données personnelles</h2>
       <p>
         Le traitement des données personnelles est décrit dans la{" "}
         <Link href="/confidentialite">politique de confidentialité</Link>, qui
         fait partie intégrante des présentes conditions.
       </p>
 
-      <h2>10. Évolution du service et des conditions</h2>
+      <h2>9. Évolution du service et des conditions</h2>
       <p>
         L&apos;éditeur peut faire évoluer la plateforme et les présentes
         conditions. Les utilisateurs sont informés des modifications
@@ -117,7 +104,7 @@ export default function Cgu() {
         <ACompleter>préciser le canal et le délai de préavis</ACompleter>.
       </p>
 
-      <h2>11. Responsabilité</h2>
+      <h2>10. Responsabilité</h2>
       <p>
         <ACompleter>
           Clause de limitation de responsabilité à rédiger avec un conseil : le
@@ -126,7 +113,7 @@ export default function Cgu() {
         </ACompleter>
       </p>
 
-      <h2>12. Droit applicable</h2>
+      <h2>11. Droit applicable</h2>
       <p>
         Les présentes conditions sont soumises au droit français. En cas de
         litige, et à défaut de résolution amiable,{" "}

@@ -23,9 +23,7 @@ export default async function SectionEleves({
         ? params.consentement
         : undefined,
     statut:
-      params.statut === "actifs" ||
-      params.statut === "inactifs" ||
-      params.statut === "attente_parent"
+      params.statut === "actifs" || params.statut === "inactifs"
         ? params.statut
         : undefined,
   };
@@ -46,8 +44,7 @@ export default async function SectionEleves({
     actifs30j: tous.filter(
       (e) => e.derniereActivite && new Date(e.derniereActivite) >= il30j,
     ).length,
-    attenteParent: tous.filter((e) => e.autorisationParentale === "en_attente")
-      .length,
+    nonConfirmes: tous.filter((e) => !e.emailVerifie).length,
   };
 
   const repartition = new Map<string, number>();
@@ -78,9 +75,9 @@ export default async function SectionEleves({
         <Compteur valeur={compteurs.consentants} libelle="consentent au marketing" />
         <Compteur valeur={compteurs.actifs30j} libelle="actifs sur 30 jours" />
         <Compteur
-          valeur={compteurs.attenteParent}
-          libelle="en attente d'un parent"
-          alerte={compteurs.attenteParent > 0}
+          valeur={compteurs.nonConfirmes}
+          libelle="email non confirmé"
+          alerte={compteurs.nonConfirmes > 0}
         />
       </div>
 
@@ -166,12 +163,10 @@ export default async function SectionEleves({
 function Statut({
   eleve,
 }: {
-  eleve: { actif: boolean; suspendu: boolean; autorisationParentale: string; emailVerifie: boolean };
+  eleve: { actif: boolean; suspendu: boolean; emailVerifie: boolean };
 }) {
   if (eleve.suspendu)
     return <Pastille classe="bg-negatif/10 text-negatif">désactivé</Pastille>;
-  if (eleve.autorisationParentale === "en_attente")
-    return <Pastille classe="bg-soleil/25 text-encre">attente parent</Pastille>;
   if (!eleve.emailVerifie)
     return <Pastille classe="bg-ligne text-encre">email non confirmé</Pastille>;
   if (eleve.actif)

@@ -128,10 +128,14 @@ test("régularité : compte les semaines distinctes, pas les sessions", () => {
     termineeLe: iso,
   });
 
-  const r = regularite([s(ilYA(1)), s(ilYA(2)), s(ilYA(20))], 8);
+  // Deux sessions le MÊME jour (donc sûrement la même semaine ISO) + une
+  // troisième 20 jours avant (toujours une autre semaine, à 19 jours d'écart).
+  // Formulation déterministe : l'ancienne version (il y a 1 et 2 jours) pouvait
+  // enjamber une frontière de semaine selon le jour où tournait le test.
+  const r = regularite([s(ilYA(1)), s(ilYA(1)), s(ilYA(20))], 8);
   assert.equal(r.sessionsRecentes, 3);
-  // Deux sessions la même semaine ne comptent que pour une semaine jouée.
-  assert.ok(r.semainesJouees <= 2);
+  // Les deux sessions du même jour ne comptent que pour une semaine.
+  assert.equal(r.semainesJouees, 2);
 });
 
 test("aucune session : agrégats vides sans planter", () => {
