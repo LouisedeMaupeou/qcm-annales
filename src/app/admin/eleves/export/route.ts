@@ -54,6 +54,8 @@ export async function GET(request: NextRequest) {
     Prénom: e.prenom,
     Nom: e.nom,
     Email: e.email,
+    "Email du parent": e.emailParent ?? "",
+    "Téléphone du parent": e.telephoneParent ?? "",
     "Date de naissance": jour(e.dateNaissance),
     Ville: e.ville ?? "",
     Établissement: e.etablissement ?? "",

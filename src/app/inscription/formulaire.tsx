@@ -103,6 +103,26 @@ export function FormulaireInscription({
         />
       </Groupe>
 
+      <Groupe titre="Un parent ou responsable">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Champ
+            nom="emailParent"
+            libelle="Email d'un parent"
+            type="email"
+            autoComplete="off"
+            erreurs={etat.erreurs?.emailParent}
+          />
+          <Champ
+            nom="telephoneParent"
+            libelle="Téléphone d'un parent"
+            type="tel"
+            autoComplete="off"
+            aide="Par exemple 06 12 34 56 78."
+            erreurs={etat.erreurs?.telephoneParent}
+          />
+        </div>
+      </Groupe>
+
       <Groupe titre="Tes concours visés">
         {etat.erreurs?.concoursVises && (
           <p role="alert" className="text-sm text-negatif">

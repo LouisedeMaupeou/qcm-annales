@@ -31,7 +31,10 @@ export default function Confidentialite() {
       <p>À la création du compte élève :</p>
       <ul>
         <li>identité : nom, prénom, date de naissance ;</li>
-        <li>contact : adresse email de l&apos;élève ;</li>
+        <li>
+          contact : adresse email de l&apos;élève, ainsi que l&apos;adresse
+          email et le numéro de téléphone d&apos;un parent ;
+        </li>
         <li>scolarité : ville, établissement scolaire, concours visés ;</li>
         <li>
           consentements : acceptation des CGU et, séparément, consentement

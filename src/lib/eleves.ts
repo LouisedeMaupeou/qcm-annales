@@ -25,6 +25,8 @@ export type LigneEleve = {
   dateNaissance: string;
   ville: string | null;
   etablissement: string | null;
+  emailParent: string | null;
+  telephoneParent: string | null;
   consentMarketing: boolean;
   consentMarketingDate: string | null;
   cguAccepteesDate: string | null;
@@ -49,7 +51,7 @@ export async function chargerEleves(
       admin
         .from("users")
         .select(
-          "id, email, nom, prenom, date_naissance, ville, etablissement, consent_marketing, consent_marketing_date, cgu_acceptees_date, email_verifie, actif, suspendu, created_at",
+          "id, email, nom, prenom, date_naissance, ville, etablissement, email_parent, telephone_parent, consent_marketing, consent_marketing_date, cgu_acceptees_date, email_verifie, actif, suspendu, created_at",
         )
         .eq("role", "eleve")
         .order("created_at", { ascending: false }),
@@ -88,6 +90,8 @@ export async function chargerEleves(
       dateNaissance: u.date_naissance,
       ville: u.ville,
       etablissement: u.etablissement,
+      emailParent: u.email_parent,
+      telephoneParent: u.telephone_parent,
       consentMarketing: u.consent_marketing,
       consentMarketingDate: u.consent_marketing_date,
       cguAccepteesDate: u.cgu_acceptees_date,

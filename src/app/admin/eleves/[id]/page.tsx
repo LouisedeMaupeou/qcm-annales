@@ -20,7 +20,7 @@ export default async function FicheEleve({
   const { data: eleve } = await admin
     .from("users")
     .select(
-      "id, email, nom, prenom, date_naissance, ville, etablissement, consent_marketing, consent_marketing_date, cgu_acceptees_date, email_verifie, actif, suspendu, created_at, role",
+      "id, email, nom, prenom, date_naissance, ville, etablissement, email_parent, telephone_parent, consent_marketing, consent_marketing_date, cgu_acceptees_date, email_verifie, actif, suspendu, created_at, role",
     )
     .eq("id", id)
     .maybeSingle();
@@ -81,6 +81,10 @@ export default async function FicheEleve({
               </Ligne>
               <Ligne libelle="Ville">{eleve.ville ?? "—"}</Ligne>
               <Ligne libelle="Établissement">{eleve.etablissement ?? "—"}</Ligne>
+              <Ligne libelle="Email du parent">{eleve.email_parent ?? "—"}</Ligne>
+              <Ligne libelle="Téléphone du parent">
+                {eleve.telephone_parent ?? "—"}
+              </Ligne>
               <Ligne libelle="Concours visés">
                 {concours.join(", ") || "aucun"}
               </Ligne>
