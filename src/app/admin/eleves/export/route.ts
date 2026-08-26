@@ -69,6 +69,7 @@ export async function GET(request: NextRequest) {
     "Compte suspendu": e.suspendu ? "oui" : "non",
     "Nombre de sessions": e.nbSessions,
     "Score moyen (%)": e.scoreMoyen === null ? "" : Math.round(e.scoreMoyen * 100),
+    "Dernière connexion": horodatage(e.derniereConnexion),
     "Dernière activité": horodatage(e.derniereActivite),
   }));
 

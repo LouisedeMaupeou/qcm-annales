@@ -39,6 +39,7 @@ export type LigneEleve = {
   nbSessions: number;
   scoreMoyen: number | null;
   derniereActivite: string | null;
+  derniereConnexion: string | null;
 };
 
 export async function chargerEleves(
@@ -46,7 +47,7 @@ export async function chargerEleves(
 ): Promise<LigneEleve[]> {
   const admin = createAdminClient();
 
-  const [{ data: utilisateurs }, { data: vises }, { data: sessions }] =
+  const [{ data: utilisateurs }, { data: vises }, { data: sessions }, auth] =
     await Promise.all([
       admin
         .from("users")
@@ -60,7 +61,15 @@ export async function chargerEleves(
         .from("sessions")
         .select("user_id, score_normalise, completed_at")
         .not("completed_at", "is", null),
+      // La dernière connexion (last_sign_in_at) vit dans le schéma d'auth, pas
+      // dans public.users : on la lit via l'API admin.
+      admin.auth.admin.listUsers({ perPage: 1000 }),
     ]);
+
+  const derniereConnexionParId = new Map<string, string | null>();
+  for (const u of auth.data?.users ?? []) {
+    derniereConnexionParId.set(u.id, u.last_sign_in_at ?? null);
+  }
 
   const parEleve = new Map<string, { nom: string; id: string }[]>();
   for (const v of vises ?? []) {
@@ -104,6 +113,7 @@ export async function chargerEleves(
       nbSessions: stat?.n ?? 0,
       scoreMoyen: stat && stat.n > 0 ? stat.total / stat.n : null,
       derniereActivite: stat?.derniere || null,
+      derniereConnexion: derniereConnexionParId.get(u.id) ?? null,
     };
   });
 

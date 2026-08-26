@@ -44,7 +44,6 @@ export default async function SectionEleves({
     actifs30j: tous.filter(
       (e) => e.derniereActivite && new Date(e.derniereActivite) >= il30j,
     ).length,
-    nonConfirmes: tous.filter((e) => !e.emailVerifie).length,
   };
 
   const repartition = new Map<string, number>();
@@ -70,15 +69,10 @@ export default async function SectionEleves({
         </a>
       </div>
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <Compteur valeur={compteurs.inscrits} libelle="inscrits" />
         <Compteur valeur={compteurs.consentants} libelle="consentent au marketing" />
         <Compteur valeur={compteurs.actifs30j} libelle="actifs sur 30 jours" />
-        <Compteur
-          valeur={compteurs.nonConfirmes}
-          libelle="email non confirmé"
-          alerte={compteurs.nonConfirmes > 0}
-        />
       </div>
 
       {repartition.size > 0 && (
@@ -118,6 +112,7 @@ export default async function SectionEleves({
               <Th>Concours visés</Th>
               <Th>Sessions</Th>
               <Th>Score moyen</Th>
+              <Th>Dernière connexion</Th>
               <Th>Statut</Th>
             </tr>
           </thead>
@@ -141,6 +136,14 @@ export default async function SectionEleves({
                 <td className="px-4 py-3 tabular-nums">{e.nbSessions}</td>
                 <td className="px-4 py-3 tabular-nums">
                   {e.scoreMoyen === null ? "—" : `${Math.round(e.scoreMoyen * 100)} %`}
+                </td>
+                <td className="px-4 py-3 tabular-nums whitespace-nowrap">
+                  {e.derniereConnexion
+                    ? new Date(e.derniereConnexion).toLocaleString("fr-FR", {
+                        dateStyle: "short",
+                        timeStyle: "short",
+                      })
+                    : "jamais"}
                 </td>
                 <td className="px-4 py-3">
                   <Statut eleve={e} />

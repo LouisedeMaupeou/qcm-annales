@@ -35,7 +35,7 @@ export function FormulaireInscription({
     .filter((g) => g.items.length > 0);
 
   return (
-    <form action={action} className="space-y-6" noValidate>
+    <form action={action} className="space-y-6">
       {etat.message && (
         <p
           role="alert"
@@ -51,12 +51,14 @@ export function FormulaireInscription({
             nom="prenom"
             libelle="Prénom"
             autoComplete="given-name"
+            requis
             erreurs={etat.erreurs?.prenom}
           />
           <Champ
             nom="nom"
             libelle="Nom"
             autoComplete="family-name"
+            requis
             erreurs={etat.erreurs?.nom}
           />
         </div>
@@ -65,6 +67,7 @@ export function FormulaireInscription({
           libelle="Date de naissance"
           type="date"
           autoComplete="bday"
+          requis
           erreurs={etat.erreurs?.dateNaissance}
         />
 
@@ -73,12 +76,14 @@ export function FormulaireInscription({
             nom="ville"
             libelle="Ville"
             autoComplete="address-level2"
+            requis
             erreurs={etat.erreurs?.ville}
           />
           <Champ
             nom="etablissement"
             libelle="Établissement scolaire"
             autoComplete="organization"
+            requis
             erreurs={etat.erreurs?.etablissement}
           />
         </div>
@@ -91,6 +96,7 @@ export function FormulaireInscription({
           type="email"
           autoComplete="email"
           aide="Tu recevras un lien pour la confirmer."
+          requis
           erreurs={etat.erreurs?.email}
         />
         <Champ
@@ -99,6 +105,7 @@ export function FormulaireInscription({
           type="password"
           autoComplete="new-password"
           aide="8 caractères minimum."
+          requis
           erreurs={etat.erreurs?.motDePasse}
         />
       </Groupe>
@@ -110,6 +117,7 @@ export function FormulaireInscription({
             libelle="Email d'un parent"
             type="email"
             autoComplete="off"
+            requis
             erreurs={etat.erreurs?.emailParent}
           />
           <Champ
@@ -118,6 +126,7 @@ export function FormulaireInscription({
             type="tel"
             autoComplete="off"
             aide="Par exemple 06 12 34 56 78."
+            requis
             erreurs={etat.erreurs?.telephoneParent}
           />
         </div>
@@ -158,6 +167,7 @@ export function FormulaireInscription({
         {/* §8.1 : deux cases distinctes, marketing décoché par défaut. */}
         <Case
           nom="cguAcceptees"
+          requis
           erreurs={etat.erreurs?.cguAcceptees}
           libelle={
             <>
@@ -238,6 +248,7 @@ function Champ({
   aide,
   erreurs,
   autoComplete,
+  requis = false,
   onChange,
 }: {
   nom: string;
@@ -246,6 +257,7 @@ function Champ({
   aide?: string;
   erreurs?: string[];
   autoComplete?: string;
+  requis?: boolean;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }) {
   const id = useId();
@@ -256,12 +268,20 @@ function Champ({
     <div>
       <label htmlFor={id} className="mb-1.5 block font-bold text-encre">
         {libelle}
+        {requis && (
+          <span className="text-negatif" aria-hidden>
+            {" "}
+            *
+          </span>
+        )}
       </label>
       <input
         id={id}
         name={nom}
         type={type}
         autoComplete={autoComplete}
+        required={requis}
+        aria-required={requis || undefined}
         onChange={onChange}
         aria-describedby={
           [aide ? idAide : null, erreurs?.length ? idErreur : null]
@@ -294,10 +314,12 @@ function Case({
   nom,
   libelle,
   erreurs,
+  requis = false,
 }: {
   nom: string;
   libelle: React.ReactNode;
   erreurs?: string[];
+  requis?: boolean;
 }) {
   const id = useId();
   return (
@@ -307,6 +329,8 @@ function Case({
           id={id}
           name={nom}
           type="checkbox"
+          required={requis}
+          aria-required={requis || undefined}
           className="mt-1 size-4.5 shrink-0 accent-primaire"
         />
         <span className="text-[0.95rem]">{libelle}</span>
