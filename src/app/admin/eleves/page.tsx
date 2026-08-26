@@ -66,7 +66,7 @@ export default async function SectionEleves({
           href={`/admin/eleves/export${query ? `?${query}` : ""}`}
           className="cursor-pointer rounded-full bg-primaire px-7 py-3 font-extrabold text-white no-underline transition hover:bg-primaire-fonce"
         >
-          Exporter vers Zoho (XLSX)
+          Télécharger les élèves (XLSX)
         </a>
       </div>
 
