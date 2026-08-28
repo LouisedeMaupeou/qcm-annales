@@ -20,7 +20,6 @@ export async function inscrire(
     motDePasse: String(donnees.get("motDePasse") ?? ""),
     nom: String(donnees.get("nom") ?? ""),
     prenom: String(donnees.get("prenom") ?? ""),
-    dateNaissance: String(donnees.get("dateNaissance") ?? ""),
     ville: String(donnees.get("ville") ?? ""),
     etablissement: String(donnees.get("etablissement") ?? ""),
     emailParent: String(donnees.get("emailParent") ?? "").trim(),
@@ -73,7 +72,6 @@ export async function inscrire(
       role: "eleve", // jamais issu du formulaire
       nom: d.nom,
       prenom: d.prenom,
-      date_naissance: d.dateNaissance,
       ville: d.ville,
       etablissement: d.etablissement,
       email_parent: d.emailParent,

@@ -22,13 +22,6 @@ export const schemaInscription = z
     motDePasse: z.string().min(8, MOTIF_MOT_DE_PASSE),
     nom: z.string().trim().min(1, "Le nom est obligatoire.").max(100),
     prenom: z.string().trim().min(1, "Le prénom est obligatoire.").max(100),
-    dateNaissance: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/, "Date de naissance invalide.")
-      .refine((v) => {
-        const age = ageAns(v);
-        return age >= 5 && age <= 100;
-      }, "Date de naissance invalide."),
     ville: z.string().trim().min(1, "La ville est obligatoire.").max(120),
     etablissement: z
       .string()

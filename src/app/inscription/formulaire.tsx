@@ -62,15 +62,6 @@ export function FormulaireInscription({
             erreurs={etat.erreurs?.nom}
           />
         </div>
-        <Champ
-          nom="dateNaissance"
-          libelle="Date de naissance"
-          type="date"
-          autoComplete="bday"
-          requis
-          erreurs={etat.erreurs?.dateNaissance}
-        />
-
         <div className="grid gap-4 sm:grid-cols-2">
           <Champ
             nom="ville"

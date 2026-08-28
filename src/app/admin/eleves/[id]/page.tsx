@@ -76,8 +76,9 @@ export default async function FicheEleve({
           <Section titre="Coordonnées">
             <dl className="space-y-2 text-[0.95rem]">
               <Ligne libelle="Date de naissance">
-                {new Date(eleve.date_naissance).toLocaleDateString("fr-FR")} (
-                {ageAns(eleve.date_naissance)} ans)
+                {eleve.date_naissance
+                  ? `${new Date(eleve.date_naissance).toLocaleDateString("fr-FR")} (${ageAns(eleve.date_naissance)} ans)`
+                  : "—"}
               </Ligne>
               <Ligne libelle="Ville">{eleve.ville ?? "—"}</Ligne>
               <Ligne libelle="Établissement">{eleve.etablissement ?? "—"}</Ligne>
