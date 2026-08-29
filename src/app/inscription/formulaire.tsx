@@ -52,6 +52,7 @@ export function FormulaireInscription({
             libelle="Prénom"
             autoComplete="given-name"
             requis
+            defaultValue={etat.valeurs?.prenom}
             erreurs={etat.erreurs?.prenom}
           />
           <Champ
@@ -59,6 +60,7 @@ export function FormulaireInscription({
             libelle="Nom"
             autoComplete="family-name"
             requis
+            defaultValue={etat.valeurs?.nom}
             erreurs={etat.erreurs?.nom}
           />
         </div>
@@ -68,6 +70,7 @@ export function FormulaireInscription({
             libelle="Ville"
             autoComplete="address-level2"
             requis
+            defaultValue={etat.valeurs?.ville}
             erreurs={etat.erreurs?.ville}
           />
           <Champ
@@ -75,6 +78,7 @@ export function FormulaireInscription({
             libelle="Établissement scolaire"
             autoComplete="organization"
             requis
+            defaultValue={etat.valeurs?.etablissement}
             erreurs={etat.erreurs?.etablissement}
           />
         </div>
@@ -88,6 +92,7 @@ export function FormulaireInscription({
           autoComplete="email"
           aide="Tu recevras un lien pour la confirmer."
           requis
+          defaultValue={etat.valeurs?.email}
           erreurs={etat.erreurs?.email}
         />
         <Champ
@@ -109,6 +114,7 @@ export function FormulaireInscription({
             type="email"
             autoComplete="off"
             requis
+            defaultValue={etat.valeurs?.emailParent}
             erreurs={etat.erreurs?.emailParent}
           />
           <Champ
@@ -118,6 +124,7 @@ export function FormulaireInscription({
             autoComplete="off"
             aide="Par exemple 06 12 34 56 78."
             requis
+            defaultValue={etat.valeurs?.telephoneParent}
             erreurs={etat.erreurs?.telephoneParent}
           />
         </div>
@@ -144,6 +151,7 @@ export function FormulaireInscription({
                     type="checkbox"
                     name="concoursVises"
                     value={c.id}
+                    defaultChecked={etat.valeurs?.concoursVises?.includes(c.id)}
                     className="size-4.5 accent-primaire"
                   />
                   {c.nom}
@@ -176,6 +184,7 @@ export function FormulaireInscription({
         />
         <Case
           nom="consentMarketing"
+          defaultChecked={etat.valeurs?.consentMarketing}
           libelle="J'accepte de recevoir des informations sur les formations et événements de Parkours. (facultatif)"
         />
       </Groupe>
@@ -240,6 +249,7 @@ function Champ({
   erreurs,
   autoComplete,
   requis = false,
+  defaultValue,
   onChange,
 }: {
   nom: string;
@@ -249,6 +259,7 @@ function Champ({
   erreurs?: string[];
   autoComplete?: string;
   requis?: boolean;
+  defaultValue?: string;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }) {
   const id = useId();
@@ -273,6 +284,7 @@ function Champ({
         autoComplete={autoComplete}
         required={requis}
         aria-required={requis || undefined}
+        defaultValue={defaultValue}
         onChange={onChange}
         aria-describedby={
           [aide ? idAide : null, erreurs?.length ? idErreur : null]
@@ -306,11 +318,13 @@ function Case({
   libelle,
   erreurs,
   requis = false,
+  defaultChecked = false,
 }: {
   nom: string;
   libelle: React.ReactNode;
   erreurs?: string[];
   requis?: boolean;
+  defaultChecked?: boolean;
 }) {
   const id = useId();
   return (
@@ -322,6 +336,7 @@ function Case({
           type="checkbox"
           required={requis}
           aria-required={requis || undefined}
+          defaultChecked={defaultChecked}
           className="mt-1 size-4.5 shrink-0 accent-primaire"
         />
         <span className="text-[0.95rem]">{libelle}</span>

@@ -76,10 +76,11 @@ export async function deciderRelecture(
     }
   }
 
+  // L'explication est facultative : on peut valider une question sans en saisir.
+  // Une case « relue » cochée sur une explication vide est simplement ignorée
+  // (jamais bloquante).
   const explication = d.explication || null;
-  if (!explication && d.explicationRelue) {
-    return { message: "Impossible de marquer relue une explication vide." };
-  }
+  const explicationRelue = explication ? d.explicationRelue : false;
 
   // Contrainte explication_a_une_origine : une explication non nulle doit porter
   // une origine. On garde l'origine « generee » d'une explication IA relue ;
@@ -97,7 +98,7 @@ export async function deciderRelecture(
       chapitre: d.chapitre,
       explication,
       explication_origine: explicationOrigine,
-      explication_relue: explication ? d.explicationRelue : false,
+      explication_relue: explicationRelue,
       // La validation humaine lève la réserve d'extraction : c'est tout l'objet
       // du passage en file.
       statut: d.decision === "valider" ? "publie" : "depubliee",

@@ -5,10 +5,25 @@ import { emailConfirmationEleve, envoyerEmail } from "@/lib/emails";
 import { urlSite } from "@/lib/site";
 import { schemaInscription } from "@/lib/validation";
 
+export type ValeursInscription = {
+  email: string;
+  nom: string;
+  prenom: string;
+  ville: string;
+  etablissement: string;
+  emailParent: string;
+  telephoneParent: string;
+  concoursVises: string[];
+  consentMarketing: boolean;
+};
+
 export type EtatInscription = {
   erreurs?: Record<string, string[]>;
   message?: string;
   succes?: { email: string };
+  // Valeurs saisies, renvoyées en cas d'échec pour ne pas avoir à tout ressaisir
+  // (les mots de passe ne sont volontairement jamais renvoyés).
+  valeurs?: ValeursInscription;
 };
 
 export async function inscrire(
@@ -29,9 +44,22 @@ export async function inscrire(
     cguAcceptees: donnees.get("cguAcceptees") === "on",
   };
 
+  // Renvoyées telles quelles à chaque échec pour repeupler le formulaire.
+  const valeurs: ValeursInscription = {
+    email: brut.email,
+    nom: brut.nom,
+    prenom: brut.prenom,
+    ville: brut.ville,
+    etablissement: brut.etablissement,
+    emailParent: brut.emailParent,
+    telephoneParent: brut.telephoneParent,
+    concoursVises: brut.concoursVises,
+    consentMarketing: brut.consentMarketing,
+  };
+
   const analyse = schemaInscription.safeParse(brut);
   if (!analyse.success) {
-    return { erreurs: analyse.error.flatten().fieldErrors };
+    return { erreurs: analyse.error.flatten().fieldErrors, valeurs };
   }
   const d = analyse.data;
 
@@ -58,6 +86,7 @@ export async function inscrire(
       message: dejaPris
         ? undefined
         : "La création du compte a échoué. Réessaie dans un instant.",
+      valeurs,
     };
   }
 
@@ -120,6 +149,7 @@ export async function inscrire(
     return {
       message:
         "L'inscription n'a pas pu aboutir. Aucun compte n'a été créé, tu peux réessayer.",
+      valeurs,
     };
   }
 }
