@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { exigerStaff } from "@/lib/admin";
+import { formaterMath } from "@/lib/notation-math";
 import { FormulaireRelecture } from "./formulaire";
 
 export const dynamic = "force-dynamic";
@@ -156,8 +157,8 @@ export default async function Relire({
             Question
           </h2>
           {bloc?.enonce_commun && (
-            <p className="mb-4 rounded-carte bg-fond-doux p-4 text-[0.95rem]">
-              {bloc.enonce_commun}
+            <p className="mb-4 rounded-carte bg-fond-doux p-4 text-[0.95rem] whitespace-pre-line">
+              {formaterMath(bloc.enonce_commun)}
             </p>
           )}
           <FormulaireRelecture

@@ -1,7 +1,26 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { formaterMath } from "@/lib/notation-math";
 import { deciderRelecture, type EtatRelecture } from "./actions";
+
+/** Aperçu du rendu (exposants ^, indices _) tel que l'élève le verra.
+ *  Affiché seulement s'il y a une vraie notation à convertir. */
+function Apercu({ texte }: { texte: string }) {
+  const aNotation = /\^|[·⋅]|_[A-Za-zÀ-ÿ0-9(]/.test(texte);
+  if (!aNotation) return null;
+  return (
+    <p
+      aria-live="polite"
+      className="mt-1.5 rounded-[10px] bg-fond-doux px-3 py-2 text-[0.95rem] whitespace-pre-line"
+    >
+      <span className="mr-2 text-[0.7rem] font-bold tracking-[.08em] uppercase opacity-60">
+        Aperçu
+      </span>
+      {formaterMath(texte)}
+    </p>
+  );
+}
 
 type Question = {
   id: string;
@@ -31,6 +50,10 @@ export function FormulaireRelecture({
     deciderRelecture,
     {},
   );
+  const [enonce, setEnonce] = useState(question.enonce);
+  const [textes, setTextes] = useState<Record<string, string>>(() =>
+    Object.fromEntries(propositions.map((p) => [p.id, p.texte])),
+  );
   const [explication, setExplication] = useState(question.explication ?? "");
   const [relue, setRelue] = useState(question.explicationRelue);
 
@@ -54,10 +77,12 @@ export function FormulaireRelecture({
         <textarea
           id="enonce"
           name="enonce"
-          defaultValue={question.enonce}
+          value={enonce}
+          onChange={(e) => setEnonce(e.target.value)}
           rows={6}
           className="w-full rounded-[14px] border border-ligne bg-white px-4 py-3"
         />
+        <Apercu texte={enonce} />
       </div>
 
       <div>
@@ -72,12 +97,18 @@ export function FormulaireRelecture({
             <li key={p.id} className="flex flex-wrap items-start gap-3">
               <input type="hidden" name="propositionId" value={p.id} />
               <span className="mt-3 w-5 shrink-0 font-black text-encre">{i + 1}</span>
-              <textarea
-                name={`texte-${p.id}`}
-                defaultValue={p.texte}
-                rows={2}
-                className="min-w-[200px] flex-1 rounded-[14px] border border-ligne bg-white px-4 py-2.5"
-              />
+              <div className="min-w-[200px] flex-1">
+                <textarea
+                  name={`texte-${p.id}`}
+                  value={textes[p.id] ?? ""}
+                  onChange={(e) =>
+                    setTextes((t) => ({ ...t, [p.id]: e.target.value }))
+                  }
+                  rows={2}
+                  className="w-full rounded-[14px] border border-ligne bg-white px-4 py-2.5"
+                />
+                <Apercu texte={textes[p.id] ?? ""} />
+              </div>
               <label className="mt-2 flex shrink-0 cursor-pointer items-center gap-2 rounded-full bg-fond-doux px-4 py-2 font-bold">
                 <input
                   type="checkbox"
@@ -119,6 +150,7 @@ export function FormulaireRelecture({
           rows={4}
           className="w-full rounded-[14px] border border-ligne bg-white px-4 py-3"
         />
+        <Apercu texte={explication} />
         <label className="mt-2 flex cursor-pointer items-center gap-2 font-bold text-encre">
           <input
             type="checkbox"
