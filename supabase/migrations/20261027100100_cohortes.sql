@@ -40,18 +40,22 @@ create index users_cohorte_id_idx on public.users (cohorte_id) where cohorte_id 
 -- banque de questions (composer une épreuve blanche, relire une extraction),
 -- donc il entre dans is_staff() ; il reste hors de is_admin(), qui garde les
 -- barèmes, les paramètres et les réglages du site public (§5).
+-- Comparaison sur le texte, et non sur des littéraux de l'énumération : une
+-- valeur ajoutée par `alter type ... add value` ne peut pas être utilisée
+-- dans la transaction qui l'ajoute. Le cast rend ces deux fonctions valides
+-- même si l'outil de migration regroupait les fichiers en une transaction.
 create or replace function public.is_staff()
 returns boolean
 language sql
 stable
 security definer
 set search_path = ''
-as $$
+as $
   select coalesce(
-    public.auth_role() in ('admin', 'contributeur', 'responsable_prepa'),
+    public.auth_role()::text in ('admin', 'contributeur', 'responsable_prepa'),
     false
   );
-$$;
+$;
 
 create function public.is_prepa()
 returns boolean
@@ -59,9 +63,9 @@ language sql
 stable
 security definer
 set search_path = ''
-as $$
-  select coalesce(public.auth_role() in ('admin', 'responsable_prepa'), false);
-$$;
+as $
+  select coalesce(public.auth_role()::text in ('admin', 'responsable_prepa'), false);
+$;
 
 revoke execute on function public.is_prepa() from public;
 grant  execute on function public.is_prepa() to authenticated;
