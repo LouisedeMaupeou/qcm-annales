@@ -50,12 +50,12 @@ language sql
 stable
 security definer
 set search_path = ''
-as $
+as $$
   select coalesce(
     public.auth_role()::text in ('admin', 'contributeur', 'responsable_prepa'),
     false
   );
-$;
+$$;
 
 create function public.is_prepa()
 returns boolean
@@ -63,9 +63,9 @@ language sql
 stable
 security definer
 set search_path = ''
-as $
+as $$
   select coalesce(public.auth_role()::text in ('admin', 'responsable_prepa'), false);
-$;
+$$;
 
 revoke execute on function public.is_prepa() from public;
 grant  execute on function public.is_prepa() to authenticated;
