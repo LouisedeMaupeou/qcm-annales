@@ -53,6 +53,16 @@ export default async function AdminAccueil() {
           texte="Questions sous le seuil de confiance et questions signalées par les élèves."
         />
         <Carte
+          href="/admin/prepa"
+          titre="Prépa"
+          texte="Cohortes de la prépa Parkours, rattachements et invitations."
+        />
+        <Carte
+          href="/admin/prepa/import"
+          titre="Import concours blancs"
+          texte="Questions d'épreuves blanches au format Parkours, avec leurs images."
+        />
+        <Carte
           href="/admin/eleves"
           titre="Élèves"
           texte="Liste filtrable, fiches, actions RGPD et export vers Zoho."

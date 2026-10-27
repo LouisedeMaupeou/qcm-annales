@@ -103,6 +103,23 @@ export function emailReinitialisation(url: string) {
   };
 }
 
+/**
+ * Invitation d'un élève rattaché à une cohorte de la prépa (module concours
+ * blancs, §5.1). Le compte existe déjà — c'est l'établissement qui l'a créé
+ * au titre du contrat de scolarité — il ne reste qu'à choisir un mot de passe.
+ */
+export function emailInvitationPrepa(prenom: string, cohorte: string, url: string) {
+  return {
+    sujet: "Ton accès à la plateforme des concours blancs Parkours",
+    html: gabarit(
+      `Bienvenue ${prenom} !`,
+      `<p>Ton compte Admissible est prêt : il te donne accès aux <strong>concours blancs de la prépa Parkours</strong> (${cohorte}), à tes bilans, et à l'entraînement libre sur les annales officielles.</p>
+       <p>Choisis ton mot de passe pour l'activer : c'est ensuite le même identifiant pour tout le site.</p>`,
+      { url, texte: "Choisir mon mot de passe" },
+    ),
+  };
+}
+
 export async function envoyerEmail(destinataire: string, email: { sujet: string; html: string }) {
   return envoyer({ destinataire, ...email });
 }

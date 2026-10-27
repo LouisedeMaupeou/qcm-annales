@@ -14,13 +14,13 @@ const [, , email, motDePasse, role = "admin"] = process.argv;
 
 if (!email || !motDePasse) {
   console.error(
-    "Usage : node --env-file=.env.local scripts/creer-admin.mjs <email> <motdepasse> [admin|contributeur]",
+    "Usage : node --env-file=.env.local scripts/creer-admin.mjs <email> <motdepasse> [admin|contributeur|responsable_prepa]",
   );
   process.exit(1);
 }
 
-if (!["admin", "contributeur"].includes(role)) {
-  console.error("Le rôle doit être 'admin' ou 'contributeur'.");
+if (!["admin", "contributeur", "responsable_prepa"].includes(role)) {
+  console.error("Le rôle doit être 'admin', 'contributeur' ou 'responsable_prepa'.");
   process.exit(1);
 }
 
@@ -74,7 +74,12 @@ const { error: eProfil } = await db.from("users").insert({
   email,
   role,
   nom: "Compte",
-  prenom: role === "admin" ? "Admin" : "Contributeur",
+  prenom:
+    role === "admin"
+      ? "Admin"
+      : role === "responsable_prepa"
+        ? "Responsable prépa"
+        : "Contributeur",
   // Champ obligatoire du §7 ; un compte de back-office n'a pas de parcours
   // mineur, la date sert seulement à satisfaire la contrainte.
   date_naissance: "1990-01-01",

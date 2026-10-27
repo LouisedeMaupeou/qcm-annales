@@ -66,7 +66,11 @@ export async function blocsJouables(epreuveId: string, userId: string) {
     .from("blocs")
     .select("id, statut, questions(id, statut)")
     .eq("epreuve_id", epreuveId)
-    .eq("statut", "publie");
+    .eq("statut", "publie")
+    // Un bloc sans annale appartient à une épreuve blanche : il est servi par
+    // le module Prépa pendant la fenêtre de passage, jamais tiré ici
+    // (module concours blancs, §6).
+    .not("annale_id", "is", null);
 
   const eligibles = (blocs ?? [])
     .map((b) => {

@@ -47,12 +47,18 @@ export default async function ChoixEpreuve({
         .from("epreuves")
         .select("id, nom, ordre_affichage")
         .eq("concours_id", concoursId)
+        // Les épreuves créées pour les concours blancs ne sont pas de
+        // l'entraînement libre (module concours blancs, §6).
+        .eq("visible_public", true)
         .order("ordre_affichage"),
       admin
         .from("questions")
-        .select("id, statut, blocs!inner(epreuve_id, statut)")
+        // Les blocs sans annale sont des sujets de concours blancs : ils ne
+        // sont pas jouables en entraînement libre (module concours blancs, §6).
+        .select("id, statut, blocs!inner(epreuve_id, statut, annale_id)")
         .eq("statut", "publie")
-        .eq("blocs.statut", "publie"),
+        .eq("blocs.statut", "publie")
+        .not("blocs.annale_id", "is", null),
       supabase
         .from("sessions")
         .select("epreuve_id, score_normalise, completed_at")

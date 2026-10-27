@@ -36,10 +36,14 @@ export default async function ChoixConcours() {
         .select("concours_id")
         .eq("user_id", user.id),
       // Volume jouable par concours : une carte vide doit être grisée.
+      // Un bloc sans annale est un sujet de concours blanc : il n'appartient
+      // pas à l'entraînement libre et ne doit pas gonfler ce compteur
+      // (module concours blancs, §6).
       admin
         .from("questions")
-        .select("id, blocs!inner(epreuves!inner(concours_id))")
-        .eq("statut", "publie"),
+        .select("id, blocs!inner(annale_id, epreuves!inner(concours_id))")
+        .eq("statut", "publie")
+        .not("blocs.annale_id", "is", null),
     ]);
 
   const idsVises = new Set((vises ?? []).map((v) => v.concours_id));

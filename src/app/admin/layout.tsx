@@ -31,6 +31,14 @@ export default async function AdminLayout({
               <Link href="/admin/relecture" className="hover:text-primaire">
                 Relecture
               </Link>
+              {/* Module concours blancs, §5 : la section Prépa porte les
+                  listes d'élèves de la prépa — hors périmètre du contributeur,
+                  qui ne fait que relire du contenu. */}
+              {(role === "admin" || role === "responsable_prepa") && (
+                <Link href="/admin/prepa" className="hover:text-primaire">
+                  Prépa
+                </Link>
+              )}
               {/* §4 : le contributeur ne voit que le contenu. Les fiches
                   élèves et le pilotage portent des données personnelles de
                   mineurs, les barèmes engagent la note affichée. */}
