@@ -15,7 +15,17 @@ export default async function SectionPrepa() {
 
   return (
     <>
-      <h1 className="mb-2 text-3xl font-black">Prépa</h1>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-4">
+        <h1 className="text-3xl font-black">Prépa</h1>
+        <nav className="flex gap-4 text-sm font-bold">
+          <Link href="/admin/prepa/sessions" className="text-primaire hover:underline">
+            Sessions de concours blancs
+          </Link>
+          <Link href="/admin/prepa/import" className="text-primaire hover:underline">
+            Import de questions
+          </Link>
+        </nav>
+      </div>
       <p className="mb-8 max-w-[70ch]">
         Cohortes de la prépa Parkours. Un élève appartient à une cohorte au
         plus ; rattaché, il garde son compte et son accès à l&apos;entraînement

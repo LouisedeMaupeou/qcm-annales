@@ -200,6 +200,9 @@ export async function ecrireQuestionsCb(
         return {
           id_question_externe: q.idExterne,
           epreuve_id_externe: q.epreuveIdExterne,
+          // L'ordre du fichier, conservé tel quel : c'est lui qui donne la
+          // position dans l'épreuve et le regroupement des sous-questions.
+          ordre_epreuve: q.ordre,
           bloc_id: blocParCle.get(q.blocCle)!,
           type: q.typeStocke,
           // L'énoncé peut être porté par l'image : la colonne est obligatoire,

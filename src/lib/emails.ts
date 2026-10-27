@@ -120,6 +120,36 @@ export function emailInvitationPrepa(prenom: string, cohorte: string, url: strin
   };
 }
 
+/**
+ * Relance d'un élève qui n'a pas encore composé (module concours blancs,
+ * §5.2). Aucun détail du sujet : la relance part pendant la fenêtre, et
+ * d'autres élèves n'ont pas encore composé.
+ */
+export function emailRelanceConcoursBlanc(
+  prenom: string,
+  epreuve: string,
+  fenetreFin: string | null,
+  url: string,
+) {
+  const echeance = fenetreFin
+    ? new Date(fenetreFin).toLocaleString("fr-FR", {
+        dateStyle: "full",
+        timeStyle: "short",
+      })
+    : null;
+
+  return {
+    sujet: `Concours blanc à composer : ${epreuve}`,
+    html: gabarit(
+      `${prenom}, il te reste une épreuve à passer`,
+      `<p>Tu n'as pas encore composé l'épreuve <strong>${epreuve}</strong> du concours blanc.</p>
+       ${echeance ? `<p>La fenêtre de passage se ferme le <strong>${echeance}</strong>.</p>` : ""}
+       <p>Prévois d'être au calme : le chronomètre démarre dès que tu ouvres l'épreuve, et tu n'as qu'une tentative.</p>`,
+      { url, texte: "Voir mes concours blancs" },
+    ),
+  };
+}
+
 export async function envoyerEmail(destinataire: string, email: { sujet: string; html: string }) {
   return envoyer({ destinataire, ...email });
 }

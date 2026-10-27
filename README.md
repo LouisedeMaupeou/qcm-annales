@@ -103,8 +103,10 @@ Les élèves de la prépa composent leurs concours blancs en ligne, la correctio
 est automatisée et le bilan de session est généré au format Parkours V10.
 
 Étapes livrées à ce jour (§9 du module) : **9 — cohortes et rôles**, **10 —
-importeur CSV/XLSX Parkours**. Les étapes 11 à 15 (sessions et épreuves,
-passage élève, correction, bilans, oraux) restent à faire.
+importeur CSV/XLSX Parkours**, **11 — sessions et épreuves blanches**. Les
+étapes 12 à 15 (passage élève, correction, bilans, oraux) restent à faire.
+La banque contient les 490 questions de la session Noël, dont 104 en file de
+relecture.
 
 ### Trois décisions d'architecture à connaître
 
@@ -141,6 +143,27 @@ réimporter un fichier corrigé met à jour les questions au lieu de les
 dupliquer. Une question déjà relue par un humain (`relue_le` renseigné) voit
 son contenu mis à jour mais **garde son statut** : le fichier fait foi sur le
 contenu, le relecteur sur la décision de publication.
+
+**4. L'épreuve blanche porte son propre barème, et non un lien vers `baremes`.**
+Écart assumé par rapport au §6 du module, pour deux raisons. `baremes` est
+unique par (concours, épreuve) : elle ne peut pas porter deux barèmes
+différents pour « Avenir / Mathématiques », alors que c'est déjà le cas (+3/−1
+en 2025, +1/−1 en 2026, et le concours blanc a le sien). Et trois des quatre
+barèmes relevés sur les sujets ne s'expriment pas par un triplet
+bonne/mauvaise/abstention : plancher par exercice chez GEIPI, bonification par
+exercice entièrement juste chez Puissance Alpha, tout ou rien par question en
+analyse documentaire SÉSAME. D'où `epreuves_cb.regles`, un objet lu par la
+correction, et `bareme_source`, qui conserve la consigne du sujet mot pour
+mot. Les valeurs par défaut vivent dans `src/lib/epreuves-cb.ts`, avec leurs
+tests.
+
+**5. L'ordre d'une question dans son épreuve est stocké, pas recalculé.**
+`questions.ordre_epreuve` reprend la colonne `ordre` du fichier d'import
+(« 13.2 = sous-question 2 de la question 13 »). Sa partie entière groupe les
+cases d'une question à trous, ce dont la correction tout ou rien de l'analyse
+documentaire a besoin — et qu'aucune reconstruction depuis `blocs.ordre` ne
+pouvait donner, les 29 questions de cette épreuve partageant le bloc qui porte
+le corpus.
 
 ### Préparer un import
 

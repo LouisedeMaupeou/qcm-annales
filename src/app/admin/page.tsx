@@ -58,6 +58,11 @@ export default async function AdminAccueil() {
           texte="Cohortes de la prépa Parkours, rattachements et invitations."
         />
         <Carte
+          href="/admin/prepa/sessions"
+          titre="Sessions de concours blancs"
+          texte="Épreuves blanches, fenêtres de passage, barèmes et suivi des copies."
+        />
+        <Carte
           href="/admin/prepa/import"
           titre="Import concours blancs"
           texte="Questions d'épreuves blanches au format Parkours, avec leurs images."
