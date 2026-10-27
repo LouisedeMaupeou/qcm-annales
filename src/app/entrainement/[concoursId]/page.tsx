@@ -41,40 +41,47 @@ export default async function ChoixEpreuve({
 
   if (!concours?.actif) notFound();
 
-  const [{ data: epreuves }, { data: questions }, { data: sessions }] =
-    await Promise.all([
-      admin
-        .from("epreuves")
-        .select("id, nom, ordre_affichage")
-        .eq("concours_id", concoursId)
-        // Les épreuves créées pour les concours blancs ne sont pas de
-        // l'entraînement libre (module concours blancs, §6).
-        .eq("visible_public", true)
-        .order("ordre_affichage"),
-      admin
+  const [{ data: epreuves }, { data: sessions }] = await Promise.all([
+    admin
+      .from("epreuves")
+      .select("id, nom, ordre_affichage")
+      .eq("concours_id", concoursId)
+      // Les épreuves créées pour les concours blancs ne sont pas de
+      // l'entraînement libre (module concours blancs, §6).
+      .eq("visible_public", true)
+      .order("ordre_affichage"),
+    supabase
+      .from("sessions")
+      .select("epreuve_id, score_normalise, completed_at")
+      .eq("user_id", user.id)
+      .eq("concours_id", concoursId)
+      .not("completed_at", "is", null)
+      .order("completed_at", { ascending: false }),
+  ]);
+
+  // Un comptage par épreuve plutôt qu'une lecture de toutes les questions :
+  // PostgREST plafonne une réponse à 1 000 lignes et la banque a dépassé ce
+  // seuil, ce qui affichait « 0 question » sur des épreuves jouables.
+  //
+  // Les blocs sans annale sont des sujets de concours blancs : ils ne sont pas
+  // jouables en entraînement libre (module concours blancs, §6).
+  const volumes = await Promise.all(
+    (epreuves ?? []).map(async (e) => {
+      const { count } = await admin
         .from("questions")
-        // Les blocs sans annale sont des sujets de concours blancs : ils ne
-        // sont pas jouables en entraînement libre (module concours blancs, §6).
-        .select("id, statut, blocs!inner(epreuve_id, statut, annale_id)")
+        .select("id, blocs!inner(epreuve_id, statut, annale_id)", {
+          count: "exact",
+          head: true,
+        })
         .eq("statut", "publie")
         .eq("blocs.statut", "publie")
-        .not("blocs.annale_id", "is", null),
-      supabase
-        .from("sessions")
-        .select("epreuve_id, score_normalise, completed_at")
-        .eq("user_id", user.id)
-        .eq("concours_id", concoursId)
-        .not("completed_at", "is", null)
-        .order("completed_at", { ascending: false }),
-    ]);
+        .not("blocs.annale_id", "is", null)
+        .eq("blocs.epreuve_id", e.id);
+      return [e.id as string, count ?? 0] as const;
+    }),
+  );
 
-  const disponibles = new Map<string, number>();
-  for (const q of questions ?? []) {
-    const bloc = q.blocs as unknown as { epreuve_id: string } | null;
-    if (bloc?.epreuve_id) {
-      disponibles.set(bloc.epreuve_id, (disponibles.get(bloc.epreuve_id) ?? 0) + 1);
-    }
-  }
+  const disponibles = new Map<string, number>(volumes);
 
   const dernierScore = new Map<string, number>();
   for (const s of sessions ?? []) {
