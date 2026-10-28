@@ -15,13 +15,18 @@ export async function EnteteEleve() {
     data: { user },
   } = await supabase.auth.getUser();
   let estStaff = false;
+  // Un élève rattaché à une cohorte de la prépa a un onglet de plus : les
+  // concours blancs ne concernent pas les internautes inscrits librement
+  // (module concours blancs, §4.2).
+  let deLaPrepa = false;
   if (user) {
     const { data: profil } = await supabase
       .from("users")
-      .select("role")
+      .select("role, cohorte_id")
       .eq("id", user.id)
       .single();
     estStaff = profil?.role === "admin" || profil?.role === "contributeur";
+    deLaPrepa = Boolean(profil?.cohorte_id);
   }
 
   return (
@@ -44,8 +49,13 @@ export async function EnteteEleve() {
           </Link>
         )}
         <Link href="/entrainement" className={LIEN_NAV}>
-          M&apos;entraîner
+          Annales
         </Link>
+        {deLaPrepa && (
+          <Link href="/concours-blancs" className={LIEN_NAV}>
+            Mes concours blancs
+          </Link>
+        )}
         <Link href="/tableau-de-bord" className={LIEN_NAV}>
           Ma progression
         </Link>

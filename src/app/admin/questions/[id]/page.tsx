@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { urlSigneeFigure } from "@/lib/images-questions";
+import { FigureQuestion } from "@/components/figure-question";
 import { createClient } from "@/lib/supabase/server";
 import { FormulaireQuestion } from "./formulaire";
 
@@ -16,12 +18,14 @@ export default async function EditerQuestion({
   const { data: question } = await supabase
     .from("questions")
     .select(
-      "id, type, enonce, chapitre, explication, explication_origine, explication_relue, statut, statut_extraction, commentaire_extraction, confiance_extraction, auto_publiee, origine, ordre_dans_bloc, bloc_id, updated_at, reponses_possibles(id, texte, est_correcte, ordre)",
+      "id, type, enonce, chapitre, explication, explication_origine, explication_relue, statut, statut_extraction, commentaire_extraction, confiance_extraction, auto_publiee, origine, ordre_dans_bloc, bloc_id, updated_at, image_url, reponses_possibles(id, texte, est_correcte, ordre)",
     )
     .eq("id", id)
     .maybeSingle();
 
   if (!question) notFound();
+
+  const urlFigure = await urlSigneeFigure(question.image_url as string | null);
 
   const { data: bloc } = await supabase
     .from("blocs")
@@ -108,6 +112,12 @@ export default async function EditerQuestion({
           survivent au rafraîchissement et peuvent réafficher l'ancien état —
           notamment « explication relue », qui décide si une explication
           générée est montrée aux élèves (§6.1). */}
+      <FigureQuestion
+        url={urlFigure}
+        chemin={question.image_url as string | null}
+        legende="Figure rattachée à la question"
+      />
+
       <FormulaireQuestion
         key={question.updated_at as string}
         question={{
