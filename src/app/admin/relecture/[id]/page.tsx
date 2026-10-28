@@ -4,6 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { exigerStaff } from "@/lib/admin";
 import { formaterMath } from "@/lib/notation-math";
+import { urlSigneeFigure } from "@/lib/images-questions";
+import { FigureQuestion } from "@/components/figure-question";
 import { FormulaireRelecture } from "./formulaire";
 
 export const dynamic = "force-dynamic";
@@ -20,12 +22,14 @@ export default async function Relire({
   const { data: question } = await supabase
     .from("questions")
     .select(
-      "id, type, enonce, chapitre, explication, explication_origine, explication_relue, statut, statut_extraction, commentaire_extraction, confiance_extraction, auto_publiee, origine, updated_at, bloc_id, reponses_possibles(id, texte, est_correcte, ordre)",
+      "id, type, enonce, chapitre, explication, explication_origine, explication_relue, statut, statut_extraction, commentaire_extraction, confiance_extraction, auto_publiee, origine, updated_at, bloc_id, image_url, reponses_possibles(id, texte, est_correcte, ordre)",
     )
     .eq("id", id)
     .maybeSingle();
 
   if (!question) notFound();
+
+  const urlFigure = await urlSigneeFigure(question.image_url as string | null);
 
   const { data: bloc } = await supabase
     .from("blocs")
@@ -161,6 +165,14 @@ export default async function Relire({
               {formaterMath(bloc.enonce_commun)}
             </p>
           )}
+          {/* La figure d'abord : sur beaucoup de questions scientifiques,
+              l'énoncé ne veut rien dire sans elle, et c'est elle qu'il faut
+              confronter au sujet. */}
+          <FigureQuestion
+            url={urlFigure}
+            chemin={question.image_url as string | null}
+            legende="Figure rattachée à la question"
+          />
           <FormulaireRelecture
             key={question.updated_at as string}
             question={{
