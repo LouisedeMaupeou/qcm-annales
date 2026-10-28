@@ -74,20 +74,48 @@ export async function ajouterEpreuve(
   await exigerPrepa();
 
   const sessionCbId = String(donnees.get("sessionId") ?? "");
-  const epreuveIdExterne = String(donnees.get("epreuveIdExterne") ?? "").trim();
-  if (!epreuveIdExterne) return { message: "Choisis une épreuve." };
-
-  const decodee = decoderEpreuveId(epreuveIdExterne);
-  if (!decodee) return { message: `Identifiant « ${epreuveIdExterne} » non reconnu.` };
+  const choisies = [
+    ...new Set(donnees.getAll("epreuveIdExterne").map(String).map((v) => v.trim()).filter(Boolean)),
+  ];
+  if (choisies.length === 0) return { message: "Choisis au moins une épreuve." };
 
   const admin = createAdminClient();
+  const succes: string[] = [];
+  const echecs: string[] = [];
+
+  // Une épreuve qui échoue n'empêche pas les suivantes d'entrer : le rapport
+  // dit ce qui est passé et ce qui ne l'est pas, comme à l'import.
+  for (const epreuveIdExterne of choisies.sort()) {
+    const resultat = await ajouterUneEpreuve(admin, sessionCbId, epreuveIdExterne);
+    if (resultat.erreur) echecs.push(`${epreuveIdExterne} : ${resultat.erreur}`);
+    else succes.push(resultat.resume!);
+  }
+
+  revalidatePath(`/admin/prepa/sessions/${sessionCbId}`);
+
+  return {
+    succes: succes.length > 0 ? succes.join(" · ") : undefined,
+    message: echecs.length > 0 ? echecs.join(" — ") : undefined,
+  };
+}
+
+type ClientAdmin = ReturnType<typeof createAdminClient>;
+
+/** Place une épreuve dans la session. Ne révalide pas : l'appelant s'en charge. */
+async function ajouterUneEpreuve(
+  admin: ClientAdmin,
+  sessionCbId: string,
+  epreuveIdExterne: string,
+): Promise<{ resume?: string; erreur?: string }> {
+  const decodee = decoderEpreuveId(epreuveIdExterne);
+  if (!decodee) return { erreur: "identifiant non reconnu" };
 
   const { data: concours } = await admin
     .from("concours")
     .select("id")
     .eq("nom", decodee.concours)
     .maybeSingle();
-  if (!concours) return { message: `Concours « ${decodee.concours} » absent du référentiel.` };
+  if (!concours) return { erreur: `concours « ${decodee.concours} » absent du référentiel` };
 
   const { data: epreuveRef } = await admin
     .from("epreuves")
@@ -95,9 +123,7 @@ export async function ajouterEpreuve(
     .eq("concours_id", concours.id)
     .eq("nom", decodee.matiere)
     .maybeSingle();
-  if (!epreuveRef) {
-    return { message: `Épreuve « ${decodee.matiere} » absente du référentiel ${decodee.concours}.` };
-  }
+  if (!epreuveRef) return { erreur: `épreuve « ${decodee.matiere} » absente du référentiel` };
 
   // Les questions, dans l'ordre du sujet.
   const { data: questions } = await admin
@@ -107,9 +133,7 @@ export async function ajouterEpreuve(
     .neq("statut", "depubliee")
     .limit(2000);
 
-  if (!questions || questions.length === 0) {
-    return { message: `Aucune question importée pour ${epreuveIdExterne}.` };
-  }
+  if (!questions || questions.length === 0) return { erreur: "aucune question importée" };
 
   const bareme = baremeOfficiel(decodee.concours, decodee.matiere);
   const duree = dureeOfficielle(decodee.concours, decodee.matiere);
@@ -134,12 +158,7 @@ export async function ajouterEpreuve(
     .single();
 
   if (error) {
-    return {
-      message:
-        error.code === "23505"
-          ? `${epreuveIdExterne} est déjà dans cette session.`
-          : error.message,
-    };
+    return { erreur: error.code === "23505" ? "déjà dans cette session" : error.message };
   }
 
   const liens = questions.map((q) => {
@@ -159,15 +178,13 @@ export async function ajouterEpreuve(
   if (eLiens) {
     // Une épreuve sans ses questions ne sert à rien : on annule l'ajout.
     await admin.from("epreuves_cb").delete().eq("id", epreuveCb.id);
-    return { message: `Questions : ${eLiens.message}` };
+    return { erreur: `questions : ${eLiens.message}` };
   }
 
-  revalidatePath(`/admin/prepa/sessions/${sessionCbId}`);
   return {
-    succes:
-      `${epreuveIdExterne} ajoutée : ${liens.length} questions` +
-      (duree ? `, ${duree} min` : ", durée à régler") +
-      (bareme ? `, barème ${bareme.pointsBonne}/${bareme.pointsMauvaise}` : ""),
+    resume:
+      `${epreuveIdExterne} (${liens.length} questions` +
+      (duree ? `, ${duree} min)` : ", durée à régler)"),
   };
 }
 

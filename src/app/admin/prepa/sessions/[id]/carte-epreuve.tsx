@@ -249,17 +249,23 @@ export function CarteEpreuve({
             {enCours ? "Enregistrement…" : "Enregistrer"}
           </button>
 
-          {epreuve.suivi.attendus === 0 && composees === 0 && epreuve.suivi.enCours === 0 && (
-            <form action={retirerEpreuve}>
-              <input type="hidden" name="epreuveCbId" value={epreuve.id} />
-              <input type="hidden" name="sessionId" value={sessionId} />
-              <button type="submit" className="cursor-pointer text-sm underline opacity-70">
-                Retirer de la session
-              </button>
-            </form>
-          )}
         </div>
       </form>
+
+      {/* Hors du formulaire d'enregistrement : un <form> imbriqué dans un
+          autre est invalide, le navigateur le supprime et son bouton
+          soumettait le formulaire parent — le retrait ne partait jamais.
+          Une épreuve déjà composée n'est pas retirable : on perdrait des
+          copies. L'action le revérifie côté serveur. */}
+      {composees === 0 && epreuve.suivi.enCours === 0 && (
+        <form action={retirerEpreuve} className="mt-4 border-t border-ligne pt-4">
+          <input type="hidden" name="epreuveCbId" value={epreuve.id} />
+          <input type="hidden" name="sessionId" value={sessionId} />
+          <button type="submit" className="cursor-pointer text-sm underline opacity-70">
+            Retirer cette épreuve de la session
+          </button>
+        </form>
+      )}
     </section>
   );
 }
