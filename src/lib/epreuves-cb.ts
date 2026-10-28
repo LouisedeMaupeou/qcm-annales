@@ -40,6 +40,27 @@ const MATIERES: Record<string, string> = {
   LOG: "Raisonnement logique et mathématiques",
 };
 
+/**
+ * Certains concours nomment leurs épreuves par filière dans le référentiel
+ * public, alors que l'identifiant d'un concours blanc n'en dit rien :
+ * `PA-MAT-TOUS26` donne « Mathématiques » tout court. Règle retenue — une
+ * filière non précisée vaut la filière générale. Sans cette table, l'import
+ * créait une épreuve « Mathématiques » à côté de « Mathématiques (générale) »,
+ * et le bilan aurait compté deux épreuves de maths pour le même élève.
+ *
+ * Advance ne figure pas ici : ses seules épreuves de maths sont « spécialité »
+ * et « complémentaires », il n'existe pas de générale à viser. Son concours
+ * blanc garde donc « Mathématiques », qui est bien l'épreuve générale.
+ */
+const MATIERES_PAR_CONCOURS: Record<string, Record<string, string>> = {
+  "Puissance Alpha": {
+    Mathématiques: "Mathématiques (générale)",
+    NSI: "NSI (générale)",
+    "Physique-Chimie": "Physique-Chimie (générale)",
+    SVT: "SVT (générale)",
+  },
+};
+
 export type EpreuveDecodee = {
   concours: string;
   matiere: string;
@@ -52,12 +73,12 @@ export function decoderEpreuveId(id: string): EpreuveDecodee | null {
   if (morceaux.length < 2) return null;
 
   const concours = CONCOURS[morceaux[0]];
-  const matiere = MATIERES[morceaux[1]];
-  if (!concours || !matiere) return null;
+  const generique = MATIERES[morceaux[1]];
+  if (!concours || !generique) return null;
 
   return {
     concours,
-    matiere,
+    matiere: MATIERES_PAR_CONCOURS[concours]?.[generique] ?? generique,
     session: morceaux.slice(2).join("-") || null,
   };
 }
@@ -112,11 +133,14 @@ const DUREES: Record<string, Record<string, number>> = {
     "Anglais": 30,
   },
   "Puissance Alpha": {
-    "Mathématiques": 90,
+    // Noms de filière, puisque c'est ce que rend decoderEpreuveId pour ce
+    // concours (cf. MATIERES_PAR_CONCOURS).
+    "Mathématiques (générale)": 90,
+    "Mathématiques (technologique)": 90,
     "Sciences": 60,
-    "Physique-Chimie": 60,
-    "NSI": 60,
-    "SVT": 60,
+    "Physique-Chimie (générale)": 60,
+    "NSI (générale)": 60,
+    "SVT (générale)": 60,
     "Anglais": 45,
   },
   "GEIPI Polytech": {

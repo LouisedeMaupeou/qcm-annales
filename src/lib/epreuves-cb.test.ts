@@ -86,3 +86,18 @@ test("analyse documentaire SÉSAME : tout ou rien, contrairement aux autres SÉS
 test("barème : null pour un concours hors référentiel", () => {
   assert.equal(baremeOfficiel("Inconnu", "Mathématiques"), null);
 });
+
+test("filière non précisée : Puissance Alpha vise l'épreuve générale", () => {
+  assert.equal(decoderEpreuveId("PA-MAT-TOUS26")?.matiere, "Mathématiques (générale)");
+  assert.equal(decoderEpreuveId("PA-NSI-2022")?.matiere, "NSI (générale)");
+});
+
+test("les autres concours gardent le nom générique", () => {
+  assert.equal(decoderEpreuveId("AV-MAT-TOUS26")?.matiere, "Mathématiques");
+  // Advance n'a pas d'épreuve « générale » : son concours blanc l'est.
+  assert.equal(decoderEpreuveId("ADV-MAT-OCT26")?.matiere, "Mathématiques");
+});
+
+test("durée officielle : connue sous le nom de filière retenu", () => {
+  assert.equal(dureeOfficielle("Puissance Alpha", "Mathématiques (générale)"), 90);
+});
