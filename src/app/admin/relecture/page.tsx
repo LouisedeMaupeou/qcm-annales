@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formaterMath } from "@/lib/notation-math";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -144,7 +145,9 @@ export default async function FileRelecture({
                   )}
                 </div>
 
-                <p className="line-clamp-2 text-[0.95rem] text-encre">{q.enonce}</p>
+                <p className="line-clamp-2 text-[0.95rem] text-encre">
+                  {formaterMath(q.enonce)}
+                </p>
 
                 {q.signalements.length > 0 && (
                   <p className="mt-2 text-[0.85rem] text-negatif">

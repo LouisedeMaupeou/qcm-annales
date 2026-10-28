@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formaterMath } from "@/lib/notation-math";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
@@ -200,7 +201,7 @@ export default async function DetailAnnale({
                       )}
                     </div>
                     <p className="line-clamp-2 text-[0.95rem] text-encre">
-                      {q.enonce}
+                      {formaterMath(q.enonce)}
                     </p>
                     {q.commentaire_extraction && (
                       <p className="mt-1.5 text-[0.82rem] text-negatif">

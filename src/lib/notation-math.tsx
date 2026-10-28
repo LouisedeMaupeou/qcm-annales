@@ -118,3 +118,26 @@ export function formaterMath(
   if (!/[\^_·⋅]/.test(texte)) return texte;
   return enNoeuds(tokeniser(multiplication(texte)), "m");
 }
+
+/**
+ * Aperçu du rendu, sous un champ de saisie.
+ *
+ * Une zone de saisie montre forcément la source — c'est elle qu'on corrige, et
+ * on ne peut pas taper dans un exposant. L'aperçu donne donc à voir ce que
+ * l'élève lira, juste en dessous, et disparaît quand le texte ne contient
+ * aucune notation à traduire.
+ */
+export function ApercuMath({ texte }: { texte: string }) {
+  if (!/\^|[·⋅]|_[A-Za-zÀ-ÿ0-9(]/.test(texte)) return null;
+  return (
+    <p
+      aria-live="polite"
+      className="mt-1.5 rounded-[10px] bg-fond-doux px-3 py-2 text-[0.95rem] whitespace-pre-line"
+    >
+      <span className="mr-2 text-[0.7rem] font-bold tracking-[.08em] uppercase opacity-60">
+        Aperçu
+      </span>
+      {formaterMath(texte)}
+    </p>
+  );
+}

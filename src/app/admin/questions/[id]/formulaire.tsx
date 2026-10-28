@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { ApercuMath } from "@/lib/notation-math";
 import { enregistrerQuestion, type EtatQuestion } from "./actions";
 
 type Question = {
@@ -39,6 +40,11 @@ export function FormulaireQuestion({
     enregistrerQuestion,
     {},
   );
+  // Champs contrôlés : l'aperçu du rendu doit suivre la frappe.
+  const [enonce, setEnonce] = useState(question.enonce);
+  const [textes, setTextes] = useState<Record<string, string>>(() =>
+    Object.fromEntries(propositions.map((p) => [p.id, p.texte])),
+  );
   const [explication, setExplication] = useState(question.explication ?? "");
   const [origine, setOrigine] = useState(question.explicationOrigine);
   const [relue, setRelue] = useState(question.explicationRelue);
@@ -63,10 +69,12 @@ export function FormulaireQuestion({
       <Bloc titre="Énoncé">
         <textarea
           name="enonce"
-          defaultValue={question.enonce}
+          value={enonce}
+          onChange={(e) => setEnonce(e.target.value)}
           rows={5}
           className="w-full rounded-[14px] border border-ligne bg-white px-4 py-3"
         />
+        <ApercuMath texte={enonce} />
       </Bloc>
 
       <Bloc
@@ -84,12 +92,18 @@ export function FormulaireQuestion({
               <span className="mt-3 w-5 shrink-0 font-black text-encre">
                 {i + 1}
               </span>
-              <textarea
-                name={`texte-${p.id}`}
-                defaultValue={p.texte}
-                rows={2}
-                className="min-w-[240px] flex-1 rounded-[14px] border border-ligne bg-white px-4 py-2.5"
-              />
+              <div className="min-w-[240px] flex-1">
+                <textarea
+                  name={`texte-${p.id}`}
+                  value={textes[p.id] ?? ""}
+                  onChange={(e) =>
+                    setTextes((t) => ({ ...t, [p.id]: e.target.value }))
+                  }
+                  rows={2}
+                  className="w-full rounded-[14px] border border-ligne bg-white px-4 py-2.5"
+                />
+                <ApercuMath texte={textes[p.id] ?? ""} />
+              </div>
               <label className="mt-2 flex shrink-0 cursor-pointer items-center gap-2 rounded-full bg-fond-doux px-4 py-2 font-bold">
                 <input
                   type="checkbox"

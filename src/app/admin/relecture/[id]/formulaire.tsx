@@ -1,27 +1,11 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { formaterMath } from "@/lib/notation-math";
+import { ApercuMath } from "@/lib/notation-math";
 import { deciderRelecture, type EtatRelecture } from "./actions";
 
 /** Aperçu du rendu (exposants ^, indices _) tel que l'élève le verra.
  *  Affiché seulement s'il y a une vraie notation à convertir. */
-function Apercu({ texte }: { texte: string }) {
-  const aNotation = /\^|[·⋅]|_[A-Za-zÀ-ÿ0-9(]/.test(texte);
-  if (!aNotation) return null;
-  return (
-    <p
-      aria-live="polite"
-      className="mt-1.5 rounded-[10px] bg-fond-doux px-3 py-2 text-[0.95rem] whitespace-pre-line"
-    >
-      <span className="mr-2 text-[0.7rem] font-bold tracking-[.08em] uppercase opacity-60">
-        Aperçu
-      </span>
-      {formaterMath(texte)}
-    </p>
-  );
-}
-
 type Question = {
   id: string;
   type: string;
@@ -82,7 +66,7 @@ export function FormulaireRelecture({
           rows={6}
           className="w-full rounded-[14px] border border-ligne bg-white px-4 py-3"
         />
-        <Apercu texte={enonce} />
+        <ApercuMath texte={enonce} />
       </div>
 
       <div>
@@ -107,7 +91,7 @@ export function FormulaireRelecture({
                   rows={2}
                   className="w-full rounded-[14px] border border-ligne bg-white px-4 py-2.5"
                 />
-                <Apercu texte={textes[p.id] ?? ""} />
+                <ApercuMath texte={textes[p.id] ?? ""} />
               </div>
               <label className="mt-2 flex shrink-0 cursor-pointer items-center gap-2 rounded-full bg-fond-doux px-4 py-2 font-bold">
                 <input
@@ -150,7 +134,7 @@ export function FormulaireRelecture({
           rows={4}
           className="w-full rounded-[14px] border border-ligne bg-white px-4 py-3"
         />
-        <Apercu texte={explication} />
+        <ApercuMath texte={explication} />
         <label className="mt-2 flex cursor-pointer items-center gap-2 font-bold text-encre">
           <input
             type="checkbox"
