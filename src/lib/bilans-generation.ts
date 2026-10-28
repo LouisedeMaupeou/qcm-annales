@@ -51,6 +51,8 @@ export type ColonneBilan = {
   conseils: string;
   /** La copie n'a pas été remise : la colonne reste vide, elle ne vaut pas zéro. */
   absent: boolean;
+  /** Colonne d'oral : pas de détail justes/fausses, le modèle V10 n'en porte pas. */
+  oral: boolean;
 };
 
 export type BilanAssemble = {
@@ -222,8 +224,14 @@ export async function assemblerBilan(
       methode: t.methode ?? "",
       conseils: t.conseils ?? "",
       absent: !mien || mien.statut === "en_cours",
+      oral: false,
     };
   });
+
+  // §5.5 : la note d'oral et son appréciation alimentent le bilan, en colonne
+  // supplémentaire. Seules les évaluations validées y entrent — un brouillon
+  // de professeur n'a pas à partir chez des parents.
+  colonnes.push(...(await colonnesOrales(sessionCbId, userId, seuils)));
 
   // --- Analyse par chapitre -------------------------------------------------
   const chapitres = await statsParChapitre(userId, epreuveIds);
@@ -274,6 +282,69 @@ export async function assemblerBilan(
     valideLe: (bilan?.valide_le as string | null) ?? null,
     envoyeLe: (bilan?.envoye_le as string | null) ?? null,
   };
+}
+
+/** Colonnes d'oral du bilan, une par épreuve orale évaluée et validée. */
+async function colonnesOrales(
+  sessionCbId: string,
+  userId: string,
+  seuils: SeuilsChapitre,
+): Promise<ColonneBilan[]> {
+  const admin = createAdminClient();
+
+  const { data: epreuves } = await admin
+    .from("epreuves_orales")
+    .select("id, nom, ordre, concours(nom)")
+    .eq("session_cb_id", sessionCbId)
+    .order("ordre");
+  if (!epreuves || epreuves.length === 0) return [];
+
+  const ids = epreuves.map((e) => e.id as string);
+  const { data: evaluations } = await admin
+    .from("evaluations_orales")
+    .select("epreuve_orale_id, user_id, note_globale, appreciation, recommandation, statut")
+    .in("epreuve_orale_id", ids)
+    .eq("statut", "validee");
+
+  const miennes = new Map(
+    (evaluations ?? [])
+      .filter((e) => e.user_id === userId)
+      .map((e) => [e.epreuve_orale_id as string, e]),
+  );
+
+  return epreuves
+    .filter((e) => miennes.has(e.id as string))
+    .map((e) => {
+      const ev = miennes.get(e.id as string)!;
+      const note = ev.note_globale === null ? null : Number(ev.note_globale);
+
+      const duGroupe = (evaluations ?? [])
+        .filter((x) => x.epreuve_orale_id === e.id && x.note_globale !== null)
+        .map((x) => Number(x.note_globale));
+
+      return {
+        epreuveCbId: `oral-${e.id}`,
+        concours: (e.concours as unknown as { nom: string } | null)?.nom ?? "—",
+        matiere: e.nom as string,
+        noteSur20: note,
+        points: null,
+        pointsMax: null,
+        tauxBonnesReponses: null,
+        moyenneGroupe: moyenne(duGroupe),
+        rang: note === null ? null : rang(note, duGroupe),
+        participants: duGroupe.length,
+        nbBonnes: 0,
+        nbFausses: 0,
+        nbAbstentions: 0,
+        niveau: note === null ? null : niveauEpreuve(note, seuils),
+        forces: (ev.appreciation as string | null) ?? "",
+        ameliorations: "",
+        methode: "",
+        conseils: (ev.recommandation as string | null) ?? "",
+        absent: false,
+        oral: true,
+      } satisfies ColonneBilan;
+    });
 }
 
 /**

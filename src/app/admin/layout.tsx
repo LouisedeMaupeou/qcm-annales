@@ -25,11 +25,18 @@ export default async function AdminLayout({
               </small>
             </Link>
             <nav className="flex flex-wrap gap-4 text-sm font-bold">
-              <Link href="/admin/annales" className="hover:text-primaire">
-                Annales
-              </Link>
-              <Link href="/admin/relecture" className="hover:text-primaire">
-                Relecture
+              {role !== "professeur" && (
+                <Link href="/admin/annales" className="hover:text-primaire">
+                  Annales
+                </Link>
+              )}
+              {role !== "professeur" && (
+                <Link href="/admin/relecture" className="hover:text-primaire">
+                  Relecture
+                </Link>
+              )}
+              <Link href="/admin/oraux" className="hover:text-primaire">
+                Oraux
               </Link>
               {/* Module concours blancs, §5 : la section Prépa porte les
                   listes d'élèves de la prépa — hors périmètre du contributeur,

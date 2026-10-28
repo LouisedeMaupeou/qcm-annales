@@ -100,17 +100,19 @@ export function BilanV10({ bilan }: { bilan: BilanAssemble }) {
                 <Ligne
                   titre="Réponses justes"
                   colonnes={colonnes}
-                  valeur={(c) => (c.absent ? "—" : String(c.nbBonnes))}
+                  valeur={(c) => (c.absent || c.oral ? "—" : String(c.nbBonnes))}
                 />
                 <Ligne
                   titre="Réponses fausses"
                   colonnes={colonnes}
-                  valeur={(c) => (c.absent ? "—" : String(c.nbFausses))}
+                  valeur={(c) => (c.absent || c.oral ? "—" : String(c.nbFausses))}
                 />
                 <Ligne
                   titre="Pas de réponse"
                   colonnes={colonnes}
-                  valeur={(c) => (c.absent ? "—" : String(c.nbAbstentions))}
+                  valeur={(c) =>
+                    c.oral ? "Détail sur la fiche oral" : c.absent ? "—" : String(c.nbAbstentions)
+                  }
                 />
               </>
             )}

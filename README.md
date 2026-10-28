@@ -104,8 +104,8 @@ est automatisée et le bilan de session est généré au format Parkours V10.
 
 Étapes livrées à ce jour (§9 du module) : **9 — cohortes et rôles**, **10 —
 importeur CSV/XLSX Parkours**, **11 — sessions et épreuves blanches**, **12 — passage
-élève**, **13 — correction**. Les étapes 14 et 15 (bilans V10, oraux) restent
-à faire.
+élève**, **13 — correction**, **14 — bilans V10**, **15 — oraux**. Le module est
+complet ; restent l'export XLSX de session et la recette de bout en bout.
 La banque contient les 490 questions de la session Noël, dont 104 en file de
 relecture.
 
