@@ -150,6 +150,56 @@ export function emailRelanceConcoursBlanc(
   };
 }
 
+/**
+ * Envoi du bilan de session (module concours blancs, §5.4).
+ *
+ * Reprend le mail type fourni par la prépa, mot pour mot : c'est lui qui fixe
+ * le ton et ce qui est annoncé aux familles. Deux variables seulement, le
+ * prénom du destinataire et celui de l'élève — le même texte part au parent
+ * et à l'élève, avec le prénom qui convient.
+ *
+ * Aucune note dans le corps du message (§7.4) : le bilan est en pièce jointe
+ * et derrière le lien. Un email n'est pas un canal confidentiel, et une note
+ * lue dans une notification de téléphone n'est pas une restitution.
+ */
+export function emailBilan(
+  prenomDestinataire: string,
+  prenomEleve: string,
+  session: string,
+  url: string,
+) {
+  return {
+    sujet: `Bilan des concours blancs — ${prenomEleve} (${session})`,
+    html: gabarit(
+      `Bonjour ${prenomDestinataire},`,
+      `<p>À l'issue de notre session de concours blancs, nous avons le plaisir de vous
+        transmettre le bilan personnalisé de ${prenomEleve}.</p>
+       <p>Ces épreuves ont permis à nos élèves de se confronter aux exigences des concours
+        post-bac et d'identifier les compétences déjà acquises ainsi que celles qui
+        nécessitent encore du travail.</p>
+       <p>Vous trouverez dans ce bilan :</p>
+       <ul>
+         <li>les résultats détaillés de chaque épreuve, avec les notes calculées selon les
+             barèmes des concours et le classement parmi les participants Parkours ;</li>
+         <li>une analyse pédagogique personnalisée, distinguant les compétences maîtrisées,
+             celles à consolider et celles encore insuffisamment acquises ;</li>
+         <li>un plan de travail concret, avec les notions et méthodes à reprendre ainsi que
+             des recommandations d'exercices pour progresser.</li>
+       </ul>
+       <p>L'objectif de ce document est de donner à ${prenomEleve} des repères précis pour
+        organiser ses révisions et aborder les prochaines échéances dans les meilleures
+        conditions.</p>
+       <p>Ces résultats constituent une photographie de sa préparation à ce stade de
+        l'année : ils permettent d'orienter le travail à venir, sans préjuger de ses
+        résultats aux concours officiels.</p>
+       <p>Nous restons bien entendu disponibles pour échanger avec vous sur ce bilan et les
+        priorités de progression identifiées.</p>
+       <p>Bonne lecture et à très bientôt,<br>L'équipe pédagogique Parkours</p>`,
+      { url, texte: "Consulter le bilan" },
+    ),
+  };
+}
+
 export async function envoyerEmail(destinataire: string, email: { sujet: string; html: string }) {
   return envoyer({ destinataire, ...email });
 }
