@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { EnteteEleve } from "@/components/entete-eleve";
 import { PiedDePage } from "@/components/pied-de-page";
 import { createClient } from "@/lib/supabase/server";
+import { commencer } from "./[epreuveId]/actions";
 import {
   chargerMesConcoursBlancs,
   type StatutEpreuveEleve,
@@ -137,6 +138,26 @@ export default async function MesConcoursBlancs() {
                       )}
 
                       <p className="mt-2 text-[0.85rem] opacity-75">{etat.aide}</p>
+
+                      {/* §4.3 : tentative unique et chronométrée. Le bouton
+                          n'apparaît que pendant la fenêtre ; l'action
+                          revérifie tout côté serveur avant d'ouvrir la copie. */}
+                      {e.statut === "a_composer" && (
+                        <form action={commencer} className="mt-4">
+                          <input type="hidden" name="epreuveId" value={e.id} />
+                          <button
+                            type="submit"
+                            className="cursor-pointer rounded-full bg-primaire px-7 py-3 font-extrabold text-white transition hover:bg-primaire-fonce"
+                          >
+                            {e.enCours ? "Reprendre ma copie" : "Commencer l'épreuve"}
+                          </button>
+                          <span className="ml-3 text-[0.85rem] opacity-75">
+                            {e.enCours
+                              ? "le chronomètre a déjà démarré"
+                              : `le chronomètre démarre au clic, ${e.dureeMinutes} minutes`}
+                          </span>
+                        </form>
+                      )}
                     </li>
                   );
                 })}

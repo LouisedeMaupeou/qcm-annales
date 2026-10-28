@@ -54,7 +54,15 @@ export default async function FicheSession({
       </p>
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-3xl font-black">{session.nom}</h1>
+        <div className="flex flex-wrap items-baseline gap-4">
+          <h1 className="text-3xl font-black">{session.nom}</h1>
+          <Link
+            href={`/admin/prepa/sessions/${id}/bilans`}
+            className="text-sm font-bold text-primaire hover:underline"
+          >
+            Bilans de la session →
+          </Link>
+        </div>
         <form action={changerStatutSession} className="flex items-center gap-2 text-sm">
           <input type="hidden" name="sessionId" value={id} />
           <label htmlFor="statut" className="font-bold text-encre">

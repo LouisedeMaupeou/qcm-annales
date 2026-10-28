@@ -22,12 +22,13 @@ const VALIDITE_SECONDES = 3600;
 
 export async function urlSigneeFigure(
   chemin: string | null | undefined,
+  secondes: number = VALIDITE_SECONDES,
 ): Promise<string | null> {
   if (!chemin) return null;
 
   const { data, error } = await createAdminClient()
     .storage.from(BUCKET)
-    .createSignedUrl(chemin, VALIDITE_SECONDES);
+    .createSignedUrl(chemin, secondes);
 
   if (error) {
     // Une figure manquante ne doit pas faire tomber l'écran de relecture :
@@ -37,4 +38,36 @@ export async function urlSigneeFigure(
   }
 
   return data?.signedUrl ?? null;
+}
+
+/**
+ * Signe plusieurs figures en une fois.
+ *
+ * Une épreuve blanche peut compter soixante questions illustrées : les signer
+ * une par une, c'est autant d'allers-retours réseau avant que l'élève voie sa
+ * première question. Et la durée est paramétrable parce qu'un GEIPI dure trois
+ * heures : une URL d'une heure casserait les figures en plein milieu de
+ * l'épreuve.
+ */
+export async function urlsSigneesFigures(
+  chemins: string[],
+  secondes: number = VALIDITE_SECONDES,
+): Promise<Map<string, string>> {
+  const uniques = [...new Set(chemins.filter(Boolean))];
+  if (uniques.length === 0) return new Map();
+
+  const { data, error } = await createAdminClient()
+    .storage.from(BUCKET)
+    .createSignedUrls(uniques, secondes);
+
+  if (error) {
+    console.error(`Signature des figures impossible : ${error.message}`);
+    return new Map();
+  }
+
+  const urls = new Map<string, string>();
+  for (const entree of data ?? []) {
+    if (entree.signedUrl && entree.path) urls.set(entree.path, entree.signedUrl);
+  }
+  return urls;
 }

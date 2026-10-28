@@ -34,6 +34,8 @@ export type EpreuveEleve = {
   nbQuestions: number;
   statut: StatutEpreuveEleve;
   remisLe: string | null;
+  /** Copie ouverte mais pas encore remise : le chronomètre tourne déjà. */
+  enCours: boolean;
 };
 
 export type MesConcoursBlancs = {
@@ -108,6 +110,7 @@ export async function chargerMesConcoursBlancs(
         nbQuestions: volumes.get(e.id as string) ?? 0,
         statut,
         remisLe: (passage?.remis_at as string | null) ?? null,
+        enCours: passage?.statut === "en_cours",
       };
     }),
   };
