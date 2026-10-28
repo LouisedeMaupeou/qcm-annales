@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-/** §5.3.1 : cartes grisées si vide, badge sur les concours visés. */
+/** §5.3.1 : un concours sans question jouable n'est pas affiché ; badge sur les concours visés. */
 export default async function ChoixConcours() {
   const supabase = await createClient();
   const {
@@ -38,7 +38,7 @@ export default async function ChoixConcours() {
 
   const idsVises = new Set((vises ?? []).map((v) => v.concours_id));
 
-  // Volume jouable par concours : une carte vide doit être grisée.
+  // Volume jouable par concours : un concours sans question n'est pas affiché.
   //
   // Un comptage par concours, et non une lecture de toutes les questions à
   // compter en mémoire : PostgREST plafonne une réponse à 1 000 lignes, et la
@@ -84,7 +84,14 @@ export default async function ChoixConcours() {
         </p>
 
         {groupes.map((g) => {
-          const items = (concours ?? []).filter((c) => c.filiere === g.filiere);
+          // Un concours sans question jouable n'est pas affiché du tout.
+          // Auparavant sa carte apparaissait grisée : elle occupait la page
+          // en promettant un contenu qui n'existe pas, et la banque comporte
+          // maintenant des épreuves réservées aux concours blancs, qui n'ont
+          // par construction rien à servir ici.
+          const items = (concours ?? []).filter(
+            (c) => c.filiere === g.filiere && (disponibles.get(c.id) ?? 0) > 0,
+          );
           if (items.length === 0) return null;
 
           return (
@@ -95,11 +102,14 @@ export default async function ChoixConcours() {
               <div className="grid gap-4 sm:grid-cols-2">
                 {items.map((c) => {
                   const nb = disponibles.get(c.id) ?? 0;
-                  const vide = nb === 0;
                   const vise = idsVises.has(c.id);
 
-                  const carte = (
-                    <>
+                  return (
+                    <Link
+                      key={c.id}
+                      href={`/entrainement/${c.id}`}
+                      className="rounded-carte border border-ligne bg-white p-5 no-underline transition hover:border-primaire"
+                    >
                       <div className="mb-1 flex flex-wrap items-center gap-2">
                         <span className="text-xl font-black text-encre">
                           {c.nom}
@@ -111,28 +121,9 @@ export default async function ChoixConcours() {
                         )}
                       </div>
                       <p className="text-[0.9rem]">
-                        {vide
-                          ? "Aucune question disponible pour l'instant"
-                          : `${nb} question${nb > 1 ? "s" : ""} · sessions de ${c.taille_session}`}
+                        {nb} question{nb > 1 ? "s" : ""} · sessions de{" "}
+                        {c.taille_session}
                       </p>
-                    </>
-                  );
-
-                  return vide ? (
-                    <div
-                      key={c.id}
-                      aria-disabled
-                      className="rounded-carte border border-ligne bg-fond-doux/60 p-5 opacity-60"
-                    >
-                      {carte}
-                    </div>
-                  ) : (
-                    <Link
-                      key={c.id}
-                      href={`/entrainement/${c.id}`}
-                      className="rounded-carte border border-ligne bg-white p-5 no-underline transition hover:border-primaire"
-                    >
-                      {carte}
                     </Link>
                   );
                 })}

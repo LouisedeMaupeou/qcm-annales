@@ -83,6 +83,15 @@ export default async function ChoixEpreuve({
 
   const disponibles = new Map<string, number>(volumes);
 
+  // Une épreuve sans question jouable n'est pas affichée. Elle l'était
+  // auparavant, grisée et marquée « Bientôt » — une promesse que rien ne
+  // tient : ces épreuves existent soit parce qu'aucune annale n'a pu être
+  // transcrite, soit parce qu'elles ne servent qu'aux concours blancs, dont
+  // les sujets ne doivent pas être jouables ici.
+  const epreuvesVisibles = (epreuves ?? []).filter(
+    (e) => (disponibles.get(e.id) ?? 0) > 0,
+  );
+
   const dernierScore = new Map<string, number>();
   for (const s of sessions ?? []) {
     if (!dernierScore.has(s.epreuve_id) && s.score_normalise !== null) {
@@ -125,7 +134,7 @@ export default async function ChoixEpreuve({
         )}
 
         <div className="space-y-4">
-          {(epreuves ?? []).map((e) => {
+          {epreuvesVisibles.map((e) => {
             const nb = disponibles.get(e.id) ?? 0;
             const score = dernierScore.get(e.id);
 
@@ -151,27 +160,21 @@ export default async function ChoixEpreuve({
                   </p>
                 </div>
 
-                {nb === 0 ? (
-                  <span className="rounded-full bg-fond-doux px-6 py-3 text-sm font-bold opacity-60">
-                    Bientôt
-                  </span>
-                ) : (
-                  <form action={demarrerSession}>
-                    <input type="hidden" name="concoursId" value={concoursId} />
-                    <input type="hidden" name="epreuveId" value={e.id} />
-                    <button
-                      type="submit"
-                      className="cursor-pointer rounded-full bg-primaire px-7 py-3 font-extrabold text-white transition hover:bg-primaire-fonce"
-                    >
-                      Commencer
-                    </button>
-                  </form>
-                )}
+                <form action={demarrerSession}>
+                  <input type="hidden" name="concoursId" value={concoursId} />
+                  <input type="hidden" name="epreuveId" value={e.id} />
+                  <button
+                    type="submit"
+                    className="cursor-pointer rounded-full bg-primaire px-7 py-3 font-extrabold text-white transition hover:bg-primaire-fonce"
+                  >
+                    Commencer
+                  </button>
+                </form>
               </div>
             );
           })}
 
-          {(epreuves ?? []).length === 0 && (
+          {epreuvesVisibles.length === 0 && (
             <p className="rounded-carte border border-dashed border-ligne p-6 text-sm">
               Aucune épreuve n&apos;est encore enregistrée pour ce concours.
             </p>
