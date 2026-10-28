@@ -21,6 +21,9 @@ export default async function SectionPrepa() {
           <Link href="/admin/prepa/sessions" className="text-primaire hover:underline">
             Sessions de concours blancs
           </Link>
+          <Link href="/admin/prepa/correction" className="text-primaire hover:underline">
+            Correction manuelle
+          </Link>
           <Link href="/admin/prepa/import" className="text-primaire hover:underline">
             Import de questions
           </Link>

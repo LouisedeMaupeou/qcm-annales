@@ -63,6 +63,11 @@ export default async function AdminAccueil() {
           texte="Épreuves blanches, fenêtres de passage, barèmes et suivi des copies."
         />
         <Carte
+          href="/admin/prepa/correction"
+          titre="Correction manuelle"
+          texte="Réponses rédigées des concours blancs, à noter avant le bilan."
+        />
+        <Carte
           href="/admin/prepa/import"
           titre="Import concours blancs"
           texte="Questions d'épreuves blanches au format Parkours, avec leurs images."

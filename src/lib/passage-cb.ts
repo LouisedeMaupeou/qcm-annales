@@ -2,6 +2,7 @@ import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { urlsSigneesFigures } from "@/lib/images-questions";
+import { corrigerPassage } from "@/lib/correction-cb-execution";
 
 /**
  * Passage d'une épreuve blanche (module concours blancs, §4.3 et §4.4).
@@ -303,7 +304,7 @@ export async function remettre(userId: string, epreuveCbId: string) {
   if (passage.statut !== "en_cours") return;
 
   const maintenant = new Date();
-  await admin
+  const { data: remise } = await admin
     .from("passages")
     .update({
       statut: "remis",
@@ -313,7 +314,22 @@ export async function remettre(userId: string, epreuveCbId: string) {
       ),
     })
     .eq("id", passage.id)
-    .eq("statut", "en_cours");
+    // Garde contre la double remise : le clic de l'élève et le chronomètre
+    // peuvent se croiser. Seule la mise à jour qui trouve encore « en_cours »
+    // renvoie une ligne, donc une seule correction est lancée.
+    .eq("statut", "en_cours")
+    .select("id");
+
+  if (!remise || remise.length === 0) return;
+
+  // §5.3 : correction automatique à la remise. Elle ne doit pas faire échouer
+  // la remise elle-même — une copie enregistrée mais non corrigée se rattrape,
+  // une copie perdue non.
+  try {
+    await corrigerPassage(passage.id as string);
+  } catch (e) {
+    console.error(`Correction automatique du passage ${passage.id} échouée :`, e);
+  }
 }
 
 /**
