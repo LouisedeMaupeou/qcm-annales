@@ -133,7 +133,7 @@ export async function assemblerBilan(
     admin.from("sessions_cb").select("nom").eq("id", sessionCbId).maybeSingle(),
     admin
       .from("bilans")
-      .select("id, statut, en_quelques_mots, analyse, priorites, valide_le, envoye_le")
+      .select("id, statut, en_quelques_mots, analyse_epreuves, priorites, valide_le, envoye_le")
       .eq("session_cb_id", sessionCbId)
       .eq("user_id", userId)
       .maybeSingle(),
@@ -175,7 +175,7 @@ export async function assemblerBilan(
       .map((p) => [p.epreuve_cb_id as string, p]),
   );
 
-  const textes = (bilan?.analyse ?? {}) as Record<
+  const textes = (bilan?.analyse_epreuves ?? {}) as Record<
     string,
     { forces?: string; ameliorations?: string; methode?: string; conseils?: string }
   >;

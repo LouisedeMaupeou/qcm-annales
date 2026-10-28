@@ -63,7 +63,7 @@ export async function enregistrerBilan(
 
   const { data: avant } = await admin
     .from("bilans")
-    .select("en_quelques_mots, analyse, statut, session_cb_id")
+    .select("en_quelques_mots, analyse_epreuves, statut, session_cb_id")
     .eq("id", bilanId)
     .maybeSingle();
   if (!avant) return { message: "Bilan introuvable." };
@@ -86,7 +86,7 @@ export async function enregistrerBilan(
     .from("bilans")
     .update({
       en_quelques_mots: enQuelquesMots || null,
-      analyse,
+      analyse_epreuves: analyse,
       // Dès qu'un humain y touche, le bilan quitte l'état « généré ».
       statut: avant.statut === "genere" ? "en_relecture" : avant.statut,
     })
@@ -103,8 +103,8 @@ export async function enregistrerBilan(
   await journaliser(
     bilanId,
     userId,
-    "analyse",
-    JSON.stringify(avant.analyse ?? {}),
+    "analyse_epreuves",
+    JSON.stringify(avant.analyse_epreuves ?? {}),
     JSON.stringify(analyse),
   );
 
