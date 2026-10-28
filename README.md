@@ -56,6 +56,11 @@ node --env-file=.env.local scripts/importer-avenir.mjs <dossier-des-pdf>
 # et produire le cahier de relecture (aucun accès réseau, aucune écriture en base)
 node scripts/preparer-concours-blancs.mjs      <xlsx-ingenieurs> <xlsx-sesame> <dossier-images> <dossier-sortie>
 
+# Concours blancs : recette de bout en bout (§9). Monte une session avec trois
+# élèves fictifs, compare notes et rangs à une arithmétique posée à la main,
+# puis supprime tout. --garder conserve les données pour inspection.
+node --env-file=.env.local scripts/recette-concours-blancs.mjs
+
 # Concours blancs : importer le CSV et ses images — même chemin de code que le
 # back-office. Toujours passer par --simulation d'abord : rien n'est écrit.
 node --env-file=.env.local scripts/importer-concours-blancs.mjs      <fichier.csv> [zip-images...] --simulation
