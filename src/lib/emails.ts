@@ -103,6 +103,53 @@ export function emailReinitialisation(url: string) {
   };
 }
 
+/**
+ * Invitation d'un élève rattaché à une cohorte de la prépa (module concours
+ * blancs, §5.1). Le compte existe déjà — c'est l'établissement qui l'a créé
+ * au titre du contrat de scolarité — il ne reste qu'à choisir un mot de passe.
+ */
+export function emailInvitationPrepa(prenom: string, cohorte: string, url: string) {
+  return {
+    sujet: "Ton accès à la plateforme des concours blancs Parkours",
+    html: gabarit(
+      `Bienvenue ${prenom} !`,
+      `<p>Ton compte Admissible est prêt : il te donne accès aux <strong>concours blancs de la prépa Parkours</strong> (${cohorte}), à tes bilans, et à l'entraînement libre sur les annales officielles.</p>
+       <p>Choisis ton mot de passe pour l'activer : c'est ensuite le même identifiant pour tout le site.</p>`,
+      { url, texte: "Choisir mon mot de passe" },
+    ),
+  };
+}
+
+/**
+ * Relance d'un élève qui n'a pas encore composé (module concours blancs,
+ * §5.2). Aucun détail du sujet : la relance part pendant la fenêtre, et
+ * d'autres élèves n'ont pas encore composé.
+ */
+export function emailRelanceConcoursBlanc(
+  prenom: string,
+  epreuve: string,
+  fenetreFin: string | null,
+  url: string,
+) {
+  const echeance = fenetreFin
+    ? new Date(fenetreFin).toLocaleString("fr-FR", {
+        dateStyle: "full",
+        timeStyle: "short",
+      })
+    : null;
+
+  return {
+    sujet: `Concours blanc à composer : ${epreuve}`,
+    html: gabarit(
+      `${prenom}, il te reste une épreuve à passer`,
+      `<p>Tu n'as pas encore composé l'épreuve <strong>${epreuve}</strong> du concours blanc.</p>
+       ${echeance ? `<p>La fenêtre de passage se ferme le <strong>${echeance}</strong>.</p>` : ""}
+       <p>Prévois d'être au calme : le chronomètre démarre dès que tu ouvres l'épreuve, et tu n'as qu'une tentative.</p>`,
+      { url, texte: "Voir mes concours blancs" },
+    ),
+  };
+}
+
 export async function envoyerEmail(destinataire: string, email: { sujet: string; html: string }) {
   return envoyer({ destinataire, ...email });
 }

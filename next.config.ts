@@ -6,6 +6,15 @@ import { verifierEnvironnement } from "./src/lib/env";
 verifierEnvironnement();
 
 const nextConfig: NextConfig = {
+  experimental: {
+    serverActions: {
+      // Le zip d'images d'un concours blanc pèse une vingtaine de méga-octets
+      // (les sujets SÉSAME sont des captures, une par question). La limite par
+      // défaut d'une Server Action est de 1 Mo : l'import serait refusé avant
+      // même d'atteindre notre propre contrôle de taille.
+      bodySizeLimit: "40mb",
+    },
+  },
   async headers() {
     return [
       {

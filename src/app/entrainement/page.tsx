@@ -23,33 +23,48 @@ export default async function ChoixConcours() {
 
   const admin = createAdminClient();
 
-  const [{ data: concours }, { data: vises }, { data: questions }] =
-    await Promise.all([
-      admin
-        .from("concours")
-        .select("id, nom, filiere, taille_session")
-        .eq("actif", true)
-        .order("filiere")
-        .order("nom"),
-      supabase
-        .from("user_concours_vises")
-        .select("concours_id")
-        .eq("user_id", user.id),
-      // Volume jouable par concours : une carte vide doit être grisée.
-      admin
-        .from("questions")
-        .select("id, blocs!inner(epreuves!inner(concours_id))")
-        .eq("statut", "publie"),
-    ]);
+  const [{ data: concours }, { data: vises }] = await Promise.all([
+    admin
+      .from("concours")
+      .select("id, nom, filiere, taille_session")
+      .eq("actif", true)
+      .order("filiere")
+      .order("nom"),
+    supabase
+      .from("user_concours_vises")
+      .select("concours_id")
+      .eq("user_id", user.id),
+  ]);
 
   const idsVises = new Set((vises ?? []).map((v) => v.concours_id));
 
-  const disponibles = new Map<string, number>();
-  for (const q of questions ?? []) {
-    const bloc = q.blocs as unknown as { epreuves: { concours_id: string } | null } | null;
-    const id = bloc?.epreuves?.concours_id;
-    if (id) disponibles.set(id, (disponibles.get(id) ?? 0) + 1);
-  }
+  // Volume jouable par concours : une carte vide doit être grisée.
+  //
+  // Un comptage par concours, et non une lecture de toutes les questions à
+  // compter en mémoire : PostgREST plafonne une réponse à 1 000 lignes, et la
+  // banque a dépassé ce seuil. Les concours arrivés après la millième question
+  // se voyaient attribuer zéro question et leur carte était grisée alors
+  // qu'elles étaient jouables.
+  //
+  // Un bloc sans annale est un sujet de concours blanc : il n'appartient pas à
+  // l'entraînement libre et ne doit pas gonfler ce compteur (module concours
+  // blancs, §6).
+  const volumes = await Promise.all(
+    (concours ?? []).map(async (c) => {
+      const { count } = await admin
+        .from("questions")
+        .select("id, blocs!inner(annale_id, epreuves!inner(concours_id))", {
+          count: "exact",
+          head: true,
+        })
+        .eq("statut", "publie")
+        .not("blocs.annale_id", "is", null)
+        .eq("blocs.epreuves.concours_id", c.id);
+      return [c.id as string, count ?? 0] as const;
+    }),
+  );
+
+  const disponibles = new Map<string, number>(volumes);
 
   const groupes = [
     { filiere: "commerce" as const, libelle: "Écoles de commerce" },

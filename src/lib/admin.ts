@@ -3,7 +3,13 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
-export type RoleStaff = "admin" | "contributeur";
+export type RoleStaff = "admin" | "contributeur" | "responsable_prepa";
+
+const ROLES_STAFF: readonly string[] = [
+  "admin",
+  "contributeur",
+  "responsable_prepa",
+];
 
 /**
  * Garde du back-office (§4). Renvoie le rôle, ou redirige.
@@ -28,7 +34,7 @@ export async function exigerStaff(): Promise<{
     .eq("id", user.id)
     .single();
 
-  if (profil?.role !== "admin" && profil?.role !== "contributeur") {
+  if (!profil || !ROLES_STAFF.includes(profil.role)) {
     redirect("/tableau-de-bord");
   }
 
@@ -39,5 +45,17 @@ export async function exigerStaff(): Promise<{
 export async function exigerAdmin() {
   const { role, userId } = await exigerStaff();
   if (role !== "admin") redirect("/admin");
+  return { role, userId };
+}
+
+/**
+ * Section Prépa (module concours blancs, §5) : admin et responsable des
+ * prépas. Le contributeur en est exclu — il relit du contenu, il n'a pas à
+ * voir les listes d'élèves de la prépa, qui sont des données personnelles de
+ * mineurs.
+ */
+export async function exigerPrepa() {
+  const { role, userId } = await exigerStaff();
+  if (role !== "admin" && role !== "responsable_prepa") redirect("/admin");
   return { role, userId };
 }

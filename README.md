@@ -6,7 +6,10 @@ officielles, avec correction, barème officiel appliqué et suivi de progression
 La source de vérité fonctionnelle est
 [`docs/specifications-plateforme-qcm-annales-v1.2.md`](docs/specifications-plateforme-qcm-annales-v1.2.md).
 Les références `§x.y` de ce dépôt et des commentaires du code renvoient à ses
-sections.
+sections. Le module concours blancs de la prépa a ses propres spécifications,
+[`docs/specifications-module-concours-blancs-v1.0.md`](docs/specifications-module-concours-blancs-v1.0.md) ;
+les commentaires qui s'y rapportent le disent explicitement
+(« module concours blancs, §5 »).
 
 ## Stack
 
@@ -48,6 +51,14 @@ node --env-file=.env.local scripts/importer-advance-2026.mjs <dossier-des-pdf>
 # Importer les annales Avenir 2025 et 2026 (anglais ; maths, sciences et
 # physique archivés seulement, leur notation ne survit pas à l'extraction)
 node --env-file=.env.local scripts/importer-avenir.mjs <dossier-des-pdf>
+
+# Concours blancs : convertir les classeurs d'extraction au format Parkours
+# et produire le cahier de relecture (aucun accès réseau, aucune écriture en base)
+node scripts/preparer-concours-blancs.mjs      <xlsx-ingenieurs> <xlsx-sesame> <dossier-images> <dossier-sortie>
+
+# Concours blancs : importer le CSV et ses images — même chemin de code que le
+# back-office. Toujours passer par --simulation d'abord : rien n'est écrit.
+node --env-file=.env.local scripts/importer-concours-blancs.mjs      <fichier.csv> [zip-images...] --simulation
 ```
 
 ### Ce qui s'extrait d'un PDF, et ce qui ne s'extrait pas
@@ -82,6 +93,96 @@ dépôt seul.
 **Restent non importés** : les épreuves rédactionnelles (type `redaction`, V2), les
 affirmations Puissance Alpha *générale* restées en images (OCR requis pour la part
 non saisie à la main) et tout exercice dépendant d'une figure absente.
+
+
+## Module concours blancs (prépa Parkours)
+
+Spécifications :
+[`docs/specifications-module-concours-blancs-v1.0.md`](docs/specifications-module-concours-blancs-v1.0.md).
+Les élèves de la prépa composent leurs concours blancs en ligne, la correction
+est automatisée et le bilan de session est généré au format Parkours V10.
+
+Étapes livrées à ce jour (§9 du module) : **9 — cohortes et rôles**, **10 —
+importeur CSV/XLSX Parkours**, **11 — sessions et épreuves blanches**. Les
+étapes 12 à 15 (passage élève, correction, bilans, oraux) restent à faire.
+La banque contient les 490 questions de la session Noël, dont 104 en file de
+relecture.
+
+### Trois décisions d'architecture à connaître
+
+**1. Une question de concours blanc vit dans la banque du socle, mais sous un
+bloc sans annale.** Le `§6` du module demande d'ajouter des colonnes à
+`questions` plutôt que de créer une table parallèle — on réutilise ainsi les
+propositions, la file de relecture et la correction. Restait le rattachement :
+une question descend d'un bloc, qui descend d'une annale, laquelle porte un
+couple concours × année unique. Une épreuve blanche n'est pas une annale (il y
+en a plusieurs par concours et par an). `blocs.annale_id` est donc devenu
+facultatif, remplacé dans ce cas par `blocs.epreuve_id_externe`, avec une
+contrainte d'exclusivité.
+
+**Conséquence à ne pas perdre de vue** : le tirage de l'entraînement libre
+sélectionne les blocs par épreuve et par statut, sans passer par l'annale. Sans
+filtre, les sujets de concours blancs apparaîtraient côté public — avant même
+que les élèves de la prépa aient composé. Trois requêtes écartent explicitement
+les blocs sans annale (`session-entrainement.ts`, les deux pages
+`entrainement`), le trigger de statut ne publie jamais un bloc de concours
+blanc, et `epreuves.visible_public` masque les épreuves nées d'un import de
+concours blanc.
+
+**2. Une affirmation vrai/faux est stockée comme un choix unique Vrai/Faux.**
+Le type `vrai_faux` du socle désigne autre chose : un énoncé suivi de
+plusieurs affirmations, notées tout ou rien (§2.3). Une ligne `vrai_faux` du
+format Parkours porte **une** affirmation. Pour ne pas confondre deux
+granularités, l'affirmation devient un choix unique entre Vrai et Faux — même
+notation (+/− par affirmation), et c'est déjà la convention des QCM GEIPI et
+Puissance Alpha importés dans la banque.
+
+**3. L'import est idempotent, et ne défait pas une relecture.** Le
+rapprochement se fait sur `id_question_externe` et `bloc_id_externe` :
+réimporter un fichier corrigé met à jour les questions au lieu de les
+dupliquer. Une question déjà relue par un humain (`relue_le` renseigné) voit
+son contenu mis à jour mais **garde son statut** : le fichier fait foi sur le
+contenu, le relecteur sur la décision de publication.
+
+**4. L'épreuve blanche porte son propre barème, et non un lien vers `baremes`.**
+Écart assumé par rapport au §6 du module, pour deux raisons. `baremes` est
+unique par (concours, épreuve) : elle ne peut pas porter deux barèmes
+différents pour « Avenir / Mathématiques », alors que c'est déjà le cas (+3/−1
+en 2025, +1/−1 en 2026, et le concours blanc a le sien). Et trois des quatre
+barèmes relevés sur les sujets ne s'expriment pas par un triplet
+bonne/mauvaise/abstention : plancher par exercice chez GEIPI, bonification par
+exercice entièrement juste chez Puissance Alpha, tout ou rien par question en
+analyse documentaire SÉSAME. D'où `epreuves_cb.regles`, un objet lu par la
+correction, et `bareme_source`, qui conserve la consigne du sujet mot pour
+mot. Les valeurs par défaut vivent dans `src/lib/epreuves-cb.ts`, avec leurs
+tests.
+
+**5. L'ordre d'une question dans son épreuve est stocké, pas recalculé.**
+`questions.ordre_epreuve` reprend la colonne `ordre` du fichier d'import
+(« 13.2 = sous-question 2 de la question 13 »). Sa partie entière groupe les
+cases d'une question à trous, ce dont la correction tout ou rien de l'analyse
+documentaire a besoin — et qu'aucune reconstruction depuis `blocs.ordre` ne
+pouvait donner, les 29 questions de cette épreuve partageant le bloc qui porte
+le corpus.
+
+### Préparer un import
+
+Les classeurs d'extraction ne sont pas au format Parkours (propositions dans
+une seule cellule, pas de colonne `ordre` ni `bloc_id`, deux conventions de
+colonnes selon le concours). `scripts/preparer-concours-blancs.mjs` fait la
+conversion et produit deux fichiers : le CSV à importer, et un **cahier de
+relecture** listant chaque endroit où la conversion a dû trancher seule (type
+corrigé, clé relue dans la rétroaction, chapitre ajouté, figure à contrôler).
+Ces questions arrivent en base avec `statut_extraction = a_verifier`, donc
+dans la file de relecture, et ne sont pas servies telles quelles.
+
+L'import lui-même se fait dans le back-office (**Prépa → Import concours
+blancs**, fichier de questions + zip(s) d'images, bouton « Analyser » pour le
+rapport sans écriture) ou en ligne de commande avec
+`scripts/importer-concours-blancs.mjs`. Les deux chemins appellent les mêmes
+modules — `src/lib/import-cb.ts` pour la lecture, `import-cb-ecriture.ts`
+pour l'écriture — précisément pour qu'il n'y ait pas deux imports qui
+divergent, ce que le dépôt a déjà connu avec les scripts ad hoc des annales.
 
 ## Base de données
 
@@ -134,6 +235,27 @@ plateforme de déploiement doivent pouvoir joindre `cdn.sheetjs.com`.**
 ## À faire avant une mise en production réelle
 
 Ces points sont connus et documentés, aucun n'est un oubli :
+
+- [ ] **Concours blancs : 104 questions en relecture sur 490.** Le cahier
+      produit par `preparer-concours-blancs.mjs` les liste avec leur motif.
+      42 portent une réserve d'extraction héritée des scans (dont 24 sur
+      Puissance Alpha), 22 dépendent d'une figure à contrôler, 31 ont vu leur
+      type corrigé par la conversion, 7 ont vu leur clé relue dans la
+      rétroaction. Aucune n'est servie tant qu'elle n'est pas validée.
+- [ ] **Concours blancs : rattachement des textes supports.** Cinq documents
+      (article d'anglais SÉSAME, encarts de français, texte LV2) ne sont
+      rattachés qu'à la question qui les cite, alors qu'ils en servent
+      plusieurs. La feuille « Documents » du cahier de relecture attend les
+      questions couvertes.
+- [ ] **Concours blancs : pondération des questions.** Les classeurs
+      d'extraction ne portent pas de colonne `points` : tout est importé à 1.
+      Les barèmes officiels relevés sur les sujets (Avenir +3/−1, Advance et
+      Puissance Alpha +1/−0,5, plancher par exercice GEIPI, bonification PA)
+      sont à charger dans `baremes` à l'étape 11.
+- [ ] **Concours blancs : LV2 non couvertes.** Le fascicule SÉSAME contient
+      aussi arabe, chinois, hébreu, italien, japonais, néerlandais, portugais
+      et russe, sans clé de correction au référentiel. Seuls l'allemand et
+      l'espagnol sont importés.
 
 - [ ] **Barèmes** — Avenir et Puissance Alpha sont sourcés et datés d'après
       leurs sujets officiels. Restent à vérifier : ACCÈS, SÉSAME, Advance, et

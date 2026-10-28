@@ -41,14 +41,15 @@ export default async function FileRelecture({
   const { data: questions } = await supabase
     .from("questions")
     .select(
-      "id, enonce, chapitre, statut, statut_extraction, commentaire_extraction, confiance_extraction, explication, explication_relue, updated_at, blocs(annale_id, epreuve_id, annales(annee, concours(nom)))",
+      "id, enonce, chapitre, statut, statut_extraction, commentaire_extraction, confiance_extraction, explication, explication_relue, updated_at, epreuve_id_externe, blocs(annale_id, epreuve_id, epreuve_id_externe, annales(annee, concours(nom)))",
     )
     .in("statut", ["brouillon", "a_verifier", "depubliee"])
     .order("updated_at", { ascending: true });
 
   const enrichies = (questions ?? []).map((q) => {
     const bloc = q.blocs as unknown as {
-      annale_id: string;
+      annale_id: string | null;
+      epreuve_id_externe: string | null;
       annales: { annee: number; concours: { nom: string } | null } | null;
     } | null;
     return {
@@ -57,6 +58,9 @@ export default async function FileRelecture({
       annaleId: bloc?.annale_id,
       annee: bloc?.annales?.annee,
       concours: bloc?.annales?.concours?.nom,
+      // Une question de concours blanc ne descend pas d'une annale : elle
+      // s'identifie par son épreuve blanche (module concours blancs, §3).
+      epreuveBlanche: bloc?.epreuve_id_externe ?? q.epreuve_id_externe ?? null,
     };
   });
 
@@ -120,7 +124,9 @@ export default async function FileRelecture({
                     </span>
                   )}
                   <span className="rounded-full bg-fond-doux px-2.5 py-0.5 text-[0.75rem] font-bold">
-                    {q.concours} {q.annee}
+                    {q.epreuveBlanche
+                      ? `concours blanc · ${q.epreuveBlanche}`
+                      : `${q.concours} ${q.annee}`}
                   </span>
                   <span className="rounded-full bg-fond-doux px-2.5 py-0.5 text-[0.75rem] font-bold">
                     {q.chapitre}
