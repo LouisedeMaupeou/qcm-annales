@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { creerSession, type EtatSession } from "./actions";
+import { BoutonAction } from "@/components/bouton-action";
 
 export function FormulaireSession() {
   const [etat, action, enCours] = useActionState<EtatSession, FormData>(creerSession, {});
@@ -34,13 +35,15 @@ export function FormulaireSession() {
         />
       </div>
 
-      <button
-        type="submit"
-        disabled={enCours}
-        className="w-full cursor-pointer rounded-full bg-primaire px-7 py-3 font-extrabold text-white transition hover:bg-primaire-fonce disabled:cursor-wait disabled:opacity-60"
+      <BoutonAction
+        className="w-full"
+        succes={Boolean(etat.succes)}
+        enCours={enCours}
+        libelleEnCours="Création…"
+        libelleSucces="Session créée"
       >
-        {enCours ? "Création…" : "Créer la session"}
-      </button>
+        Créer la session
+      </BoutonAction>
     </form>
   );
 }

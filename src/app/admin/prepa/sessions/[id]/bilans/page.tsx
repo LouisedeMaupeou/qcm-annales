@@ -11,7 +11,7 @@ const ETATS: Record<string, { libelle: string; classe: string }> = {
   genere: { libelle: "généré", classe: "bg-ligne text-encre" },
   en_relecture: { libelle: "en relecture", classe: "bg-soleil/25 text-encre" },
   valide: { libelle: "validé", classe: "bg-primaire/10 text-primaire-fonce" },
-  envoye: { libelle: "envoyé", classe: "bg-positif/15 text-encre" },
+  envoye: { libelle: "envoyé", classe: "bg-positif/15 text-positif" },
 };
 
 /** §5.4 : génération, relecture, validation, envoi — vue d'ensemble. */

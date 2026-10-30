@@ -244,9 +244,11 @@ export function CarteEpreuve({
           <button
             type="submit"
             disabled={enCours}
-            className="cursor-pointer rounded-full bg-primaire px-7 py-3 font-extrabold text-white transition hover:bg-primaire-fonce disabled:cursor-wait disabled:opacity-60"
+            className={`cursor-pointer rounded-full px-7 py-3 font-extrabold text-white transition disabled:cursor-wait disabled:opacity-60 ${
+              etat.succes ? "bg-positif" : "bg-primaire hover:bg-primaire-fonce"
+            }`}
           >
-            {enCours ? "Enregistrement…" : "Enregistrer"}
+            {enCours ? "Enregistrement…" : etat.succes ? "✓ Enregistré" : "Enregistrer"}
           </button>
 
         </div>

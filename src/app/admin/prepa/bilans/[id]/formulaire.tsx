@@ -182,9 +182,11 @@ export function FormulaireBilan({
         <button
           type="submit"
           disabled={enCours}
-          className="cursor-pointer rounded-full bg-primaire px-7 py-3 font-extrabold text-white transition hover:bg-primaire-fonce disabled:cursor-wait disabled:opacity-60"
+          className={`cursor-pointer rounded-full px-7 py-3 font-extrabold text-white transition disabled:cursor-wait disabled:opacity-60 ${
+            etat.succes ? "bg-positif" : "bg-primaire hover:bg-primaire-fonce"
+          }`}
         >
-          {enCours ? "Enregistrement…" : "Enregistrer les textes"}
+          {enCours ? "Enregistrement…" : etat.succes ? "✓ Textes enregistrés" : "Enregistrer les textes"}
         </button>
       </form>
     </>

@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { noterReponse, type EtatCorrection } from "./actions";
+import { BoutonAction } from "@/components/bouton-action";
 
 export function FormulaireNote({
   passageId,
@@ -74,13 +75,13 @@ export function FormulaireNote({
           />
         </div>
 
-        <button
-          type="submit"
-          disabled={enCours}
-          className="cursor-pointer rounded-full bg-primaire px-6 py-2.5 font-extrabold text-white transition hover:bg-primaire-fonce disabled:cursor-wait disabled:opacity-60"
+        <BoutonAction
+          succes={Boolean(etat.succes)}
+          enCours={enCours}
+          libelleSucces="Noté"
         >
-          {enCours ? "…" : pointsActuels === null ? "Noter" : "Modifier"}
-        </button>
+          {pointsActuels === null ? "Noter" : "Modifier"}
+        </BoutonAction>
       </div>
     </form>
   );

@@ -197,9 +197,17 @@ export function FormulaireGrille({
         <button
           type="submit"
           disabled={enCours}
-          className="cursor-pointer rounded-full border-2 border-primaire px-7 py-3 font-extrabold text-primaire transition hover:bg-fond-doux disabled:cursor-wait disabled:opacity-60"
+          className={`cursor-pointer rounded-full border-2 px-7 py-3 font-extrabold transition disabled:cursor-wait disabled:opacity-60 ${
+            etat.succes && statut !== "validee"
+              ? "border-positif bg-positif text-white"
+              : "border-primaire text-primaire hover:bg-fond-doux"
+          }`}
         >
-          {enCours ? "Enregistrement…" : "Enregistrer le brouillon"}
+          {enCours
+            ? "Enregistrement…"
+            : etat.succes && statut !== "validee"
+              ? "✓ Brouillon enregistré"
+              : "Enregistrer le brouillon"}
         </button>
 
         <button
@@ -207,9 +215,11 @@ export function FormulaireGrille({
           name="valider"
           value="oui"
           disabled={enCours}
-          className="cursor-pointer rounded-full bg-primaire px-7 py-3 font-extrabold text-white transition hover:bg-primaire-fonce disabled:cursor-wait disabled:opacity-60"
+          className={`cursor-pointer rounded-full px-7 py-3 font-extrabold text-white transition disabled:cursor-wait disabled:opacity-60 ${
+            statut === "validee" ? "bg-positif" : "bg-primaire hover:bg-primaire-fonce"
+          }`}
         >
-          Valider l&apos;évaluation
+          {statut === "validee" ? "✓ Évaluation validée" : "Valider l'évaluation"}
         </button>
 
         <span className="text-sm opacity-75">

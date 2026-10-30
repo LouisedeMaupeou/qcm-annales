@@ -189,9 +189,11 @@ export function FormulaireQuestion({
       <button
         type="submit"
         disabled={enCours}
-        className="cursor-pointer rounded-full bg-primaire px-9 py-3.5 font-extrabold text-white transition hover:bg-primaire-fonce disabled:cursor-wait disabled:opacity-60"
+        className={`cursor-pointer rounded-full px-9 py-3.5 font-extrabold text-white transition disabled:cursor-wait disabled:opacity-60 ${
+          etat.enregistre ? "bg-positif" : "bg-primaire hover:bg-primaire-fonce"
+        }`}
       >
-        {enCours ? "Enregistrement…" : "Enregistrer"}
+        {enCours ? "Enregistrement…" : etat.enregistre ? "✓ Enregistré" : "Enregistrer"}
       </button>
     </form>
   );
