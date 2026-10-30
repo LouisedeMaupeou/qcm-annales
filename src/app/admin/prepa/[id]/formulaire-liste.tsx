@@ -49,9 +49,11 @@ export function FormulaireListe({ cohorteId }: { cohorteId: string }) {
             name="mode"
             value="import"
             disabled={enCours}
-            className="cursor-pointer rounded-full bg-primaire px-5 py-2.5 text-sm font-extrabold text-white transition hover:bg-primaire-fonce disabled:cursor-wait disabled:opacity-60"
+            className={`cursor-pointer rounded-full px-5 py-2.5 text-sm font-extrabold text-white transition disabled:cursor-wait disabled:opacity-60 ${
+              r && !r.simulation ? "bg-positif" : "bg-primaire hover:bg-primaire-fonce"
+            }`}
           >
-            Importer et inviter
+            {r && !r.simulation ? "✓ Importé et invité" : "Importer et inviter"}
           </button>
         </div>
         <p className="text-[0.82rem] opacity-75">

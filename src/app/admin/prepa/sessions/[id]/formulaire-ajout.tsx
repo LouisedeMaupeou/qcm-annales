@@ -1,5 +1,6 @@
 "use client";
 
+import { BoutonAction } from "@/components/bouton-action";
 import { useActionState, useState } from "react";
 import { ajouterEpreuve, type EtatEpreuve } from "../actions";
 
@@ -98,17 +99,18 @@ export function FormulaireAjout({
                 : `Tout sélectionner (${disponibles.length})`}
             </button>
 
-            <button
-              type="submit"
+            <BoutonAction
+              className="ml-auto disabled:cursor-not-allowed"
               disabled={enCours || selection.size === 0}
-              className="ml-auto cursor-pointer rounded-full bg-primaire px-7 py-3 font-extrabold text-white transition hover:bg-primaire-fonce disabled:cursor-not-allowed disabled:opacity-60"
+              succes={Boolean(etat.succes)}
+              enCours={enCours}
+              libelleEnCours="Ajout…"
+              libelleSucces="Épreuves ajoutées"
             >
-              {enCours
-                ? "Ajout…"
-                : selection.size === 0
-                  ? "Ajouter"
-                  : `Ajouter ${selection.size} épreuve${selection.size > 1 ? "s" : ""}`}
-            </button>
+              {selection.size === 0
+                ? "Ajouter"
+                : `Ajouter ${selection.size} épreuve${selection.size > 1 ? "s" : ""}`}
+            </BoutonAction>
           </div>
         </form>
       )}

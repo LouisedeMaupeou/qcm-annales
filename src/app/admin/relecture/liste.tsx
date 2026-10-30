@@ -64,7 +64,7 @@ export function ListeRelecture({
         </p>
       )}
       {etat.publiees !== undefined && etat.publiees > 0 && (
-        <p className="mb-4 rounded-carte bg-primaire/10 p-4 text-sm font-bold text-primaire-fonce">
+        <p className="mb-4 rounded-carte bg-positif/10 p-4 text-sm font-bold text-positif">
           {etat.publiees} question{etat.publiees > 1 ? "s" : ""} publiée
           {etat.publiees > 1 ? "s" : ""}.
         </p>

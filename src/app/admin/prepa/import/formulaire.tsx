@@ -71,9 +71,11 @@ export function FormulaireImportCb() {
             name="mode"
             value="import"
             disabled={enCours}
-            className="cursor-pointer rounded-full bg-primaire px-7 py-3 font-extrabold text-white transition hover:bg-primaire-fonce disabled:cursor-wait disabled:opacity-60"
+            className={`cursor-pointer rounded-full px-7 py-3 font-extrabold text-white transition disabled:cursor-wait disabled:opacity-60 ${
+              r && !r.simulation ? "bg-positif" : "bg-primaire hover:bg-primaire-fonce"
+            }`}
           >
-            Importer
+            {r && !r.simulation ? "✓ Import effectué" : "Importer"}
           </button>
         </div>
         <p className="text-[0.85rem] opacity-75">
