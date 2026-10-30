@@ -110,7 +110,7 @@ est automatisée et le bilan de session est généré au format Parkours V10.
 Étapes livrées à ce jour (§9 du module) : **9 — cohortes et rôles**, **10 —
 importeur CSV/XLSX Parkours**, **11 — sessions et épreuves blanches**, **12 — passage
 élève**, **13 — correction**, **14 — bilans V10**, **15 — oraux**. Le module est
-complet ; restent l'export XLSX de session et la recette de bout en bout.
+complet, recette de bout en bout comprise (`scripts/recette-concours-blancs.mjs`).
 La banque contient les 490 questions de la session Noël, dont 104 en file de
 relecture.
 
@@ -232,6 +232,12 @@ Le build échoue si l'une manque sur un déploiement de production
 que personne ne s'en aperçoive : c'est pourquoi le contrôle est bloquant.
 
 ### Particularité de dépendance
+
+Le bilan existe en deux rendus : `BilanV10` pour l'écran et
+`bilan-pdf.tsx` pour la pièce jointe de l'email, que l'impression du
+navigateur ne peut pas produire côté serveur. **Les deux doivent évoluer
+ensemble** ; ils partent des mêmes données, seule la présentation est
+dupliquée, jamais un calcul.
 
 `xlsx` est installé depuis le CDN de SheetJS et non depuis npm, où le paquet est
 figé à une version vulnérable (pollution de prototype à l'ouverture d'un

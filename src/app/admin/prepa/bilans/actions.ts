@@ -5,6 +5,7 @@ import { exigerPrepa } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { assemblerBilan, elevesDeLaSession } from "@/lib/bilans-generation";
 import { emailBilan, envoyerEmail } from "@/lib/emails";
+import { bilanEnPdf, nomFichierBilan } from "@/lib/bilan-pdf";
 import { urlSite } from "@/lib/site";
 
 /** Workflow des bilans : généré → en relecture → validé → envoyé (§5.4). */
@@ -152,6 +153,19 @@ export async function envoyerBilan(formulaire: FormData) {
   if (!assemble) return;
 
   const lien = `${urlSite()}/concours-blancs/bilan/${bilanId}`;
+
+  // §5.4 : « bilan en PDF joint + lien de consultation ». Le PDF est rendu
+  // une fois et joint aux deux messages ; s'il échoue, le mail part quand
+  // même avec son lien — un bilan reçu sans pièce jointe vaut mieux qu'un
+  // bilan non reçu.
+  let pieces;
+  try {
+    pieces = [
+      { nom: `${nomFichierBilan(assemble)}.pdf`, contenu: await bilanEnPdf(assemble) },
+    ];
+  } catch (e) {
+    console.error(`PDF du bilan ${bilanId} non généré :`, e);
+  }
   const journal: { destinataire: string; le: string; ok: boolean; erreur?: string }[] = [];
 
   const destinataires = [
@@ -171,6 +185,7 @@ export async function envoyerBilan(formulaire: FormData) {
           assemble.session,
           lien,
         ),
+        pieces,
       );
       journal.push({ destinataire: d.email, le: new Date().toISOString(), ok: true });
     } catch (e) {

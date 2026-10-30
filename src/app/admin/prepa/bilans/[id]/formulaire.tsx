@@ -45,6 +45,14 @@ export function FormulaireBilan({
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          <a
+            href={`/admin/prepa/bilans/${bilanId}/pdf`}
+            target="_blank"
+            rel="noreferrer"
+            className="cursor-pointer rounded-full border-2 border-ligne px-6 py-2.5 font-bold text-encre no-underline transition hover:bg-fond-doux"
+          >
+            Voir le PDF
+          </a>
           {!valide && (
             <form action={validerBilan}>
               <input type="hidden" name="bilanId" value={bilanId} />
