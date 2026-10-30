@@ -27,13 +27,17 @@ export default async function EpreuveOrale({
     <>
       <p className="mb-2 text-sm">
         <Link href="/admin/oraux" className="hover:underline">
-          ← Oraux
+          ← Oraux blancs
         </Link>
       </p>
-      <h1 className="mb-1 text-3xl font-black">
-        {epreuve.concours} — {epreuve.nom}
-      </h1>
-      <p className="mb-6 text-sm opacity-75">{epreuve.session}</p>
+      <h1 className="mb-1 text-3xl font-black">{epreuve.nom}</h1>
+      <p className="mb-6 text-sm opacity-75">
+        {epreuve.session} ·{" "}
+        {epreuve.filiere === "commerce" ? "écoles de commerce" : "écoles d'ingénieurs"} ·{" "}
+        {epreuve.ponderation > 0
+          ? `${Math.round(epreuve.ponderation * 100)} % de la note d'oral`
+          : "hors moyenne"}
+      </p>
 
       <form method="get" className="mb-6 flex flex-wrap items-end gap-3">
         <div className="min-w-[240px] flex-1">
@@ -86,7 +90,7 @@ export default async function EpreuveOrale({
                   </td>
                   <td className="px-4 py-3">{e.cohorte ?? "—"}</td>
                   <td className="px-4 py-3 tabular-nums">
-                    {e.noteGlobale === null ? "—" : `${e.noteGlobale}/20`}
+                    {e.note === null ? "—" : `${e.note}/${epreuve.maximum}`}
                   </td>
                   <td className="px-4 py-3">
                     {e.statut === "validee" ? (

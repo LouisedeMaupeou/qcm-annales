@@ -22,7 +22,7 @@ export default async function Grille({
     <>
       <p className="mb-2 text-sm">
         <Link href={`/admin/oraux/${epreuveOraleId}`} className="hover:underline">
-          ← {evaluation.epreuve.concours} — {evaluation.epreuve.nom}
+          ← {evaluation.epreuve.nom}
         </Link>
       </p>
 
@@ -43,10 +43,13 @@ export default async function Grille({
         epreuveOraleId={epreuveOraleId}
         eleveId={userId}
         criteres={evaluation.epreuve.criteres}
+        libelleContexte={evaluation.epreuve.contexte}
+        contexte={evaluation.contexte}
         notes={evaluation.notes}
-        appreciation={evaluation.appreciation}
-        recommandation={evaluation.recommandation}
-        noteGlobale={evaluation.noteGlobale}
+        note={evaluation.note}
+        pointFort={evaluation.pointFort}
+        progresPrioritaire={evaluation.progresPrioritaire}
+        commentaireJury={evaluation.commentaireJury}
         statut={evaluation.statut}
       />
     </>

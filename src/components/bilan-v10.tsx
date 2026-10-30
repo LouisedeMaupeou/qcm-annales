@@ -100,19 +100,17 @@ export function BilanV10({ bilan }: { bilan: BilanAssemble }) {
                 <Ligne
                   titre="Réponses justes"
                   colonnes={colonnes}
-                  valeur={(c) => (c.absent || c.oral ? "—" : String(c.nbBonnes))}
+                  valeur={(c) => (c.absent ? "—" : String(c.nbBonnes))}
                 />
                 <Ligne
                   titre="Réponses fausses"
                   colonnes={colonnes}
-                  valeur={(c) => (c.absent || c.oral ? "—" : String(c.nbFausses))}
+                  valeur={(c) => (c.absent ? "—" : String(c.nbFausses))}
                 />
                 <Ligne
                   titre="Pas de réponse"
                   colonnes={colonnes}
-                  valeur={(c) =>
-                    c.oral ? "Détail sur la fiche oral" : c.absent ? "—" : String(c.nbAbstentions)
-                  }
+                  valeur={(c) => (c.absent ? "—" : String(c.nbAbstentions))}
                 />
               </>
             )}
@@ -156,6 +154,8 @@ export function BilanV10({ bilan }: { bilan: BilanAssemble }) {
           </tbody>
         </table>
       </div>
+
+      {bilan.oraux.oraux.length > 0 && <SectionOraux oraux={bilan.oraux} />}
 
       <section className="rounded-carte border-2 border-primaire p-5">
         <h2 className="mb-2 text-sm font-extrabold tracking-[.08em] text-primaire-fonce uppercase">
@@ -270,5 +270,106 @@ function LigneTexte({
         </td>
       ))}
     </tr>
+  );
+}
+
+/**
+ * Section « Oraux blancs », placée après les résultats des écrits.
+ *
+ * Chaque oral montre le détail de sa grille — le jury note item par item, la
+ * famille doit pouvoir lire la même chose — puis les trois retours libres. La
+ * note globale n'est affichée que lorsque toutes les épreuves qui pèsent sont
+ * notées : une moyenne calculée sur la moitié des oraux induirait en erreur.
+ */
+function SectionOraux({ oraux }: { oraux: BilanAssemble["oraux"] }) {
+  return (
+    <section className="space-y-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <h2 className="text-sm font-extrabold tracking-[.08em] text-primaire-fonce uppercase">
+          Oraux blancs
+        </h2>
+        {oraux.noteGlobale !== null && oraux.complet && (
+          <p className="text-sm">
+            Note globale des oraux :{" "}
+            <strong className="text-lg text-encre tabular-nums">
+              {String(oraux.noteGlobale).replace(".", ",")}/20
+            </strong>
+          </p>
+        )}
+        {oraux.noteGlobale !== null && !oraux.complet && (
+          <p className="text-sm opacity-75">
+            Note globale en attente : tous les oraux ne sont pas encore évalués.
+          </p>
+        )}
+      </div>
+
+      {oraux.oraux.map((o) => (
+        <article key={o.nom} className="rounded-carte border border-ligne p-5">
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3">
+            <h3 className="font-extrabold text-encre">
+              {o.nom}
+              {o.contexte && (
+                <span className="ml-2 text-[0.9rem] font-normal opacity-75">
+                  — {o.contexte}
+                </span>
+              )}
+            </h3>
+            <p className="text-sm">
+              {o.note === null ? (
+                <span className="opacity-70">non évalué</span>
+              ) : (
+                <>
+                  <strong className="text-lg text-encre tabular-nums">
+                    {String(o.note).replace(".", ",")}/{o.maximum}
+                  </strong>
+                  <span className="ml-2 opacity-70">
+                    {o.ponderation > 0
+                      ? `${Math.round(o.ponderation * 100)} % de la note d'oral`
+                      : "hors moyenne"}
+                  </span>
+                </>
+              )}
+            </p>
+          </div>
+
+          {o.note !== null && (
+            <>
+              <table className="mb-4 w-full border-collapse text-[0.85rem]">
+                <tbody>
+                  {o.criteres.map((c) => (
+                    <tr key={c.libelle}>
+                      <td className="border border-ligne p-2">{c.libelle}</td>
+                      <td className="w-28 border border-ligne p-2 text-center tabular-nums">
+                        {c.note === null
+                          ? "—"
+                          : `${String(c.note).replace(".", ",")} / ${c.maximum}`}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <dl className="space-y-2 text-[0.92rem]">
+                <Retour titre="Point fort" texte={o.pointFort} />
+                <Retour titre="Progrès prioritaire" texte={o.progresPrioritaire} />
+                <Retour titre="Commentaire du jury" texte={o.commentaireJury} />
+              </dl>
+            </>
+          )}
+        </article>
+      ))}
+    </section>
+  );
+}
+
+function Retour({ titre, texte }: { titre: string; texte: string | null }) {
+  if (!texte) return null;
+  return (
+    <div>
+      <dt className="text-[0.7rem] font-bold tracking-[.08em] uppercase opacity-60">
+        {titre}
+      </dt>
+      <dd className="whitespace-pre-line">{texte}</dd>
+    </div>
   );
 }
