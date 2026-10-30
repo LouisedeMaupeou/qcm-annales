@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { formaterMath } from "@/lib/notation-math";
 import { createClient } from "@/lib/supabase/server";
+import { ListeRelecture, type LigneRelecture } from "./liste";
 
 export const dynamic = "force-dynamic";
 
@@ -83,6 +83,21 @@ export default async function FileRelecture({
   const filtrees = enrichies.filter((q) => correspond(q, motif));
   const compte = (m: Motif) => enrichies.filter((q) => correspond(q, m)).length;
 
+  // La liste passe côté client pour porter la sélection multiple : on ne lui
+  // transmet que ce qu'elle affiche, en données sérialisables.
+  const lignes: LigneRelecture[] = filtrees.map((q) => ({
+    id: q.id,
+    enonce: q.enonce,
+    chapitre: q.chapitre,
+    origine: q.epreuveBlanche
+      ? `concours blanc · ${q.epreuveBlanche}`
+      : `${q.concours} ${q.annee}`,
+    confiance: q.confiance_extraction,
+    commentaire: q.commentaire_extraction,
+    nbSignalements: q.signalements.length,
+    premierMotif: q.signalements[0]?.motif ?? null,
+  }));
+
   return (
     <>
       <h1 className="mb-2 text-3xl font-black">File de relecture</h1>
@@ -111,58 +126,7 @@ export default async function FileRelecture({
           Rien à relire ici.
         </p>
       ) : (
-        <ul className="space-y-3">
-          {filtrees.map((q) => (
-            <li key={q.id}>
-              <Link
-                href={`/admin/relecture/${q.id}`}
-                className="block rounded-carte border border-ligne p-5 no-underline transition hover:border-primaire"
-              >
-                <div className="mb-2 flex flex-wrap items-center gap-2">
-                  {q.signalements.length > 0 && (
-                    <span className="rounded-full bg-negatif/10 px-2.5 py-0.5 text-[0.75rem] font-bold text-negatif">
-                      signalée {q.signalements.length > 1 && `×${q.signalements.length}`}
-                    </span>
-                  )}
-                  <span className="rounded-full bg-fond-doux px-2.5 py-0.5 text-[0.75rem] font-bold">
-                    {q.epreuveBlanche
-                      ? `concours blanc · ${q.epreuveBlanche}`
-                      : `${q.concours} ${q.annee}`}
-                  </span>
-                  <span className="rounded-full bg-fond-doux px-2.5 py-0.5 text-[0.75rem] font-bold">
-                    {q.chapitre}
-                  </span>
-                  {q.confiance_extraction !== null && (
-                    <span
-                      className={`rounded-full px-2.5 py-0.5 text-[0.75rem] font-bold ${
-                        q.confiance_extraction < seuil
-                          ? "bg-soleil/25 text-encre"
-                          : "bg-fond-doux"
-                      }`}
-                    >
-                      confiance {q.confiance_extraction} %
-                    </span>
-                  )}
-                </div>
-
-                <p className="line-clamp-2 text-[0.95rem] text-encre">
-                  {formaterMath(q.enonce)}
-                </p>
-
-                {q.signalements.length > 0 && (
-                  <p className="mt-2 text-[0.85rem] text-negatif">
-                    « {q.signalements[0].motif} »
-                  </p>
-                )}
-                {q.commentaire_extraction && (
-                  <p className="mt-1.5 text-[0.85rem] opacity-75">
-                    {q.commentaire_extraction}
-                  </p>
-                )}
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <ListeRelecture questions={lignes} seuil={seuil} />
       )}
     </>
   );
