@@ -136,6 +136,19 @@ const EMAIL = /^[^@\s]+@[^@\s.]+\.[^@\s]+$/;
  * l'analyse. Un fichier à moitié bon vaut mieux qu'un fichier rejeté en bloc,
  * surtout quand il arrive d'un tableur tenu à la main.
  */
+/**
+ * Ligne de nomenclature des modèles d'import : la deuxième ligne du fichier
+ * explique quoi mettre dans chaque colonne, et commence par OBLIGATOIRE sur
+ * les colonnes requises. On l'écarte pour que l'utilisateur puisse la laisser
+ * en place en remplissant son tableau — la retirer serait la première cause
+ * d'un import où plus personne ne sait ce que veut dire une colonne.
+ */
+function estNomenclature(ligne: Record<string, unknown>): boolean {
+  return Object.values(ligne).some((v) =>
+    String(v ?? "").trim().toUpperCase().startsWith("OBLIGATOIRE"),
+  );
+}
+
 export function analyserListeEleves(donnees: ArrayBuffer): RapportListe {
   const anomalies: AnomalieListe[] = [];
   let brutes: Record<string, unknown>[];
@@ -162,6 +175,8 @@ export function analyserListeEleves(donnees: ArrayBuffer): RapportListe {
       ],
     };
   }
+
+  brutes = brutes.filter((l) => !estNomenclature(l));
 
   if (brutes.length === 0) {
     return {

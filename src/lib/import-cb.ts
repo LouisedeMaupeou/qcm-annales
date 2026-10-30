@@ -129,6 +129,19 @@ function lireLignes(donnees: ArrayBuffer): Record<string, unknown>[] {
   });
 }
 
+/**
+ * Ligne de nomenclature du modèle d'import : la deuxième ligne du fichier
+ * explique quoi mettre dans chaque colonne, et commence par OBLIGATOIRE sur
+ * les colonnes requises. On l'écarte pour que l'utilisateur puisse la laisser
+ * en place en remplissant son tableau — la retirer serait la première cause
+ * d'un import où plus personne ne sait ce que veut dire une colonne.
+ */
+function estNomenclature(ligne: Record<string, unknown>): boolean {
+  return Object.values(ligne).some((v) =>
+    String(v ?? "").trim().toUpperCase().startsWith("OBLIGATOIRE"),
+  );
+}
+
 export function analyserFichierCb(donnees: ArrayBuffer): RapportCb {
   const anomalies: AnomalieCb[] = [];
   const vide = (message: string): RapportCb => ({
@@ -146,6 +159,7 @@ export function analyserFichierCb(donnees: ArrayBuffer): RapportCb {
     return vide(`Fichier illisible : ${e instanceof Error ? e.message : String(e)}`);
   }
 
+  lignes = lignes.filter((l) => !estNomenclature(l));
   if (lignes.length === 0) return vide("Le fichier est vide.");
 
   const colonnes = Object.keys(lignes[0]);
