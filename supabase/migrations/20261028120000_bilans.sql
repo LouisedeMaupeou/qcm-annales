@@ -16,23 +16,21 @@ create type public.statut_bilan as enum (
   'genere', 'en_relecture', 'valide', 'envoye'
 );
 
+-- ⚠ La colonne des textes relus ne s'appelle pas « analyse ».
+-- ANALYSE est un mot réservé de PostgreSQL — l'orthographe britannique
+-- d'ANALYZE — et ne peut pas nommer une colonne sans guillemets. Le refus
+-- était « syntax error at or near analyse », qui désigne bien le coupable
+-- mais se lit mal : la requête échouait à la colonne suivante.
+-- Renommée plutôt que mise entre guillemets : un identifiant à protéger pour
+-- toujours est un piège qu'on retend à chaque requête.
 create table public.bilans (
   id               uuid primary key default gen_random_uuid(),
   session_cb_id    uuid not null references public.sessions_cb (id) on delete cascade,
   user_id          uuid not null references public.users (id) on delete cascade,
   statut           public.statut_bilan not null default 'genere',
-
-  -- §5.4 : encadré « En quelques mots », deux phrases, pré-rempli puis
-  -- reformulé par la responsable.
   en_quelques_mots text,
-
-  -- Textes par épreuve (forces, points d'amélioration, méthode, conseils de
-  -- reprise) : { "<epreuve_cb_id>": { "forces": "...", ... } }. Les chiffres
-  -- n'y sont jamais — ils se recalculent.
-  analyse          jsonb not null default '{}'::jsonb,
-  -- Top 3 des chapitres à travailler, édité : [{chapitre, action}]
+  analyse_epreuves jsonb not null default '{}'::jsonb,
   priorites        jsonb not null default '[]'::jsonb,
-
   pdf_url          text,
   valide_par       uuid references public.users (id) on delete set null,
   valide_le        timestamptz,
@@ -45,6 +43,17 @@ create table public.bilans (
 
   unique (session_cb_id, user_id)
 );
+
+comment on column public.bilans.en_quelques_mots is
+  'Encadré « En quelques mots » du modèle V10 : deux phrases, pré-remplies à '
+  'la génération puis reformulées par la responsable (§5.4).';
+comment on column public.bilans.analyse_epreuves is
+  'Textes par épreuve (forces, points d''amélioration, méthode, conseils de '
+  'reprise), indexés par epreuve_cb_id. Aucun chiffre : les notes, moyennes '
+  'et rangs se recalculent depuis les passages à chaque lecture.';
+comment on column public.bilans.priorites is
+  'Top 3 des chapitres à travailler, tel que la responsable l''a laissé. '
+  'Vide = on sert le calcul automatique (§5.4).';
 
 create index bilans_session_idx on public.bilans (session_cb_id, statut);
 create index bilans_user_idx    on public.bilans (user_id);

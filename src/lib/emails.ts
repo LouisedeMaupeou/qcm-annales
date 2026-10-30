@@ -21,13 +21,16 @@ export function verifierConfigurationEmail() {
   }
 }
 
+export type PieceJointe = { nom: string; contenu: Buffer };
+
 type Email = {
   destinataire: string;
   sujet: string;
   html: string;
+  pieces?: PieceJointe[];
 };
 
-async function envoyer({ destinataire, sujet, html }: Email) {
+async function envoyer({ destinataire, sujet, html, pieces }: Email) {
   const cle = process.env.RESEND_API_KEY;
 
   if (!cle) {
@@ -45,6 +48,7 @@ async function envoyer({ destinataire, sujet, html }: Email) {
     to: destinataire,
     subject: sujet,
     html,
+    attachments: pieces?.map((p) => ({ filename: p.nom, content: p.contenu })),
   });
 
   if (error) throw new Error(`Envoi email échoué : ${error.message}`);
@@ -200,6 +204,10 @@ export function emailBilan(
   };
 }
 
-export async function envoyerEmail(destinataire: string, email: { sujet: string; html: string }) {
-  return envoyer({ destinataire, ...email });
+export async function envoyerEmail(
+  destinataire: string,
+  email: { sujet: string; html: string },
+  pieces?: PieceJointe[],
+) {
+  return envoyer({ destinataire, ...email, pieces });
 }

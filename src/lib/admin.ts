@@ -3,12 +3,19 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
-export type RoleStaff = "admin" | "contributeur" | "responsable_prepa";
+export type RoleStaff =
+  | "admin"
+  | "contributeur"
+  | "responsable_prepa"
+  | "professeur";
 
 const ROLES_STAFF: readonly string[] = [
   "admin",
   "contributeur",
   "responsable_prepa",
+  // Le professeur franchit la porte du back-office pour la seule section
+  // Oraux (§5.5) ; toutes les autres pages le renvoient par leur propre garde.
+  "professeur",
 ];
 
 /**
@@ -39,6 +46,22 @@ export async function exigerStaff(): Promise<{
   }
 
   return { role: profil.role as RoleStaff, userId: user.id };
+}
+
+/**
+ * Section Oraux (module concours blancs, §5.5) : admin, responsable des
+ * prépas et professeurs.
+ *
+ * C'est la seule section ouverte au professeur. Il entre dans le back-office
+ * — le garde général le laisse passer — mais toutes les autres pages
+ * appellent exigerStaff, exigerPrepa ou exigerAdmin, qui le renvoient. La
+ * restriction tient donc par défaut : une page oubliée lui reste fermée,
+ * plutôt que de s'ouvrir.
+ */
+export async function exigerOraux() {
+  const { role, userId } = await exigerStaff();
+  if (role === "contributeur") redirect("/admin");
+  return { role, userId };
 }
 
 /** Sections réservées à l'admin : les barèmes engagent la note des élèves. */

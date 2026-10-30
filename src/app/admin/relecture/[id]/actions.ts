@@ -129,27 +129,14 @@ export async function deciderRelecture(
     .eq("question_id", d.id)
     .eq("traite", false);
 
-  // Un bloc n'est jouable que si toutes ses questions le sont (§2.2).
-  await synchroniserBloc(supabase, question.bloc_id);
+  // Le statut du bloc n'est pas touché ici : le trigger
+  // questions_synchronisent_leur_bloc s'en charge depuis la migration
+  // 20260720200000, et lui seul sait qu'un bloc de concours blanc ne doit
+  // jamais devenir jouable. La synchronisation manuelle qui vivait ici
+  // l'ignorait et publiait le bloc : valider une question de concours blanc
+  // la rendait jouable en entraînement libre.
 
   revalidatePath("/admin/relecture");
   redirect("/admin/relecture?decision=enregistree");
 }
 
-type Client = Awaited<ReturnType<typeof createClient>>;
-
-async function synchroniserBloc(supabase: Client, blocId: string) {
-  const { data: questions } = await supabase
-    .from("questions")
-    .select("statut")
-    .eq("bloc_id", blocId);
-
-  const toutesPubliees =
-    (questions ?? []).length > 0 &&
-    (questions ?? []).every((q) => q.statut === "publie");
-
-  await supabase
-    .from("blocs")
-    .update({ statut: toutesPubliees ? "publie" : "brouillon" })
-    .eq("id", blocId);
-}

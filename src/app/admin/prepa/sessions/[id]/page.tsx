@@ -62,6 +62,12 @@ export default async function FicheSession({
           >
             Bilans de la session →
           </Link>
+          <a
+            href={`/admin/prepa/sessions/${id}/export`}
+            className="text-sm font-bold text-primaire no-underline hover:underline"
+          >
+            Export XLSX des résultats
+          </a>
         </div>
         <form action={changerStatutSession} className="flex items-center gap-2 text-sm">
           <input type="hidden" name="sessionId" value={id} />

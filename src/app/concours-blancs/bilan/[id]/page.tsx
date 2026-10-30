@@ -63,9 +63,13 @@ export default async function BilanEleve({
         ) : (
           <>
             <BilanV10 bilan={bilan} />
-            <p className="mt-8 text-sm opacity-75">
-              Pour conserver ce bilan en PDF, utilise l&apos;impression de ton
-              navigateur et choisis « Enregistrer au format PDF ».
+            <p className="mt-8">
+              <a
+                href={`/concours-blancs/bilan/${id}/pdf`}
+                className="inline-flex cursor-pointer rounded-full bg-primaire px-7 py-3 font-extrabold text-white no-underline transition hover:bg-primaire-fonce"
+              >
+                Télécharger le bilan en PDF
+              </a>
             </p>
           </>
         )}
