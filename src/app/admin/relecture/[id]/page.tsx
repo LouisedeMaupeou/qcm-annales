@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { exigerStaff } from "@/lib/admin";
+import { libelleEpreuveImportee } from "@/lib/epreuves-cb";
 import { formaterMath } from "@/lib/notation-math";
 import { urlSigneeFigure } from "@/lib/images-questions";
 import { FigureQuestion } from "@/components/figure-question";
@@ -22,7 +23,7 @@ export default async function Relire({
   const { data: question } = await supabase
     .from("questions")
     .select(
-      "id, type, enonce, chapitre, explication, explication_origine, explication_relue, statut, statut_extraction, commentaire_extraction, confiance_extraction, auto_publiee, origine, updated_at, bloc_id, image_url, reponses_possibles(id, texte, est_correcte, ordre)",
+      "id, type, enonce, chapitre, explication, explication_origine, explication_relue, statut, statut_extraction, commentaire_extraction, confiance_extraction, auto_publiee, origine, updated_at, bloc_id, image_url, epreuve_id_externe, ordre_epreuve, reponses_possibles(id, texte, est_correcte, ordre)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -33,7 +34,7 @@ export default async function Relire({
 
   const { data: bloc } = await supabase
     .from("blocs")
-    .select("id, annale_id, enonce_commun, annales(annee, concours(nom))")
+    .select("id, annale_id, enonce_commun, epreuve_id_externe, annales(annee, concours(nom))")
     .eq("id", question.bloc_id)
     .single();
 
@@ -84,6 +85,15 @@ export default async function Relire({
 
   const seuil = Number(parametre?.valeur ?? 90);
 
+  const epreuveBlanche =
+    (bloc?.epreuve_id_externe as string | null) ??
+    (question.epreuve_id_externe as string | null);
+  const titreEpreuve = epreuveBlanche
+    ? (libelleEpreuveImportee(epreuveBlanche) ?? epreuveBlanche)
+    : `${annale?.concours?.nom ?? "—"} ${annale?.annee ?? ""}`.trim();
+  const numero =
+    question.ordre_epreuve === null ? null : Number(question.ordre_epreuve);
+
   return (
     <>
       <p className="mb-2 text-sm">
@@ -91,8 +101,14 @@ export default async function Relire({
           ← File de relecture
         </Link>
       </p>
+      {/* Une question de concours blanc ne descend pas d'une annale : son titre
+          venait donc vide, et la fiche ne disait ni d'où elle venait ni quel
+          numéro elle portait. */}
       <h1 className="mb-1 text-3xl font-black">
-        {annale?.concours?.nom} {annale?.annee}
+        {titreEpreuve}
+        {numero !== null && (
+          <span className="ml-3 font-extrabold text-primaire-fonce">Question {numero}</span>
+        )}
       </h1>
       <p className="mb-6 text-sm">
         {question.type} · extraction {question.statut_extraction} ·{" "}

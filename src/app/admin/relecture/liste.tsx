@@ -15,6 +15,8 @@ export type LigneRelecture = {
   enonce: string;
   chapitre: string;
   origine: string;
+  /** Numéro dans l'épreuve : sans lui, « la question 14 » ne se retrouve pas. */
+  numero: number | null;
   arriveeLe: string;
   confiance: number | null;
   commentaire: string | null;
@@ -276,6 +278,15 @@ export function ListeRelecture({
                   />
                   <span className="sr-only">Sélectionner cette question</span>
                 </label>
+
+                {q.numero !== null && (
+                  <span
+                    aria-label={`Question ${q.numero}`}
+                    className="w-9 shrink-0 pt-0.5 text-center font-black text-primaire-fonce tabular-nums"
+                  >
+                    {q.numero}
+                  </span>
+                )}
 
                 <div className="min-w-0 flex-1">
                   <div className="mb-2 flex flex-wrap items-center gap-2">

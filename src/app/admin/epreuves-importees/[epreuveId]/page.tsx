@@ -148,8 +148,11 @@ export default async function EpreuveImportee({
             return (
               <li key={q.id}>
                 <div className="flex flex-wrap items-start gap-4 rounded-carte border border-ligne p-4">
-                  <span className="w-10 shrink-0 text-center font-black text-primaire-fonce tabular-nums">
-                    {q.ordre ?? rang + 1}
+                  <span
+                    aria-label={`Question ${q.ordre ?? rang + 1}`}
+                    className="w-12 shrink-0 text-center font-black text-primaire-fonce tabular-nums"
+                  >
+                    Q{q.ordre ?? rang + 1}
                   </span>
 
                   <div className="min-w-0 flex-1">

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { libelleEpreuveImportee } from "@/lib/epreuves-cb";
 import { createClient } from "@/lib/supabase/server";
 import { ListeRelecture, type LigneRelecture } from "./liste";
 
@@ -44,6 +45,8 @@ type QuestionFile = {
   confiance_extraction: number | null;
   explication: string | null;
   explication_relue: boolean | null;
+  /** Numéro de la question dans son épreuve blanche, quand elle en a un. */
+  ordre_epreuve: number | null;
   created_at: string;
   updated_at: string;
   epreuve_id_externe: string | null;
@@ -88,7 +91,7 @@ export default async function FileRelecture({
     const { data } = await supabase
       .from("questions")
       .select(
-        "id, enonce, chapitre, statut, statut_extraction, commentaire_extraction, confiance_extraction, explication, explication_relue, created_at, updated_at, epreuve_id_externe, blocs(annale_id, epreuve_id, epreuve_id_externe, annales(annee, concours(nom)))",
+        "id, enonce, chapitre, statut, statut_extraction, commentaire_extraction, confiance_extraction, explication, explication_relue, ordre_epreuve, created_at, updated_at, epreuve_id_externe, blocs(annale_id, epreuve_id, epreuve_id_externe, annales(annee, concours(nom)))",
       )
       .in("statut", ["brouillon", "a_verifier", "depubliee"])
       .order("created_at", { ascending: true })
@@ -126,8 +129,12 @@ export default async function FileRelecture({
     }
   };
 
+  // L'origine d'une question de concours blanc se lit enfin : « NOËL 26 SÉSAME
+  // FRANÇAIS » plutôt qu'un identifiant technique.
   const origineDe = (q: (typeof enrichies)[number]) =>
-    q.epreuveBlanche ? `concours blanc · ${q.epreuveBlanche}` : `${q.concours} ${q.annee}`;
+    q.epreuveBlanche
+      ? (libelleEpreuveImportee(q.epreuveBlanche) ?? q.epreuveBlanche)
+      : `${q.concours} ${q.annee}`;
 
   const filtrees = enrichies.filter((q) => correspond(q, motif));
   const compte = (m: Motif) => enrichies.filter((q) => correspond(q, m)).length;
@@ -162,6 +169,7 @@ export default async function FileRelecture({
     enonce: q.enonce,
     chapitre: q.chapitre,
     origine: origineDe(q),
+    numero: q.ordre_epreuve === null ? null : Number(q.ordre_epreuve),
     arriveeLe: q.created_at,
     confiance: q.confiance_extraction,
     commentaire: q.commentaire_extraction,
