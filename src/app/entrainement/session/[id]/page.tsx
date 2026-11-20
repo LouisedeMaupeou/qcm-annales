@@ -62,7 +62,7 @@ export default async function Session({
   const epreuve = (session.epreuves as unknown as { nom: string } | null)?.nom;
 
   return (
-    <div className="mx-auto flex w-full max-w-[760px] flex-1 flex-col px-[22px]">
+    <div className="mx-auto flex w-full max-w-[760px] flex-1 flex-col px-4 sm:px-6">
       <header className="flex flex-wrap items-center justify-between gap-3 py-5">
         <div>
           <p className="text-[1.1rem] leading-none font-black tracking-tight text-encre">

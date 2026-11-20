@@ -40,9 +40,16 @@ export default async function FicheCohorte({
 
   return (
     <>
-      <p className="mb-2 text-sm">
+      <p className="mb-2 flex flex-wrap items-center justify-between gap-3 text-sm">
         <Link href="/admin/prepa" className="hover:underline">
           ← Prépa
+        </Link>
+        {/* Les résultats se cherchent par promotion, pas par session. */}
+        <Link
+          href={`/admin/prepa/${id}/resultats`}
+          className="rounded-full border-2 border-primaire px-5 py-1.5 font-bold text-primaire no-underline"
+        >
+          Résultats des concours blancs
         </Link>
       </p>
       <h1 className="mb-1 text-3xl font-black">{cohorte.nom}</h1>

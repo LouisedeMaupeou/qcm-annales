@@ -53,7 +53,7 @@ export default async function MesConcoursBlancs() {
   const { cohorte, epreuves } = await chargerMesConcoursBlancs(user.id);
 
   return (
-    <div className="mx-auto flex w-full max-w-[820px] flex-1 flex-col px-[22px]">
+    <div className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col px-4 sm:px-6">
       <EnteteEleve />
 
       <main className="flex-1 pb-16">

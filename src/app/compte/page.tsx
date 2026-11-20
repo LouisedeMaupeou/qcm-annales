@@ -28,7 +28,7 @@ export default async function Compte() {
     .single();
 
   return (
-    <div className="mx-auto flex w-full max-w-[720px] flex-1 flex-col px-[22px]">
+    <div className="mx-auto flex w-full max-w-[720px] flex-1 flex-col px-4 sm:px-6">
       <header className="flex items-center justify-between gap-4 py-5">
         <Link href="/tableau-de-bord" className="text-encre no-underline">
           <span className="text-[1.4rem] leading-none font-black tracking-tight">

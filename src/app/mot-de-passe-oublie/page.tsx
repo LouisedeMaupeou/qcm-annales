@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function MotDePasseOublie() {
   return (
-    <div className="mx-auto flex w-full max-w-[480px] flex-1 flex-col px-[22px]">
+    <div className="mx-auto flex w-full max-w-[480px] flex-1 flex-col px-4 sm:px-6">
       <header className="py-5">
         <Link href="/" className="text-encre no-underline">
           <span className="text-[1.4rem] leading-none font-black tracking-tight">

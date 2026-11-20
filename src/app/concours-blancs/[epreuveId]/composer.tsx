@@ -129,8 +129,11 @@ export function Composer({
 
   return (
     <div
-      className={`mx-auto flex min-h-dvh w-full flex-col px-[22px] ${
-        aDossier ? "max-w-[1400px]" : "max-w-[820px]"
+      className={`mx-auto flex min-h-dvh w-full flex-col px-4 sm:px-6 ${
+        // Avec un dossier, deux colonnes et toute la largeur utile. Sans,
+        // une colonne mesurée : un énoncé lu sur 1 600 px fait perdre la
+        // ligne à chaque retour, et l'élève compose pendant deux heures.
+        aDossier ? "max-w-[1600px]" : "max-w-[900px]"
       }`}
     >
       {/* Bandeau : pas de lien de navigation, on ne quitte pas une épreuve par

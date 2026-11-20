@@ -77,7 +77,7 @@ export default function LandingPage() {
   const marche = useRef<HTMLDivElement>(null);
 
   return (
-    <div className="mx-auto w-full max-w-[1100px] flex-1 px-[22px]">
+    <div className="mx-auto w-full max-w-[1600px] flex-1 px-4 sm:px-6">
       <header className="flex items-center justify-between gap-4 py-5">
         <Link href="/" className="text-encre no-underline">
           <span className="text-[1.4rem] leading-none font-black tracking-tight">

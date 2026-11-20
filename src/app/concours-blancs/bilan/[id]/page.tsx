@@ -40,7 +40,7 @@ export default async function BilanEleve({
     : null;
 
   return (
-    <div className="mx-auto flex w-full max-w-[1000px] flex-1 flex-col px-[22px]">
+    <div className="mx-auto flex w-full max-w-[1000px] flex-1 flex-col px-4 sm:px-6">
       <EnteteEleve />
 
       <main className="flex-1 pb-16">

@@ -76,7 +76,7 @@ function Message({
   detail?: string;
 }) {
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-[620px] flex-col justify-center px-[22px] py-16">
+    <div className="mx-auto flex min-h-dvh w-full max-w-[620px] flex-col justify-center px-4 sm:px-6 py-16">
       <h1 className="mb-3 text-[clamp(1.6rem,4vw,2.2rem)] font-black">{titre}</h1>
       <p className="mb-3">{texte}</p>
       {detail && <p className="mb-6 text-[0.95rem] opacity-80">{detail}</p>}
