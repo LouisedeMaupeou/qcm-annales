@@ -211,11 +211,15 @@ for (const [feuille, epreuve] of Object.entries(EPREUVES)) {
   const classeur = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(classeur, feuilleSortie, "questions");
   // `writeFile` dépend d'un binding fs que la version ESM n'a pas : on écrit
-  // le tampon nous-mêmes.
-  writeFileSync(
-    join(SORTIE, `${epreuve.fichier}.xlsx`),
-    XLSX.write(classeur, { type: "buffer", bookType: "xlsx" }),
-  );
+  // le tampon nous-mêmes. Les deux formats sont produits : le formulaire
+  // d'import accepte .xlsx comme .xls, et selon le poste l'un s'ouvre plus
+  // volontiers que l'autre.
+  for (const bookType of ["xlsx", "xls"]) {
+    writeFileSync(
+      join(SORTIE, `${epreuve.fichier}.${bookType}`),
+      XLSX.write(classeur, { type: "buffer", bookType }),
+    );
+  }
 
   bilan.push({ feuille, epreuve: epreuve.id, total: sortie.length, servables, reserves });
 }

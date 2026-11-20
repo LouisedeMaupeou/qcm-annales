@@ -19,7 +19,7 @@ let total = 0;
 let servables = 0;
 let bloquantes = 0;
 
-for (const nom of readdirSync(dossier).filter((n) => n.endsWith(".xlsx")).sort()) {
+for (const nom of readdirSync(dossier).filter((n) => n.endsWith(process.argv[4] ?? ".xlsx")).sort()) {
   const donnees = readFileSync(join(dossier, nom));
   const rapport = analyserFichierCb(
     donnees.buffer.slice(donnees.byteOffset, donnees.byteOffset + donnees.byteLength),

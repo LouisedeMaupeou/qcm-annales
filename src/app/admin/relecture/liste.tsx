@@ -3,13 +3,19 @@
 import Link from "next/link";
 import { useActionState, useMemo, useState } from "react";
 import { formaterMath } from "@/lib/notation-math";
-import { validerEnMasse, type EtatMasse } from "./actions";
+import {
+  supprimerEnMasse,
+  validerEnMasse,
+  type EtatMasse,
+  type EtatSuppression,
+} from "./actions";
 
 export type LigneRelecture = {
   id: string;
   enonce: string;
   chapitre: string;
   origine: string;
+  arriveeLe: string;
   confiance: number | null;
   commentaire: string | null;
   nbSignalements: number;
@@ -32,16 +38,33 @@ export function ListeRelecture({
 }) {
   const [selection, setSelection] = useState<Set<string>>(new Set());
   const [confirme, setConfirme] = useState(false);
+  const [confirmeSuppression, setConfirmeSuppression] = useState(false);
   const [etat, action, enCours] = useActionState<EtatMasse, FormData>(
     validerEnMasse,
     {},
   );
+  // La suppression ne passe pas par l'action du formulaire : elle a son propre
+  // rapport, et surtout sa propre confirmation. Un même bouton pour publier et
+  // pour détruire serait une faute de conception.
+  const [etatSuppression, supprimer, suppressionEnCours] = useActionState<
+    EtatSuppression,
+    FormData
+  >(supprimerEnMasse, {});
+
+  const lancerSuppression = () => {
+    const donnees = new FormData();
+    for (const id of selection) donnees.append("selection", id);
+    supprimer(donnees);
+    setSelection(new Set());
+    setConfirmeSuppression(false);
+  };
 
   const visibles = useMemo(() => questions.map((q) => q.id), [questions]);
   const toutes = selection.size > 0 && visibles.every((id) => selection.has(id));
 
   const basculer = (id: string) => {
     setConfirme(false);
+    setConfirmeSuppression(false);
     setSelection((s) => {
       const suivant = new Set(s);
       if (suivant.has(id)) suivant.delete(id);
@@ -52,6 +75,7 @@ export function ListeRelecture({
 
   const toutBasculer = () => {
     setConfirme(false);
+    setConfirmeSuppression(false);
     setSelection(toutes ? new Set() : new Set(visibles));
   };
 
@@ -77,6 +101,49 @@ export function ListeRelecture({
           </summary>
           <ul className="mt-3 space-y-1.5 text-sm">
             {etat.refusees.map((r) => (
+              <li key={r.id}>
+                <Link href={`/admin/relecture/${r.id}`} className="font-bold text-primaire">
+                  {r.enonce.slice(0, 70)}
+                  {r.enonce.length > 70 ? "…" : ""}
+                </Link>
+                <span className="opacity-75"> — {r.raison}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+
+      {/* Rapport de la suppression précédente */}
+      {etatSuppression.message && (
+        <p role="alert" className="mb-4 rounded-carte bg-negatif/10 p-4 text-sm text-negatif">
+          {etatSuppression.message}
+        </p>
+      )}
+      {etatSuppression.supprimees !== undefined && etatSuppression.supprimees > 0 && (
+        <p className="mb-4 rounded-carte bg-positif/10 p-4 text-sm font-bold text-positif">
+          {etatSuppression.supprimees} question
+          {etatSuppression.supprimees > 1 ? "s" : ""} supprimée
+          {etatSuppression.supprimees > 1 ? "s" : ""} définitivement
+          {etatSuppression.blocsVides
+            ? `, ainsi que ${etatSuppression.blocsVides} bloc${
+                etatSuppression.blocsVides > 1 ? "s" : ""
+              } devenu${etatSuppression.blocsVides > 1 ? "s" : ""} vide${
+                etatSuppression.blocsVides > 1 ? "s" : ""
+              }`
+            : ""}
+          .
+        </p>
+      )}
+      {etatSuppression.retenues && etatSuppression.retenues.length > 0 && (
+        <details className="mb-4 rounded-carte border-2 border-soleil bg-soleil/10 p-4">
+          <summary className="cursor-pointer font-extrabold text-encre">
+            {etatSuppression.retenues.length} question
+            {etatSuppression.retenues.length > 1 ? "s" : ""} conservée
+            {etatSuppression.retenues.length > 1 ? "s" : ""} — une copie
+            d&apos;élève s&apos;y réfère
+          </summary>
+          <ul className="mt-3 space-y-1.5 text-sm">
+            {etatSuppression.retenues.map((r) => (
               <li key={r.id}>
                 <Link href={`/admin/relecture/${r.id}`} className="font-bold text-primaire">
                   {r.enonce.slice(0, 70)}
@@ -120,6 +187,29 @@ export function ListeRelecture({
               Tout désélectionner
             </button>
 
+            {confirmeSuppression ? (
+              <button
+                type="button"
+                onClick={lancerSuppression}
+                disabled={suppressionEnCours}
+                className="cursor-pointer rounded-full bg-negatif px-6 py-3 font-extrabold text-white transition hover:opacity-90 disabled:cursor-wait disabled:opacity-60"
+              >
+                {suppressionEnCours
+                  ? "Suppression…"
+                  : `Confirmer la suppression de ${selection.size} question${selection.size > 1 ? "s" : ""}`}
+              </button>
+            ) : (
+              !confirme && (
+                <button
+                  type="button"
+                  onClick={() => setConfirmeSuppression(true)}
+                  className="cursor-pointer rounded-full border-2 border-negatif px-6 py-3 font-extrabold text-negatif transition hover:bg-negatif/5"
+                >
+                  Supprimer
+                </button>
+              )
+            )}
+
             {confirme ? (
               <button
                 type="submit"
@@ -131,13 +221,15 @@ export function ListeRelecture({
                   : `Confirmer : publier ${selection.size} question${selection.size > 1 ? "s" : ""}`}
               </button>
             ) : (
-              <button
-                type="button"
-                onClick={() => setConfirme(true)}
-                className="cursor-pointer rounded-full bg-primaire px-7 py-3 font-extrabold text-white transition hover:bg-primaire-fonce"
-              >
-                Valider la sélection
-              </button>
+              !confirmeSuppression && (
+                <button
+                  type="button"
+                  onClick={() => setConfirme(true)}
+                  className="cursor-pointer rounded-full bg-primaire px-7 py-3 font-extrabold text-white transition hover:bg-primaire-fonce"
+                >
+                  Valider la sélection
+                </button>
+              )
             )}
           </div>
         )}
@@ -149,6 +241,17 @@ export function ListeRelecture({
           relecture. Vérifie que tu as bien lu ces {selection.size} énoncés —
           une question au contenu incohérent sera refusée, mais une question
           cohérente et fausse passera.
+        </p>
+      )}
+
+      {confirmeSuppression && (
+        <p className="mb-4 rounded-carte border-2 border-negatif bg-negatif/5 p-4 text-sm">
+          <strong>Cette suppression est définitive</strong> : ces{" "}
+          {selection.size} question{selection.size > 1 ? "s" : ""} et leurs
+          propositions disparaissent de la banque, sans corbeille ni retour en
+          arrière. Une question déjà servie à un élève sera conservée et
+          signalée — le reste sera perdu. S&apos;il s&apos;agit d&apos;un import
+          à refaire, le fichier source suffit à le rejouer.
         </p>
       )}
 
@@ -186,6 +289,14 @@ export function ListeRelecture({
                     </span>
                     <span className="rounded-full bg-fond-doux px-2.5 py-0.5 text-[0.75rem] font-bold">
                       {q.chapitre}
+                    </span>
+                    <span className="text-[0.75rem] opacity-60">
+                      en file depuis le{" "}
+                      {new Date(q.arriveeLe).toLocaleDateString("fr-FR", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
                     </span>
                     {q.confiance !== null && (
                       <span

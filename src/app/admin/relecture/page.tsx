@@ -15,13 +15,54 @@ const MOTIFS = [
 
 type Motif = (typeof MOTIFS)[number]["cle"];
 
+/**
+ * Ordres de lecture de la file.
+ *
+ * Par défaut la plus ancienne d'abord : une question qui attend depuis trois
+ * semaines doit se voir avant celle qui vient d'arriver. Mais relire va
+ * beaucoup plus vite par lot homogène — vingt questions du même concours
+ * portent la même réserve et se tranchent d'un même mouvement.
+ */
+const TRIS = [
+  { cle: "arrivee", libelle: "Ordre d'arrivée" },
+  { cle: "recentes", libelle: "Plus récentes d'abord" },
+  { cle: "concours", libelle: "Par concours" },
+] as const;
+
+type Tri = (typeof TRIS)[number]["cle"];
+
+/** PostgREST plafonne une réponse à 1000 lignes : on pagine explicitement. */
+const PAGE = 1000;
+
+type QuestionFile = {
+  id: string;
+  enonce: string;
+  chapitre: string;
+  statut: string;
+  statut_extraction: string | null;
+  commentaire_extraction: string | null;
+  confiance_extraction: number | null;
+  explication: string | null;
+  explication_relue: boolean | null;
+  created_at: string;
+  updated_at: string;
+  epreuve_id_externe: string | null;
+  blocs: {
+    annale_id: string | null;
+    epreuve_id: string | null;
+    epreuve_id_externe: string | null;
+    annales: { annee: number; concours: { nom: string } | null } | null;
+  } | null;
+};
+
 export default async function FileRelecture({
   searchParams,
 }: {
-  searchParams: Promise<{ motif?: string }>;
+  searchParams: Promise<{ motif?: string; tri?: string }>;
 }) {
-  const { motif: motifBrut } = await searchParams;
+  const { motif: motifBrut, tri: triBrut } = await searchParams;
   const motif = (MOTIFS.find((m) => m.cle === motifBrut)?.cle ?? "tous") as Motif;
+  const tri = (TRIS.find((t) => t.cle === triBrut)?.cle ?? "arrivee") as Tri;
 
   const supabase = await createClient();
 
@@ -39,20 +80,25 @@ export default async function FileRelecture({
 
   // Entrent en file : tout ce qui n'est pas publié, plus les questions
   // dépubliées par un signalement élève (§6.1).
-  const { data: questions } = await supabase
-    .from("questions")
-    .select(
-      "id, enonce, chapitre, statut, statut_extraction, commentaire_extraction, confiance_extraction, explication, explication_relue, updated_at, epreuve_id_externe, blocs(annale_id, epreuve_id, epreuve_id_externe, annales(annee, concours(nom)))",
-    )
-    .in("statut", ["brouillon", "a_verifier", "depubliee"])
-    .order("updated_at", { ascending: true });
+  //
+  // La lecture est paginée : sans cela, une file de plus de mille questions
+  // était tronquée en silence, et les compteurs des filtres mentaient.
+  const questions: QuestionFile[] = [];
+  for (let de = 0; ; de += PAGE) {
+    const { data } = await supabase
+      .from("questions")
+      .select(
+        "id, enonce, chapitre, statut, statut_extraction, commentaire_extraction, confiance_extraction, explication, explication_relue, created_at, updated_at, epreuve_id_externe, blocs(annale_id, epreuve_id, epreuve_id_externe, annales(annee, concours(nom)))",
+      )
+      .in("statut", ["brouillon", "a_verifier", "depubliee"])
+      .order("created_at", { ascending: true })
+      .range(de, de + PAGE - 1);
+    questions.push(...((data ?? []) as unknown as QuestionFile[]));
+    if (!data || data.length < PAGE) break;
+  }
 
-  const enrichies = (questions ?? []).map((q) => {
-    const bloc = q.blocs as unknown as {
-      annale_id: string | null;
-      epreuve_id_externe: string | null;
-      annales: { annee: number; concours: { nom: string } | null } | null;
-    } | null;
+  const enrichies = questions.map((q) => {
+    const bloc = q.blocs;
     return {
       ...q,
       signalements: signalees.get(q.id) ?? [],
@@ -80,18 +126,43 @@ export default async function FileRelecture({
     }
   };
 
+  const origineDe = (q: (typeof enrichies)[number]) =>
+    q.epreuveBlanche ? `concours blanc · ${q.epreuveBlanche}` : `${q.concours} ${q.annee}`;
+
   const filtrees = enrichies.filter((q) => correspond(q, motif));
   const compte = (m: Motif) => enrichies.filter((q) => correspond(q, m)).length;
 
+  // Le tri par concours reste chronologique à l'intérieur d'une origine : les
+  // questions d'un même sujet gardent l'ordre où elles ont été importées, qui
+  // est celui du sujet.
+  const ordonnees = [...filtrees].sort((a, b) => {
+    if (tri === "concours") {
+      const parOrigine = origineDe(a).localeCompare(origineDe(b), "fr");
+      if (parOrigine !== 0) return parOrigine;
+      return a.created_at.localeCompare(b.created_at);
+    }
+    return tri === "recentes"
+      ? b.created_at.localeCompare(a.created_at)
+      : a.created_at.localeCompare(b.created_at);
+  });
+
+  /** Filtre et tri voyagent ensemble : changer l'un ne doit pas perdre l'autre. */
+  const lien = (m: Motif, t: Tri) => {
+    const params = new URLSearchParams();
+    if (m !== "tous") params.set("motif", m);
+    if (t !== "arrivee") params.set("tri", t);
+    const query = params.toString();
+    return query ? `/admin/relecture?${query}` : "/admin/relecture";
+  };
+
   // La liste passe côté client pour porter la sélection multiple : on ne lui
   // transmet que ce qu'elle affiche, en données sérialisables.
-  const lignes: LigneRelecture[] = filtrees.map((q) => ({
+  const lignes: LigneRelecture[] = ordonnees.map((q) => ({
     id: q.id,
     enonce: q.enonce,
     chapitre: q.chapitre,
-    origine: q.epreuveBlanche
-      ? `concours blanc · ${q.epreuveBlanche}`
-      : `${q.concours} ${q.annee}`,
+    origine: origineDe(q),
+    arriveeLe: q.created_at,
     confiance: q.confiance_extraction,
     commentaire: q.commentaire_extraction,
     nbSignalements: q.signalements.length,
@@ -107,11 +178,11 @@ export default async function FileRelecture({
         sans validation humaine.
       </p>
 
-      <div className="mb-6 flex flex-wrap gap-2 text-sm">
+      <div className="mb-3 flex flex-wrap gap-2 text-sm">
         {MOTIFS.map((m) => (
           <Link
             key={m.cle}
-            href={m.cle === "tous" ? "/admin/relecture" : `/admin/relecture?motif=${m.cle}`}
+            href={lien(m.cle, tri)}
             className={`rounded-full px-4 py-2 font-bold no-underline ${
               motif === m.cle ? "bg-primaire text-white" : "bg-fond-doux text-encre"
             }`}
@@ -121,7 +192,24 @@ export default async function FileRelecture({
         ))}
       </div>
 
-      {filtrees.length === 0 ? (
+      <div className="mb-6 flex flex-wrap items-center gap-2 text-sm">
+        <span className="font-bold text-encre">Trier :</span>
+        {TRIS.map((t) => (
+          <Link
+            key={t.cle}
+            href={lien(motif, t.cle)}
+            className={`rounded-full px-4 py-1.5 no-underline ${
+              tri === t.cle
+                ? "bg-encre font-bold text-white"
+                : "border border-ligne text-encre"
+            }`}
+          >
+            {t.libelle}
+          </Link>
+        ))}
+      </div>
+
+      {ordonnees.length === 0 ? (
         <p className="rounded-carte border border-dashed border-ligne p-8 text-center">
           Rien à relire ici.
         </p>

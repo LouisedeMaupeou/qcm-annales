@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { exigerStaff } from "@/lib/admin";
+import { exigerAdmin, exigerStaff } from "@/lib/admin";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -145,4 +146,121 @@ export async function validerEnMasse(
   revalidatePath("/admin/annales");
 
   return { publiees: aPublier.length, refusees };
+}
+
+export type EtatSuppression = {
+  message?: string;
+  supprimees?: number;
+  blocsVides?: number;
+  retenues?: RefusMasse[];
+};
+
+/**
+ * Suppression définitive de questions en relecture (§6.1).
+ *
+ * Une réserve d'extraction se solde de trois façons : on corrige, on publie,
+ * ou on jette. Les deux premières existaient ; sans la troisième, un import
+ * raté laissait sa trace pour toujours et la file finissait par ne plus rien
+ * vouloir dire.
+ *
+ * Trois garde-fous, parce que l'opération ne se rattrape pas.
+ *
+ * 1. Réservée à l'admin. Un contributeur relit, il ne détruit pas.
+ * 2. Une question déjà servie à un élève n'est jamais supprimée. La base le
+ *    refuserait de toute façon — `session_questions` et `passage_reponses`
+ *    sont en `on delete restrict` — mais l'échec arriverait au milieu du lot,
+ *    sous forme d'erreur de contrainte. On regarde donc avant, et on nomme ces
+ *    questions dans le rapport : la copie d'un élève doit rester lisible.
+ * 3. Seules les questions non publiées sont concernées. Supprimer depuis cet
+ *    écran une question publiée serait un effet de bord du filtre, pas une
+ *    décision.
+ *
+ * Les blocs vidés sont retirés dans la foulée : c'est leur présence qui faisait
+ * apparaître des épreuves sans une seule question.
+ */
+export async function supprimerEnMasse(
+  _precedent: EtatSuppression,
+  donnees: FormData,
+): Promise<EtatSuppression> {
+  await exigerAdmin();
+
+  const ids = [...new Set(donnees.getAll("selection").map(String).filter(Boolean))];
+  if (ids.length === 0) return { message: "Aucune question sélectionnée." };
+
+  const admin = createAdminClient();
+
+  const { data: questions, error: eLecture } = await admin
+    .from("questions")
+    .select("id, enonce, statut, bloc_id")
+    .in("id", ids)
+    .in("statut", ["brouillon", "a_verifier", "depubliee"]);
+  if (eLecture) return { message: `Lecture impossible : ${eLecture.message}` };
+
+  if (!questions || questions.length === 0) {
+    return { message: "Aucune question supprimable dans la sélection." };
+  }
+
+  const presents = questions.map((q) => q.id as string);
+
+  // Ce qui a déjà été servi à un élève : on regarde les deux tables qui
+  // retiennent une question, l'entraînement libre et le concours blanc.
+  const retenues = new Map<string, string>();
+  for (const lot of decouper(presents)) {
+    const [{ data: entrainement }, { data: concoursBlanc }] = await Promise.all([
+      admin.from("session_questions").select("question_id").in("question_id", lot),
+      admin.from("passage_reponses").select("question_id").in("question_id", lot),
+    ]);
+    for (const l of entrainement ?? []) {
+      retenues.set(l.question_id as string, "déjà servie en entraînement");
+    }
+    for (const l of concoursBlanc ?? []) {
+      retenues.set(l.question_id as string, "déjà répondue dans un concours blanc");
+    }
+  }
+
+  const aSupprimer = presents.filter((id) => !retenues.has(id));
+  const refusees: RefusMasse[] = questions
+    .filter((q) => retenues.has(q.id as string))
+    .map((q) => ({
+      id: q.id as string,
+      enonce: q.enonce as string,
+      raison: retenues.get(q.id as string)!,
+    }));
+
+  if (aSupprimer.length === 0) {
+    return { message: "Rien à supprimer : tout est retenu par une copie d'élève.", retenues: refusees };
+  }
+
+  const blocsTouches = [
+    ...new Set(
+      questions
+        .filter((q) => aSupprimer.includes(q.id as string))
+        .map((q) => q.bloc_id as string | null)
+        .filter(Boolean) as string[],
+    ),
+  ];
+
+  for (const lot of decouper(aSupprimer)) {
+    const { error } = await admin.from("questions").delete().in("id", lot);
+    if (error) return { message: `Suppression impossible : ${error.message}`, retenues: refusees };
+  }
+
+  // Un bloc dont il ne reste rien n'a plus d'objet : c'est lui qui faisait
+  // apparaître des épreuves vides dans la banque.
+  let blocsVides = 0;
+  for (const blocId of blocsTouches) {
+    const { count } = await admin
+      .from("questions")
+      .select("id", { count: "exact", head: true })
+      .eq("bloc_id", blocId);
+    if ((count ?? 0) === 0) {
+      const { error } = await admin.from("blocs").delete().eq("id", blocId);
+      if (!error) blocsVides += 1;
+    }
+  }
+
+  revalidatePath("/admin/relecture");
+  revalidatePath("/admin/annales");
+
+  return { supprimees: aSupprimer.length, blocsVides, retenues: refusees };
 }
