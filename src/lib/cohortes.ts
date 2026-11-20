@@ -297,11 +297,29 @@ export function analyserListeEleves(donnees: ArrayBuffer): RapportListe {
  * à deux niveaux de navigation de la liste où elle a les élèves sous les yeux.
  */
 
+/**
+ * Ce que la responsable a besoin de savoir d'un coup d'œil.
+ *
+ * L'état du bilan en base — généré, relu, validé — dit où en est son travail
+ * à elle. La colonne doit dire autre chose : ce qui manque pour que le bilan
+ * soit envoyable, et qui ne dépend pas d'elle. Une épreuve qu'un élève n'a
+ * pas composée ne se rattrape pas en relisant, et une correction inachevée
+ * fausserait tout ce qu'on enverrait.
+ */
+export type EtatResultats =
+  | "epreuve_non_realisee"
+  | "correction_incomplete"
+  | "pret"
+  | "envoye";
+
 export type BilanDeCohorte = {
   id: string;
   session: string;
   sessionId: string;
   statut: "genere" | "en_relecture" | "valide" | "envoye";
+  etat: EtatResultats;
+  /** Ce qui manque, pour l'expliquer sans ouvrir le bilan. */
+  detail: string | null;
   envoyeLe: string | null;
   /** Nombre de destinataires atteints au dernier envoi. */
   destinataires: number;
@@ -325,15 +343,113 @@ export async function bilansDeLaCohorte(
     .in("user_id", ids)
     .order("genere_le", { ascending: false });
 
+  // Ce qui manque pour chaque session touchée : les copies non composées ou
+  // non corrigées, et les oraux non validés.
+  const sessions = [...new Set((bilans ?? []).map((b) => b.session_cb_id as string))];
+  const manques = new Map<string, { nonRealisees: number; aCorriger: number; orauxManquants: number }>();
+
+  const { data: cohorte } = await admin
+    .from("cohortes")
+    .select("filiere")
+    .eq("id", cohorteId)
+    .maybeSingle();
+  const filiere = (cohorte?.filiere as string | null) ?? null;
+
+  for (const sessionId of sessions) {
+    const { data: epreuves } = await admin
+      .from("epreuves_cb")
+      .select("id, epreuve_cb_cohortes(cohorte_id)")
+      .eq("session_cb_id", sessionId)
+      .eq("statut", "publiee");
+
+    const siennes = (epreuves ?? []).filter((e) =>
+      ((e.epreuve_cb_cohortes as unknown as { cohorte_id: string }[]) ?? []).some(
+        (c) => c.cohorte_id === cohorteId,
+      ),
+    );
+    const epreuveIds = siennes.map((e) => e.id as string);
+
+    const [{ data: passages }, { data: oraux }] = await Promise.all([
+      epreuveIds.length
+        ? admin
+            .from("passages")
+            .select("user_id, epreuve_cb_id, statut")
+            .in("epreuve_cb_id", epreuveIds)
+            .in("user_id", ids)
+        : Promise.resolve({ data: [] }),
+      filiere
+        ? admin
+            .from("epreuves_orales")
+            .select("id")
+            .eq("session_cb_id", sessionId)
+            .eq("filiere", filiere)
+        : Promise.resolve({ data: [] }),
+    ]);
+
+    const oralIds = (oraux ?? []).map((o) => o.id as string);
+    const { data: evaluations } = oralIds.length
+      ? await admin
+          .from("evaluations_orales")
+          .select("user_id, epreuve_orale_id, statut")
+          .in("epreuve_orale_id", oralIds)
+          .in("user_id", ids)
+      : { data: [] };
+
+    for (const userId of ids) {
+      const siens = (passages ?? []).filter((p) => p.user_id === userId);
+      const validees = (evaluations ?? []).filter(
+        (e) => e.user_id === userId && e.statut === "validee",
+      ).length;
+
+      manques.set(`${sessionId}|${userId}`, {
+        // Pas de copie, ou copie jamais remise : l'épreuve n'a pas été faite.
+        nonRealisees:
+          epreuveIds.length -
+          siens.filter((p) => p.statut === "remis" || p.statut === "corrige").length,
+        aCorriger: siens.filter((p) => p.statut === "remis").length,
+        orauxManquants: oralIds.length - validees,
+      });
+    }
+  }
+
   const parEleve = new Map<string, BilanDeCohorte[]>();
   for (const b of bilans ?? []) {
     const cle = b.user_id as string;
+    const statut = b.statut as BilanDeCohorte["statut"];
+    const m = manques.get(`${b.session_cb_id}|${cle}`) ?? {
+      nonRealisees: 0,
+      aCorriger: 0,
+      orauxManquants: 0,
+    };
+
+    // L'envoi prime : une fois parti, c'est l'information utile. Vient
+    // ensuite ce qui ne se rattrape pas, puis ce qui reste à corriger.
+    let etat: EtatResultats = "pret";
+    let detail: string | null = null;
+    if (statut === "envoye") {
+      etat = "envoye";
+    } else if (m.nonRealisees > 0) {
+      etat = "epreuve_non_realisee";
+      detail = `${m.nonRealisees} épreuve${m.nonRealisees > 1 ? "s" : ""} non composée${m.nonRealisees > 1 ? "s" : ""}`;
+    } else if (m.aCorriger > 0 || m.orauxManquants > 0) {
+      etat = "correction_incomplete";
+      detail = [
+        m.aCorriger > 0 && `${m.aCorriger} copie${m.aCorriger > 1 ? "s" : ""} à corriger`,
+        m.orauxManquants > 0 &&
+          `${m.orauxManquants} oral${m.orauxManquants > 1 ? "aux" : ""} à noter`,
+      ]
+        .filter(Boolean)
+        .join(", ");
+    }
+
     if (!parEleve.has(cle)) parEleve.set(cle, []);
     parEleve.get(cle)!.push({
       id: b.id as string,
       session: (b.sessions_cb as unknown as { nom: string } | null)?.nom ?? "session",
       sessionId: b.session_cb_id as string,
-      statut: b.statut as BilanDeCohorte["statut"],
+      statut,
+      etat,
+      detail,
       envoyeLe: (b.envoye_le as string | null) ?? null,
       destinataires: Array.isArray(b.destinataires) ? b.destinataires.length : 0,
     });

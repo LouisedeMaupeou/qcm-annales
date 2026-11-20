@@ -141,10 +141,13 @@ export async function envoyerBilan(formulaire: FormData) {
   const admin = createAdminClient();
   const { data: bilan } = await admin
     .from("bilans")
-    .select("id, session_cb_id, user_id, statut")
+    .select("id, session_cb_id, user_id, statut, log_envoi")
     .eq("id", bilanId)
     .maybeSingle();
-  if (!bilan || bilan.statut !== "valide") return;
+  // Un bilan déjà parti peut repartir : une correction d'après-coup — une
+  // note rectifiée, un commentaire revu — doit pouvoir atteindre la famille,
+  // et le journal d'envoi garde trace de chaque expédition.
+  if (!bilan || (bilan.statut !== "valide" && bilan.statut !== "envoye")) return;
 
   const assemble = await assemblerBilan(
     bilan.session_cb_id as string,
@@ -204,11 +207,17 @@ export async function envoyerBilan(formulaire: FormData) {
       statut: "envoye",
       envoye_le: new Date().toISOString(),
       destinataires: destinataires.map((d) => d.email),
-      log_envoi: journal,
+      // Cumulatif : un renvoi s'ajoute aux expéditions précédentes plutôt
+      // que de les effacer, sans quoi on ne saurait plus ce qu'une famille a
+      // déjà reçu.
+      log_envoi: [
+        ...(Array.isArray(bilan.log_envoi) ? bilan.log_envoi : []),
+        ...journal,
+      ],
     })
     .eq("id", bilanId);
 
-  await journaliser(bilanId, userId, "statut", "valide", "envoye");
+  await journaliser(bilanId, userId, "statut", bilan.statut as string, "envoye");
 
   revalidatePath(`/admin/prepa/bilans/${bilanId}`);
   revalidatePath("/concours-blancs");

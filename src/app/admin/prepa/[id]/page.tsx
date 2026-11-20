@@ -211,10 +211,16 @@ function Th({ children }: { children: React.ReactNode }) {
   return <th className="px-4 py-3 font-extrabold text-encre">{children}</th>;
 }
 
-const ETAT_BILAN: Record<BilanDeCohorte["statut"], { libelle: string; classe: string }> = {
-  genere: { libelle: "à relire", classe: "bg-fond-doux text-encre" },
-  en_relecture: { libelle: "en relecture", classe: "bg-soleil/25 text-encre" },
-  valide: { libelle: "validé", classe: "bg-primaire/10 text-primaire-fonce" },
+const ETAT_BILAN: Record<BilanDeCohorte["etat"], { libelle: string; classe: string }> = {
+  epreuve_non_realisee: {
+    libelle: "épreuve non réalisée",
+    classe: "bg-negatif/10 text-negatif",
+  },
+  correction_incomplete: {
+    libelle: "correction incomplète",
+    classe: "bg-soleil/25 text-encre",
+  },
+  pret: { libelle: "prêt à envoyer", classe: "bg-primaire/10 text-primaire-fonce" },
   envoye: { libelle: "envoyé", classe: "bg-positif/15 text-positif" },
 };
 
@@ -240,9 +246,10 @@ function ResultatsEleve({ bilans }: { bilans: BilanDeCohorte[] }) {
           >
             {b.session}
           </Link>
-          <Pastille classe={ETAT_BILAN[b.statut].classe}>
-            {ETAT_BILAN[b.statut].libelle}
+          <Pastille classe={ETAT_BILAN[b.etat].classe}>
+            {ETAT_BILAN[b.etat].libelle}
           </Pastille>
+          {b.detail && <span className="opacity-70">{b.detail}</span>}
         </li>
       ))}
     </ul>
@@ -266,24 +273,29 @@ function EnvoiEleve({ bilans }: { bilans: BilanDeCohorte[] }) {
     <ul className="space-y-1.5 text-[0.8rem]">
       {bilans.map((b) => (
         <li key={b.id}>
-          {b.statut === "envoye" ? (
-            <span className="opacity-75">
-              envoyé
-              {b.envoyeLe &&
-                ` le ${new Date(b.envoyeLe).toLocaleDateString("fr-FR", {
-                  dateStyle: "short",
-                })}`}
-              {b.destinataires > 0 &&
-                ` · ${b.destinataires} destinataire${b.destinataires > 1 ? "s" : ""}`}
-            </span>
-          ) : b.statut === "valide" ? (
-            <form action={envoyerBilan}>
+          {b.statut === "valide" || b.statut === "envoye" ? (
+            <form action={envoyerBilan} className="space-y-1">
+              {b.statut === "envoye" && (
+                <span className="block opacity-75">
+                  envoyé
+                  {b.envoyeLe &&
+                    ` le ${new Date(b.envoyeLe).toLocaleDateString("fr-FR", {
+                      dateStyle: "short",
+                    })}`}
+                  {b.destinataires > 0 &&
+                    ` · ${b.destinataires} destinataire${b.destinataires > 1 ? "s" : ""}`}
+                </span>
+              )}
               <input type="hidden" name="bilanId" value={b.id} />
               <button
                 type="submit"
-                className="cursor-pointer rounded-full bg-primaire px-4 py-1.5 font-bold text-white transition hover:bg-primaire-fonce"
+                className={`cursor-pointer rounded-full px-4 py-1.5 font-bold transition ${
+                  b.statut === "envoye"
+                    ? "border-2 border-primaire text-primaire hover:bg-fond-doux"
+                    : "bg-primaire text-white hover:bg-primaire-fonce"
+                }`}
               >
-                Envoyer aux familles
+                {b.statut === "envoye" ? "Renvoyer" : "Envoyer aux familles"}
               </button>
             </form>
           ) : (
