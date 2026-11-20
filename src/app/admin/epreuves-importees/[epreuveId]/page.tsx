@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { exigerStaff } from "@/lib/admin";
-import { chargerEpreuveImportee } from "@/lib/epreuves-importees";
+import { chargerEpreuveImportee, type QuestionImportee } from "@/lib/epreuves-importees";
 import { formaterMath } from "@/lib/notation-math";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +22,32 @@ const VUES = [
 ] as const;
 
 type Vue = (typeof VUES)[number]["cle"];
+
+/**
+ * Regroupe les questions consécutives qui partagent le même dossier.
+ *
+ * Sans cela, les mêmes textes seraient réaffichés entre chaque question : en
+ * analyse documentaire, le Texte 7 revient sur plusieurs questions d'affilée,
+ * et le relecteur verrait dix fois la même image en faisant défiler l'épreuve.
+ */
+function grouperParDossier(questions: QuestionImportee[]): QuestionImportee[][] {
+  const groupes: QuestionImportee[][] = [];
+  let signaturePrecedente: string | null = null;
+
+  for (const q of questions) {
+    const signature = `${q.enonceCommun ?? ""}##${q.documents
+      .map((d) => d.titre ?? "")
+      .join("|")}`;
+    if (signature !== signaturePrecedente) {
+      groupes.push([q]);
+      signaturePrecedente = signature;
+    } else {
+      groupes[groupes.length - 1].push(q);
+    }
+  }
+
+  return groupes;
+}
 
 const ETIQUETTE_STATUT: Record<string, { libelle: string; classe: string }> = {
   publie: { libelle: "validée", classe: "bg-positif/15 text-positif" },
@@ -150,116 +176,141 @@ export default async function EpreuveImportee({
           })}
         </ul>
       ) : (
-        <ol className="space-y-9">
-          {questions.map((q, i) => {
-            // L'énoncé commun et le dossier ne sont répétés que s'ils changent :
-            // c'est ainsi que l'élève les verra, une fois par exercice.
-            const precedente = questions[i - 1];
-            const nouveauDossier =
-              q.enonceCommun !== precedente?.enonceCommun ||
-              q.documents.length !== (precedente?.documents.length ?? 0);
+        <div className="space-y-12">
+          {grouperParDossier(questions).map((groupe) => {
+            const tete = groupe[0];
+            const aDossier = Boolean(tete.enonceCommun) || tete.documents.length > 0;
 
             return (
-              <li key={q.id} className="border-t border-ligne pt-7 first:border-0 first:pt-0">
-                {nouveauDossier && q.enonceCommun && (
-                  <p className="mb-4 max-h-[26rem] overflow-y-auto rounded-carte bg-fond-doux p-4 whitespace-pre-line">
-                    {formaterMath(q.enonceCommun)}
-                  </p>
+              <section
+                key={tete.id}
+                className={
+                  aDossier
+                    ? "lg:grid lg:grid-cols-[minmax(0,46%)_minmax(0,1fr)] lg:items-start lg:gap-9"
+                    : ""
+                }
+              >
+                {/* Le texte à gauche, dans sa propre zone de défilement : c'est
+                    la situation de l'élève, qui relit un passage en gardant la
+                    question sous les yeux. */}
+                {aDossier && (
+                  <aside
+                    aria-label="Textes de l'exercice"
+                    className="mb-6 max-h-[60vh] overflow-y-auto rounded-carte border border-ligne bg-fond-doux/40 p-5 lg:sticky lg:top-6 lg:mb-0 lg:max-h-[calc(100dvh-6rem)]"
+                  >
+                    <h2 className="mb-3 text-sm font-extrabold tracking-[.08em] text-primaire-fonce uppercase">
+                      Dossier
+                    </h2>
+                    {tete.enonceCommun && (
+                      <p className="mb-5 leading-relaxed whitespace-pre-line">
+                        {formaterMath(tete.enonceCommun)}
+                      </p>
+                    )}
+                    {tete.documents.map((d, n) => (
+                      <figure key={`${tete.id}-doc-${n}`} className="mb-5 last:mb-0">
+                        {d.titre && (
+                          <figcaption className="mb-1.5 text-sm font-extrabold text-encre">
+                            {d.titre}
+                          </figcaption>
+                        )}
+                        {d.url ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- URL signée temporaire
+                          <img
+                            src={d.url}
+                            alt={d.titre ?? "Document"}
+                            className="w-full rounded-[10px] border border-ligne bg-white"
+                          />
+                        ) : (
+                          <p className="rounded-[10px] bg-negatif/5 p-3 text-sm text-negatif">
+                            Document introuvable dans le stockage.
+                          </p>
+                        )}
+                      </figure>
+                    ))}
+                  </aside>
                 )}
-                {nouveauDossier &&
-                  q.documents.map((d, n) => (
-                    <figure key={`${q.id}-doc-${n}`} className="mb-4">
-                      {d.titre && (
-                        <figcaption className="mb-1.5 text-sm font-extrabold text-encre">
-                          {d.titre}
-                        </figcaption>
-                      )}
-                      {d.url ? (
-                        // eslint-disable-next-line @next/next/no-img-element -- URL signée temporaire
-                        <img
-                          src={d.url}
-                          alt={d.titre ?? "Document"}
-                          className="max-h-[30rem] w-full rounded-[10px] border border-ligne bg-white object-contain"
-                        />
+
+                <ol className="space-y-8">
+                  {groupe.map((q) => (
+                    <li key={q.id}>
+                      <p className="mb-2 text-sm font-extrabold tracking-[.08em] text-primaire-fonce uppercase">
+                        Question {q.ordre ?? "?"}
+                      </p>
+
+                      {q.enonce?.trim() ? (
+                        <p className="mb-4 text-[1.05rem] whitespace-pre-line">
+                          {formaterMath(q.enonce)}
+                        </p>
+                      ) : q.figureUrl ? (
+                        // Sans retranscription, la capture est tout ce qu'il y a :
+                        // la masquer afficherait une question vide.
+                        <figure className="mb-4">
+                          {/* eslint-disable-next-line @next/next/no-img-element -- URL signée temporaire */}
+                          <img
+                            src={q.figureUrl}
+                            alt={`Question ${q.ordre ?? ""} en image`}
+                            className="w-full rounded-carte border border-ligne bg-white"
+                          />
+                          <figcaption className="mt-1.5 text-[0.8rem] text-negatif">
+                            Question sans énoncé texte : elle n&apos;existe qu&apos;en image.
+                          </figcaption>
+                        </figure>
                       ) : (
-                        <p className="rounded-[10px] bg-negatif/5 p-3 text-sm text-negatif">
-                          Document introuvable dans le stockage.
+                        <p
+                          role="alert"
+                          className="mb-4 rounded-carte border-2 border-negatif bg-negatif/5 p-4 text-sm text-negatif"
+                        >
+                          Cette question n&apos;a ni énoncé ni figure : elle serait servie vide.
                         </p>
                       )}
-                    </figure>
+
+                      {q.propositions.length === 0 ? (
+                        q.type !== "redaction" && (
+                          <p
+                            role="alert"
+                            className="rounded-carte border-2 border-negatif bg-negatif/5 p-4 text-sm text-negatif"
+                          >
+                            Aucune proposition : la question est injouable telle quelle.
+                          </p>
+                        )
+                      ) : (
+                        <ul className="space-y-2.5">
+                          {q.propositions.map((p, n) => (
+                            <li
+                              key={p.id}
+                              className={`flex items-start gap-3 rounded-carte border-2 p-3.5 ${
+                                p.correcte
+                                  ? "border-positif bg-positif/5"
+                                  : "border-ligne bg-white"
+                              }`}
+                            >
+                              <strong className="text-encre">{"ABCDEF"[n]}.</strong>
+                              <span className="min-w-0 flex-1">{formaterMath(p.texte)}</span>
+                              {p.correcte && (
+                                <span className="shrink-0 text-sm font-extrabold text-positif">
+                                  bonne réponse
+                                </span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+
+                      <p className="mt-3 text-sm">
+                        <Link
+                          href={`/admin/relecture/${q.id}`}
+                          className="font-bold text-primaire"
+                        >
+                          Modifier cette question
+                        </Link>
+                      </p>
+                    </li>
                   ))}
-
-                <p className="mb-2 text-sm font-extrabold tracking-[.08em] text-primaire-fonce uppercase">
-                  Question {q.ordre ?? i + 1}
-                </p>
-
-                {q.figureUrl && (
-                  <figure className="mb-4">
-                    {/* eslint-disable-next-line @next/next/no-img-element -- URL signée temporaire */}
-                    <img
-                      src={q.figureUrl}
-                      alt={`Figure de la question ${q.ordre ?? i + 1}`}
-                      className="w-full rounded-carte border border-ligne bg-white"
-                    />
-                  </figure>
-                )}
-
-                {q.enonce?.trim() ? (
-                  <p className="mb-4 text-[1.05rem] whitespace-pre-line">
-                    {formaterMath(q.enonce)}
-                  </p>
-                ) : (
-                  !q.figureUrl && (
-                    <p
-                      role="alert"
-                      className="mb-4 rounded-carte border-2 border-negatif bg-negatif/5 p-4 text-sm text-negatif"
-                    >
-                      Cette question n&apos;a ni énoncé ni figure : elle serait servie vide.
-                    </p>
-                  )
-                )}
-
-                {q.propositions.length === 0 ? (
-                  q.type !== "redaction" && (
-                    <p
-                      role="alert"
-                      className="rounded-carte border-2 border-negatif bg-negatif/5 p-4 text-sm text-negatif"
-                    >
-                      Aucune proposition : la question est injouable telle quelle.
-                    </p>
-                  )
-                ) : (
-                  <ul className="space-y-2.5">
-                    {q.propositions.map((p, n) => (
-                      <li
-                        key={p.id}
-                        className={`flex items-start gap-3 rounded-carte border-2 p-3.5 ${
-                          p.correcte
-                            ? "border-positif bg-positif/5"
-                            : "border-ligne bg-white"
-                        }`}
-                      >
-                        <strong className="text-encre">{"ABCDEF"[n]}.</strong>
-                        <span className="min-w-0 flex-1">{formaterMath(p.texte)}</span>
-                        {p.correcte && (
-                          <span className="shrink-0 text-sm font-extrabold text-positif">
-                            bonne réponse
-                          </span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-
-                <p className="mt-3 text-sm">
-                  <Link href={`/admin/relecture/${q.id}`} className="font-bold text-primaire">
-                    Modifier cette question
-                  </Link>
-                </p>
-              </li>
+                </ol>
+              </section>
             );
           })}
-        </ol>
+        </div>
       )}
     </>
   );
