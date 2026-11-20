@@ -3,10 +3,13 @@ import { notFound } from "next/navigation";
 import { exigerPrepa } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
+  bilansDeLaCohorte,
   chargerMembres,
   COLONNES_LISTE,
   COLONNES_LISTE_FACULTATIVES,
+  type BilanDeCohorte,
 } from "@/lib/cohortes";
+import { envoyerBilan } from "../bilans/actions";
 import { detacherEleve, relancerInvitation } from "../actions";
 import { FormulaireListe } from "./formulaire-liste";
 
@@ -21,13 +24,14 @@ export default async function FicheCohorte({
   const { id } = await params;
 
   const admin = createAdminClient();
-  const [{ data: cohorte }, membres] = await Promise.all([
+  const [{ data: cohorte }, membres, bilans] = await Promise.all([
     admin
       .from("cohortes")
       .select("id, nom, filiere, millesime, active")
       .eq("id", id)
       .maybeSingle(),
     chargerMembres(id),
+    bilansDeLaCohorte(id),
   ]);
 
   if (!cohorte) notFound();
@@ -66,6 +70,8 @@ export default async function FicheCohorte({
                     <Th>Contact parent</Th>
                     <Th>Statut</Th>
                     <Th>Actions</Th>
+                    <Th>Résultats aux familles</Th>
+                    <Th>Envoi</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -113,6 +119,14 @@ export default async function FicheCohorte({
                             </button>
                           </form>
                         </div>
+                      </td>
+
+                      <td className="px-4 py-3">
+                        <ResultatsEleve bilans={bilans.get(m.id) ?? []} />
+                      </td>
+
+                      <td className="px-4 py-3">
+                        <EnvoiEleve bilans={bilans.get(m.id) ?? []} />
                       </td>
                     </tr>
                   ))}
@@ -188,4 +202,88 @@ function Pastille({ classe, children }: { classe: string; children: React.ReactN
 
 function Th({ children }: { children: React.ReactNode }) {
   return <th className="px-4 py-3 font-extrabold text-encre">{children}</th>;
+}
+
+const ETAT_BILAN: Record<BilanDeCohorte["statut"], { libelle: string; classe: string }> = {
+  genere: { libelle: "à relire", classe: "bg-fond-doux text-encre" },
+  en_relecture: { libelle: "en relecture", classe: "bg-soleil/25 text-encre" },
+  valide: { libelle: "validé", classe: "bg-primaire/10 text-primaire-fonce" },
+  envoye: { libelle: "envoyé", classe: "bg-positif/15 text-positif" },
+};
+
+/**
+ * Le retour aux familles, tel qu'il partira : texte relisible et modifiable.
+ *
+ * C'est la fiche de bilan du §5.4, atteinte depuis la liste où la responsable
+ * a ses élèves sous les yeux, au lieu de deux niveaux de navigation plus loin
+ * dans la section Sessions.
+ */
+function ResultatsEleve({ bilans }: { bilans: BilanDeCohorte[] }) {
+  if (bilans.length === 0) {
+    return <span className="text-[0.8rem] opacity-60">aucun bilan</span>;
+  }
+
+  return (
+    <ul className="space-y-1.5 text-[0.8rem]">
+      {bilans.map((b) => (
+        <li key={b.id} className="flex flex-wrap items-center gap-2">
+          <Link
+            href={`/admin/prepa/bilans/${b.id}`}
+            className="font-bold text-primaire no-underline hover:underline"
+          >
+            {b.session}
+          </Link>
+          <Pastille classe={ETAT_BILAN[b.statut].classe}>
+            {ETAT_BILAN[b.statut].libelle}
+          </Pastille>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * L'envoi aux familles.
+ *
+ * Un bilan ne part qu'une fois validé : c'est la règle du §5.4, et le bouton
+ * ne s'affiche donc pas avant. Une fois parti, la date et le nombre de
+ * destinataires remplacent le bouton — réexpédier doit être un geste pensé,
+ * pas un double-clic.
+ */
+function EnvoiEleve({ bilans }: { bilans: BilanDeCohorte[] }) {
+  if (bilans.length === 0) {
+    return <span className="text-[0.8rem] opacity-60">—</span>;
+  }
+
+  return (
+    <ul className="space-y-1.5 text-[0.8rem]">
+      {bilans.map((b) => (
+        <li key={b.id}>
+          {b.statut === "envoye" ? (
+            <span className="opacity-75">
+              envoyé
+              {b.envoyeLe &&
+                ` le ${new Date(b.envoyeLe).toLocaleDateString("fr-FR", {
+                  dateStyle: "short",
+                })}`}
+              {b.destinataires > 0 &&
+                ` · ${b.destinataires} destinataire${b.destinataires > 1 ? "s" : ""}`}
+            </span>
+          ) : b.statut === "valide" ? (
+            <form action={envoyerBilan}>
+              <input type="hidden" name="bilanId" value={b.id} />
+              <button
+                type="submit"
+                className="cursor-pointer rounded-full bg-primaire px-4 py-1.5 font-bold text-white transition hover:bg-primaire-fonce"
+              >
+                Envoyer aux familles
+              </button>
+            </form>
+          ) : (
+            <span className="opacity-60">à valider d&apos;abord</span>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
 }

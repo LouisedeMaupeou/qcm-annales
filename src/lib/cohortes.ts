@@ -285,3 +285,59 @@ export function analyserListeEleves(donnees: ArrayBuffer): RapportListe {
 
   return { lignes: brutes.length, eleves, anomalies };
 }
+
+// ---------------------------------------------------------------------------
+// Bilans d'une cohorte (§5.4)
+// ---------------------------------------------------------------------------
+/**
+ * Les bilans de chaque élève, pour la fiche de cohorte.
+ *
+ * La responsable travaille élève par élève : relire le texte qui partira aux
+ * parents, puis l'envoyer. Ces deux gestes vivaient dans la section Sessions,
+ * à deux niveaux de navigation de la liste où elle a les élèves sous les yeux.
+ */
+
+export type BilanDeCohorte = {
+  id: string;
+  session: string;
+  sessionId: string;
+  statut: "genere" | "en_relecture" | "valide" | "envoye";
+  envoyeLe: string | null;
+  /** Nombre de destinataires atteints au dernier envoi. */
+  destinataires: number;
+};
+
+export async function bilansDeLaCohorte(
+  cohorteId: string,
+): Promise<Map<string, BilanDeCohorte[]>> {
+  const admin = createAdminClient();
+
+  const { data: membres } = await admin
+    .from("users")
+    .select("id")
+    .eq("cohorte_id", cohorteId);
+  const ids = (membres ?? []).map((m) => m.id as string);
+  if (ids.length === 0) return new Map();
+
+  const { data: bilans } = await admin
+    .from("bilans")
+    .select("id, user_id, statut, envoye_le, destinataires, session_cb_id, sessions_cb(nom)")
+    .in("user_id", ids)
+    .order("genere_le", { ascending: false });
+
+  const parEleve = new Map<string, BilanDeCohorte[]>();
+  for (const b of bilans ?? []) {
+    const cle = b.user_id as string;
+    if (!parEleve.has(cle)) parEleve.set(cle, []);
+    parEleve.get(cle)!.push({
+      id: b.id as string,
+      session: (b.sessions_cb as unknown as { nom: string } | null)?.nom ?? "session",
+      sessionId: b.session_cb_id as string,
+      statut: b.statut as BilanDeCohorte["statut"],
+      envoyeLe: (b.envoye_le as string | null) ?? null,
+      destinataires: Array.isArray(b.destinataires) ? b.destinataires.length : 0,
+    });
+  }
+
+  return parEleve;
+}

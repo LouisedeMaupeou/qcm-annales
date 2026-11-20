@@ -212,4 +212,7 @@ export async function envoyerBilan(formulaire: FormData) {
 
   revalidatePath(`/admin/prepa/bilans/${bilanId}`);
   revalidatePath("/concours-blancs");
+  // L'envoi se déclenche aussi depuis la fiche de cohorte, où la ligne de
+  // l'élève doit passer de « Envoyer » à la date d'envoi.
+  revalidatePath("/admin/prepa", "layout");
 }
