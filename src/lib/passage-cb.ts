@@ -20,6 +20,13 @@ import { corrigerPassage } from "@/lib/correction-cb-execution";
 
 export type PropositionJouable = { id: string; texte: string };
 
+/** Une pièce du dossier : un texte, un encart, un graphique. */
+export type DocumentPassage = {
+  titre: string | null;
+  /** Nulle si le fichier n'a pas pu être signé — on le dit plutôt que d'afficher une image morte. */
+  url: string | null;
+};
+
 export type QuestionPassage = {
   id: string;
   ordre: number;
@@ -36,6 +43,8 @@ export type QuestionPassage = {
   type: "choix_unique" | "choix_multiple" | "redaction";
   enonce: string;
   enonceCommun: string | null;
+  /** Le dossier du bloc, partagé par toutes les questions de l'exercice. */
+  documents: DocumentPassage[];
   figureUrl: string | null;
   /** La question porte une figure qui n'a pas pu être servie : injouable telle quelle. */
   figureManquante: boolean;
@@ -241,6 +250,17 @@ export async function chargerPassage(
     (blocs ?? []).map((b) => [b.id as string, b.enonce_commun as string | null]),
   );
 
+  // Le dossier documentaire du bloc. Il était importé depuis le début mais
+  // jamais servi : une épreuve d'analyse documentaire posait ses questions
+  // sans donner les textes sur lesquels elles portent.
+  const { data: documents } = blocIds.length
+    ? await admin
+        .from("bloc_documents")
+        .select("bloc_id, fichier_url, titre")
+        .in("bloc_id", blocIds)
+        .order("titre")
+    : { data: [] };
+
   // Les figures sont signées en une fois, et pour la durée restante de
   // l'épreuve plus une marge : une épreuve GEIPI dure trois heures, une URL
   // d'une heure se périmerait en pleine composition.
@@ -256,7 +276,24 @@ export async function chargerPassage(
   const cheminsFigures = (liens ?? [])
     .map((l) => (l.questions as unknown as { image_url: string | null } | null)?.image_url)
     .filter((v): v is string => Boolean(v));
-  const figures = await urlsSigneesFigures(cheminsFigures, resteSecondes);
+
+  // Figures et documents sont signés ensemble : même stockage, même durée.
+  const cheminsDocuments = (documents ?? []).map((d) => d.fichier_url as string);
+  const signees = await urlsSigneesFigures(
+    [...cheminsFigures, ...cheminsDocuments],
+    resteSecondes,
+  );
+  const figures = signees;
+
+  const documentsDuBloc = new Map<string, DocumentPassage[]>();
+  for (const d of documents ?? []) {
+    const bloc = d.bloc_id as string;
+    if (!documentsDuBloc.has(bloc)) documentsDuBloc.set(bloc, []);
+    documentsDuBloc.get(bloc)!.push({
+      titre: (d.titre as string | null) ?? null,
+      url: signees.get(d.fichier_url as string) ?? null,
+    });
+  }
 
   const questions: QuestionPassage[] = [];
   for (const lien of liens ?? []) {
@@ -277,6 +314,7 @@ export async function chargerPassage(
       type: q.type,
       enonce: q.enonce,
       enonceCommun: enonceDuBloc.get(q.bloc_id) ?? null,
+      documents: documentsDuBloc.get(q.bloc_id) ?? [],
       figureUrl: q.image_url ? (figures.get(q.image_url) ?? null) : null,
       figureManquante: Boolean(q.image_url) && !figures.get(q.image_url ?? ""),
       propositions: [...(q.reponses_possibles ?? [])]

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import { grouperParExercice } from "@/lib/groupes-passage";
 import { formaterMath } from "@/lib/notation-math";
 import { remettreCopie, sauvegarder } from "./actions";
-import type { QuestionPassage, ReponseEleveCb } from "@/lib/passage-cb";
+import type { DocumentPassage, QuestionPassage, ReponseEleveCb } from "@/lib/passage-cb";
 
 /**
  * Composition d'une épreuve blanche (§4.3).
@@ -113,8 +113,18 @@ export function Composer({
   // retrouve la numérotation du sujet papier.
   const premiere = questions.indexOf(tete) + 1;
 
+  // Un dossier à lire change la mise en page : il passe à gauche, dans sa
+  // propre colonne qui défile, et les questions occupent la droite. Sans
+  // dossier, une colonne large nuirait à la lecture de l'énoncé.
+  const dossier = tete?.documents ?? [];
+  const aDossier = Boolean(tete?.enonceCommun) || dossier.length > 0;
+
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-[820px] flex-col px-[22px]">
+    <div
+      className={`mx-auto flex min-h-dvh w-full flex-col px-[22px] ${
+        aDossier ? "max-w-[1400px]" : "max-w-[820px]"
+      }`}
+    >
       {/* Bandeau : pas de lien de navigation, on ne quitte pas une épreuve par
           distraction. */}
       <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-ligne bg-white py-4">
@@ -161,27 +171,34 @@ export function Composer({
           </label>
         </div>
 
-        {/* L'énoncé commun et le document appartiennent à l'exercice entier :
-            ils ne sont affichés qu'une fois, en tête. */}
-        {tete?.enonceCommun && (
-          <p className="mb-4 rounded-carte bg-fond-doux p-4 whitespace-pre-line">
-            {formaterMath(tete.enonceCommun)}
-          </p>
-        )}
+        <div
+          className={
+            aDossier
+              ? "lg:grid lg:grid-cols-[minmax(0,46%)_minmax(0,1fr)] lg:items-start lg:gap-9"
+              : ""
+          }
+        >
+          {aDossier && (
+            <PanneauDossier
+              enonceCommun={tete?.enonceCommun ?? null}
+              documents={dossier}
+            />
+          )}
 
-        <ol className="space-y-7">
-          {groupe.map((q, rang) => (
-            <li key={q.id}>
-              <SousQuestion
-                question={q}
-                numero={premiere + rang}
-                lettre={groupe.length > 1 ? "ABCDEFGH"[rang] : null}
-                reponse={reponses[q.id] ?? {}}
-                modifier={(valeur) => modifier(q.id, valeur)}
-              />
-            </li>
-          ))}
-        </ol>
+          <ol className="space-y-7">
+            {groupe.map((q, rang) => (
+              <li key={q.id}>
+                <SousQuestion
+                  question={q}
+                  numero={premiere + rang}
+                  lettre={groupe.length > 1 ? "ABCDEFGH"[rang] : null}
+                  reponse={reponses[q.id] ?? {}}
+                  modifier={(valeur) => modifier(q.id, valeur)}
+                />
+              </li>
+            ))}
+          </ol>
+        </div>
       </main>
 
       {/* Navigation */}
@@ -246,6 +263,68 @@ export function Composer({
         </div>
       </nav>
     </div>
+  );
+}
+
+/**
+ * Le dossier de l'exercice : textes, encarts, bibliographie.
+ *
+ * Il occupe la colonne de gauche et défile pour lui-même, pendant que les
+ * questions restent en place à droite. C'est la situation réelle de l'épreuve
+ * d'analyse documentaire : on relit un passage en gardant la question sous les
+ * yeux. Faire défiler toute la page obligerait à perdre l'un pour retrouver
+ * l'autre, vingt fois par épreuve.
+ *
+ * Sous la largeur de bascule, les deux colonnes s'empilent : le dossier garde
+ * sa propre zone de défilement, bornée en hauteur, pour que les questions
+ * restent atteignables sans traverser quarante pages de texte.
+ */
+function PanneauDossier({
+  enonceCommun,
+  documents,
+}: {
+  enonceCommun: string | null;
+  documents: DocumentPassage[];
+}) {
+  return (
+    <aside
+      aria-label="Dossier documentaire"
+      className="mb-6 max-h-[55vh] overflow-y-auto rounded-carte border border-ligne bg-fond-doux/40 p-5 lg:sticky lg:top-[96px] lg:mb-0 lg:max-h-[calc(100dvh-13rem)]"
+    >
+      <h2 className="mb-3 text-sm font-extrabold tracking-[.08em] text-primaire-fonce uppercase">
+        Dossier
+      </h2>
+
+      {enonceCommun && (
+        <p className="mb-5 text-[0.98rem] leading-relaxed whitespace-pre-line">
+          {formaterMath(enonceCommun)}
+        </p>
+      )}
+
+      {documents.map((d, i) => (
+        <figure key={`${d.titre ?? "doc"}-${i}`} className="mb-5 last:mb-0">
+          {d.titre && (
+            <figcaption className="mb-1.5 font-extrabold text-encre">{d.titre}</figcaption>
+          )}
+          {d.url ? (
+            // eslint-disable-next-line @next/next/no-img-element -- URL signée temporaire
+            <img
+              src={d.url}
+              alt={d.titre ?? `Document ${i + 1}`}
+              className="w-full rounded-[10px] border border-ligne bg-white"
+            />
+          ) : (
+            <p
+              role="alert"
+              className="rounded-[10px] border-2 border-negatif bg-negatif/5 p-3 text-sm text-negatif"
+            >
+              Ce document n&apos;a pas pu être chargé. Préviens ton surveillant :
+              ta copie est enregistrée.
+            </p>
+          )}
+        </figure>
+      ))}
+    </aside>
   );
 }
 
