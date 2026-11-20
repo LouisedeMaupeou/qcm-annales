@@ -100,10 +100,37 @@ export async function enregistrerEvaluation(
 
   revalidatePath(`/admin/oraux/${epreuveOraleId}`);
   revalidatePath(`/admin/oraux/${epreuveOraleId}/${eleveId}`);
+  // L'écran par élève tient plusieurs grilles : il doit refléter celle qu'on
+  // vient d'enregistrer sans recharger les autres de travers.
+  revalidatePath("/admin/oraux", "layout");
 
   return {
     succes: valider
       ? `Évaluation validée. Note d'oral : ${note}/20 — elle entrera dans le bilan.`
       : `Brouillon enregistré. Note provisoire : ${note}/20.`,
   };
+}
+
+/**
+ * Archive ou désarchive une session.
+ *
+ * Les sessions s'accumulent — plusieurs par an — et celles des années passées
+ * encombrent les listes de travail sans qu'on veuille rien en perdre.
+ * L'archivage ne touche ni aux bilans, ni aux copies, ni aux évaluations : il
+ * range, et se défait.
+ */
+export async function basculerArchiveSession(donnees: FormData) {
+  await exigerPrepa();
+
+  const sessionId = String(donnees.get("sessionId") ?? "");
+  if (!sessionId) return;
+  const archivee = String(donnees.get("archivee") ?? "") === "1";
+
+  await createAdminClient()
+    .from("sessions_cb")
+    .update({ archivee })
+    .eq("id", sessionId);
+
+  revalidatePath("/admin/oraux", "layout");
+  revalidatePath("/admin/prepa/sessions");
 }

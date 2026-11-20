@@ -387,3 +387,211 @@ export async function orauxDuBilan(
   const global = noteGlobaleOraux(pour);
   return { oraux, noteGlobale: global.note, complet: global.complet };
 }
+
+// ---------------------------------------------------------------------------
+// Entrée par session et par élève (§5.5)
+// ---------------------------------------------------------------------------
+/**
+ * Un élève de commerce passe quatre oraux. Les noter épreuve par épreuve
+ * obligeait le jury à quatre navigations par candidat, et à retenir entre
+ * deux écrans ce qu'il venait d'observer. On entre donc aussi par la session
+ * puis par l'élève, pour tenir ses grilles sur une seule page.
+ */
+
+export type SessionOrale = {
+  id: string;
+  nom: string;
+  archivee: boolean;
+  creeLe: string;
+  nbEpreuves: number;
+  nbEleves: number;
+  /** Grilles validées sur le nombre total attendu, tous élèves confondus. */
+  nbValidees: number;
+  nbAttendues: number;
+};
+
+/** Les cohortes convoquées à une session, par filière. */
+async function cohortesDeLaSession(sessionCbId: string) {
+  const admin = createAdminClient();
+
+  const { data: epreuvesEcrites } = await admin
+    .from("epreuves_cb")
+    .select("id")
+    .eq("session_cb_id", sessionCbId);
+  const ids = (epreuvesEcrites ?? []).map((e) => e.id as string);
+  if (ids.length === 0) return [];
+
+  const { data: liens } = await admin
+    .from("epreuve_cb_cohortes")
+    .select("cohorte_id")
+    .in("epreuve_cb_id", ids);
+  const cohorteIds = [...new Set((liens ?? []).map((l) => l.cohorte_id as string))];
+  if (cohorteIds.length === 0) return [];
+
+  const { data: cohortes } = await admin
+    .from("cohortes")
+    .select("id, nom, filiere")
+    .in("id", cohorteIds);
+
+  return (cohortes ?? []).map((c) => ({
+    id: c.id as string,
+    nom: c.nom as string,
+    filiere: c.filiere as "commerce" | "ingenieur",
+  }));
+}
+
+export async function listerSessionsOrales(): Promise<SessionOrale[]> {
+  const admin = createAdminClient();
+
+  // La colonne d'archivage arrive par migration : tant qu'elle n'est pas
+  // passée, on lit sans elle et aucune session n'est archivée. Sans ce repli,
+  // un déploiement en avance sur la base viderait l'écran des oraux au lieu
+  // de simplement ignorer l'archivage.
+  const avecArchivage = await admin
+    .from("sessions_cb")
+    .select("id, nom, archivee, created_at")
+    .order("created_at", { ascending: false });
+
+  const sessions = avecArchivage.error
+    ? (
+        await admin
+          .from("sessions_cb")
+          .select("id, nom, created_at")
+          .order("created_at", { ascending: false })
+      ).data?.map((s) => ({ ...s, archivee: false }))
+    : avecArchivage.data;
+
+  if (!sessions || sessions.length === 0) return [];
+
+  const epreuves = await chargerEpreuvesOrales();
+
+  const resultat: SessionOrale[] = [];
+  for (const s of sessions) {
+    const id = s.id as string;
+    const siennes = epreuves.filter((e) => e.sessionId === id);
+    if (siennes.length === 0) continue;
+
+    const cohortes = await cohortesDeLaSession(id);
+    const parFiliere = new Map<string, number>();
+    for (const c of cohortes) {
+      const { count } = await admin
+        .from("users")
+        .select("id", { count: "exact", head: true })
+        .eq("cohorte_id", c.id);
+      parFiliere.set(c.filiere, (parFiliere.get(c.filiere) ?? 0) + (count ?? 0));
+    }
+
+    // Une épreuve ne concerne que sa filière : le nombre de grilles attendues
+    // se compte filière par filière, sinon on promettrait des oraux d'anglais
+    // à des élèves d'école d'ingénieurs.
+    let attendues = 0;
+    for (const e of siennes) attendues += parFiliere.get(e.filiere) ?? 0;
+
+    resultat.push({
+      id,
+      nom: s.nom as string,
+      archivee: Boolean(s.archivee),
+      creeLe: s.created_at as string,
+      nbEpreuves: siennes.length,
+      nbEleves: [...parFiliere.values()].reduce((a, b) => a + b, 0),
+      nbValidees: siennes.reduce((n, e) => n + e.nbValidees, 0),
+      nbAttendues: attendues,
+    });
+  }
+
+  return resultat;
+}
+
+export type EleveDeSession = {
+  id: string;
+  nom: string;
+  prenom: string;
+  cohorte: string | null;
+  filiere: "commerce" | "ingenieur";
+  nbEpreuves: number;
+  nbValidees: number;
+  nbCommencees: number;
+};
+
+export async function elevesDeLaSession(sessionCbId: string): Promise<EleveDeSession[]> {
+  const admin = createAdminClient();
+
+  const cohortes = await cohortesDeLaSession(sessionCbId);
+  if (cohortes.length === 0) return [];
+
+  const epreuves = (await chargerEpreuvesOrales(sessionCbId)).filter(
+    (e) => e.sessionId === sessionCbId,
+  );
+  if (epreuves.length === 0) return [];
+
+  const { data: eleves } = await admin
+    .from("users")
+    .select("id, nom, prenom, cohorte_id")
+    .in(
+      "cohorte_id",
+      cohortes.map((c) => c.id),
+    )
+    .order("nom")
+    .order("prenom")
+    .limit(500);
+  if (!eleves || eleves.length === 0) return [];
+
+  const { data: evaluations } = await admin
+    .from("evaluations_orales")
+    .select("user_id, epreuve_orale_id, statut")
+    .in(
+      "epreuve_orale_id",
+      epreuves.map((e) => e.id),
+    )
+    .in(
+      "user_id",
+      eleves.map((e) => e.id as string),
+    );
+
+  const parEleve = new Map<string, { statut: string }[]>();
+  for (const ev of evaluations ?? []) {
+    const cle = ev.user_id as string;
+    if (!parEleve.has(cle)) parEleve.set(cle, []);
+    parEleve.get(cle)!.push({ statut: ev.statut as string });
+  }
+
+  const filiereDe = new Map(cohortes.map((c) => [c.id, c]));
+
+  return eleves.map((e) => {
+    const cohorte = filiereDe.get(e.cohorte_id as string);
+    const filiere = cohorte?.filiere ?? "commerce";
+    const siennes = parEleve.get(e.id as string) ?? [];
+    return {
+      id: e.id as string,
+      nom: e.nom as string,
+      prenom: e.prenom as string,
+      cohorte: cohorte?.nom ?? null,
+      filiere,
+      nbEpreuves: epreuves.filter((x) => x.filiere === filiere).length,
+      nbValidees: siennes.filter((s) => s.statut === "validee").length,
+      nbCommencees: siennes.length,
+    };
+  });
+}
+
+/** Toutes les grilles d'un élève pour une session, dans l'ordre du référentiel. */
+export async function chargerOrauxEleve(
+  sessionCbId: string,
+  userId: string,
+): Promise<{ eleve: EleveDeSession; evaluations: EvaluationChargee[] } | null> {
+  const eleves = await elevesDeLaSession(sessionCbId);
+  const eleve = eleves.find((e) => e.id === userId);
+  if (!eleve) return null;
+
+  const epreuves = (await chargerEpreuvesOrales(sessionCbId)).filter(
+    (e) => e.sessionId === sessionCbId && e.filiere === eleve.filiere,
+  );
+
+  const evaluations: EvaluationChargee[] = [];
+  for (const e of epreuves) {
+    const chargee = await chargerEvaluation(e.id, userId);
+    if (chargee) evaluations.push(chargee);
+  }
+
+  return { eleve, evaluations };
+}

@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { exigerOraux } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { chargerEpreuvesOrales } from "@/lib/oraux-donnees";
-import { ouvrirOraux } from "./actions";
+import { chargerEpreuvesOrales, listerSessionsOrales } from "@/lib/oraux-donnees";
+import { basculerArchiveSession, ouvrirOraux } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -12,18 +12,36 @@ const FILIERES = {
 } as const;
 
 /** §5.5 : section Oraux — choisir une épreuve, puis chercher un élève. */
-export default async function Oraux() {
+export default async function Oraux({
+  searchParams,
+}: {
+  searchParams: Promise<{ session?: string; archivees?: string }>;
+}) {
   const { role } = await exigerOraux();
   const peutOuvrir = role === "admin" || role === "responsable_prepa";
+  const { session: sessionChoisie, archivees } = await searchParams;
+  const montrerArchivees = archivees === "1";
 
   const admin = createAdminClient();
-  const [epreuves, { data: sessions }] = await Promise.all([
+  const [epreuves, sessionsOrales, { data: sessions }] = await Promise.all([
     chargerEpreuvesOrales(),
+    listerSessionsOrales(),
     admin.from("sessions_cb").select("id, nom").order("created_at", { ascending: false }),
   ]);
 
+  // Une session archivée sort des listes de travail sans rien perdre ; on la
+  // retrouve d'un clic, et celle qu'on demande explicitement reste visible.
+  const visibles = sessionsOrales.filter(
+    (s) => s.id === sessionChoisie || montrerArchivees || !s.archivee,
+  );
+  const retenues = sessionChoisie
+    ? visibles.filter((s) => s.id === sessionChoisie)
+    : visibles;
+  const nbArchivees = sessionsOrales.filter((s) => s.archivee).length;
+
   const parSession = new Map<string, typeof epreuves>();
   for (const e of epreuves) {
+    if (!retenues.some((s) => s.id === e.sessionId)) continue;
     if (!parSession.has(e.sessionId)) parSession.set(e.sessionId, []);
     parSession.get(e.sessionId)!.push(e);
   }
@@ -37,6 +55,44 @@ export default async function Oraux() {
         son bilan de session, après les résultats des écrits.
       </p>
 
+      {sessionsOrales.length > 1 && (
+        <div className="mb-7 flex flex-wrap items-center gap-2 text-sm">
+          <span className="font-bold text-encre">Session :</span>
+          <Link
+            href={montrerArchivees ? "/admin/oraux?archivees=1" : "/admin/oraux"}
+            className={`rounded-full px-4 py-1.5 no-underline ${
+              sessionChoisie ? "border border-ligne text-encre" : "bg-encre font-bold text-white"
+            }`}
+          >
+            Toutes
+          </Link>
+          {visibles.map((s2) => (
+            <Link
+              key={s2.id}
+              href={`/admin/oraux?session=${s2.id}${montrerArchivees ? "&archivees=1" : ""}`}
+              className={`rounded-full px-4 py-1.5 no-underline ${
+                sessionChoisie === s2.id
+                  ? "bg-encre font-bold text-white"
+                  : "border border-ligne text-encre"
+              }`}
+            >
+              {s2.nom}
+              {s2.archivee && <span className="ml-2 opacity-60">archivée</span>}
+            </Link>
+          ))}
+          {nbArchivees > 0 && (
+            <Link
+              href={montrerArchivees ? "/admin/oraux" : "/admin/oraux?archivees=1"}
+              className="ml-2 underline"
+            >
+              {montrerArchivees
+                ? "masquer les archivées"
+                : `voir les ${nbArchivees} archivée${nbArchivees > 1 ? "s" : ""}`}
+            </Link>
+          )}
+        </div>
+      )}
+
       {epreuves.length === 0 ? (
         <p className="mb-8 rounded-carte border border-dashed border-ligne p-8 text-center">
           Aucune épreuve orale n&apos;est ouverte.
@@ -44,9 +100,39 @@ export default async function Oraux() {
       ) : (
         [...parSession.entries()].map(([sessionId, liste]) => (
           <section key={sessionId} className="mb-8">
-            <h2 className="mb-3 text-sm font-extrabold tracking-[.08em] text-primaire-fonce uppercase">
-              {liste[0].session}
-            </h2>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-sm font-extrabold tracking-[.08em] text-primaire-fonce uppercase">
+                {liste[0].session}
+              </h2>
+              <div className="flex flex-wrap items-center gap-3 text-sm">
+                {/* Entrer par l'élève : un candidat se présente et passe tous
+                    ses oraux d'affilée, on le note sur un seul écran. */}
+                <Link
+                  href={`/admin/oraux/session/${sessionId}`}
+                  className="rounded-full border-2 border-primaire px-5 py-1.5 font-bold text-primaire no-underline"
+                >
+                  Noter par élève
+                </Link>
+                {peutOuvrir && (
+                  <form action={basculerArchiveSession}>
+                    <input type="hidden" name="sessionId" value={sessionId} />
+                    <input
+                      type="hidden"
+                      name="archivee"
+                      value={sessionsOrales.find((s3) => s3.id === sessionId)?.archivee ? "0" : "1"}
+                    />
+                    <button
+                      type="submit"
+                      className="cursor-pointer rounded-full border border-ligne px-5 py-1.5 font-bold text-encre transition hover:bg-fond-doux"
+                    >
+                      {sessionsOrales.find((s3) => s3.id === sessionId)?.archivee
+                        ? "Désarchiver"
+                        : "Archiver"}
+                    </button>
+                  </form>
+                )}
+              </div>
+            </div>
 
             {(["commerce", "ingenieur"] as const).map((filiere) => {
               const items = liste.filter((e) => e.filiere === filiere);
