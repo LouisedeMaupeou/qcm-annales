@@ -8,7 +8,7 @@ import {
   View,
   renderToBuffer,
 } from "@react-pdf/renderer";
-import { LIBELLE_CHAPITRE } from "@/lib/bilan-cb";
+import { grouperChapitresParEpreuve, LIBELLE_CHAPITRE } from "@/lib/bilan-cb";
 import type { BilanAssemble } from "@/lib/bilans-generation";
 
 /**
@@ -297,13 +297,22 @@ function DocumentBilan({ bilan }: { bilan: BilanAssemble }) {
               <Text style={s.celluleTitre}>Réussite</Text>
               <Text style={s.celluleTitre}>Niveau</Text>
             </View>
-            {bilan.chapitres.map((ch) => (
-              <View key={`${ch.matiere}-${ch.chapitre}`} style={s.ligne} wrap={false}>
-                <Text style={[s.cellule, { flexGrow: 4 }]}>{ch.chapitre}</Text>
-                <Text style={s.cellule}>
-                  {ch.justes}/{ch.posees} ({ch.tauxReussite} %)
-                </Text>
-                <Text style={s.cellule}>{LIBELLE_CHAPITRE[ch.niveau]}</Text>
+            {/* Une épreuve, puis ses chapitres : le parent sait de quelle
+                matière chaque ligne parle. */}
+            {grouperChapitresParEpreuve(bilan.chapitres).map((g) => (
+              <View key={g.epreuve} wrap={false}>
+                <View style={s.ligne}>
+                  <Text style={[s.celluleTitre, { flexGrow: 6 }]}>{g.epreuve}</Text>
+                </View>
+                {g.chapitres.map((ch) => (
+                  <View key={`${g.epreuve}-${ch.chapitre}`} style={s.ligne} wrap={false}>
+                    <Text style={[s.cellule, { flexGrow: 4 }]}>   {ch.chapitre}</Text>
+                    <Text style={s.cellule}>
+                      {ch.justes}/{ch.posees} ({ch.tauxReussite} %)
+                    </Text>
+                    <Text style={s.cellule}>{LIBELLE_CHAPITRE[ch.niveau]}</Text>
+                  </View>
+                ))}
               </View>
             ))}
           </View>

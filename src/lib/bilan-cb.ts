@@ -88,6 +88,14 @@ export function moyenne(notes: number[]): number | null {
 export type StatsChapitre = {
   chapitre: string;
   matiere: string;
+  /**
+   * Épreuve d'où viennent ces questions, telle qu'on la nomme aux familles.
+   *
+   * Un même chapitre — « Grammaire », « Lecture de dossier » — peut être
+   * travaillé par deux épreuves ; sans elle, le détail par chapitre mêlait
+   * des matières sans le dire.
+   */
+  epreuve: string;
   /** Questions du chapitre réellement traitées par l'élève, abstentions comprises. */
   posees: number;
   justes: number;
@@ -203,4 +211,31 @@ export function enQuelquesMots(
       : `Aucun chapitre ne ressort comme prioritaire : le travail peut porter sur la régularité et la méthode.`;
 
   return `${phrase1} ${phrase2}`;
+}
+
+/**
+ * Regroupe le détail par chapitre sous son épreuve.
+ *
+ * Un même intitulé de chapitre peut venir de deux épreuves — « Grammaire »
+ * existe en français comme en allemand — et la table les mêlait sans le dire,
+ * si bien qu'un parent y lisait deux lignes contradictoires sur ce qu'il
+ * croyait être la même matière.
+ *
+ * L'ordre des chapitres est conservé à l'intérieur d'un groupe : le plus
+ * faible taux de réussite d'abord, qui est l'ordre utile.
+ */
+export function grouperChapitresParEpreuve(
+  chapitres: ChapitreClasse[],
+): { epreuve: string; chapitres: ChapitreClasse[] }[] {
+  const groupes = new Map<string, ChapitreClasse[]>();
+
+  for (const c of chapitres) {
+    const cle = c.epreuve?.trim() || "Autres";
+    if (!groupes.has(cle)) groupes.set(cle, []);
+    groupes.get(cle)!.push(c);
+  }
+
+  return [...groupes.entries()]
+    .map(([epreuve, liste]) => ({ epreuve, chapitres: liste }))
+    .sort((a, b) => a.epreuve.localeCompare(b.epreuve, "fr"));
 }

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  grouperChapitresParEpreuve,
   classerChapitre,
   classerChapitres,
   enQuelquesMots,
@@ -66,6 +67,7 @@ test("moyenne : nulle sur un groupe vide, arrondie au centième sinon", () => {
 const chapitre = (attrs: Partial<StatsChapitre>): StatsChapitre => ({
   chapitre: attrs.chapitre ?? "Suites",
   matiere: attrs.matiere ?? "Mathématiques",
+  epreuve: attrs.epreuve ?? "NOËL 26 SÉSAME MATHÉMATIQUES",
   posees: attrs.posees ?? 10,
   justes: attrs.justes ?? 5,
   fausses: attrs.fausses ?? 5,
@@ -230,4 +232,34 @@ test("en quelques mots : sans priorité, la seconde phrase reste utile", () => {
     [],
   );
   assert.match(texte, /Aucun chapitre ne ressort comme prioritaire/);
+});
+
+test("le détail par chapitre se range sous son épreuve", () => {
+  const groupes = grouperChapitresParEpreuve(
+    classerChapitres([
+      chapitre({ chapitre: "Grammaire", epreuve: "NOËL 26 SÉSAME FRANÇAIS", justes: 8 }),
+      chapitre({ chapitre: "Grammaire", epreuve: "NOËL 26 SÉSAME LV2 ALLEMAND", justes: 2 }),
+      chapitre({ chapitre: "Lexique", epreuve: "NOËL 26 SÉSAME LV2 ALLEMAND", justes: 5 }),
+    ]),
+  );
+
+  assert.deepEqual(
+    groupes.map((g) => g.epreuve),
+    ["NOËL 26 SÉSAME FRANÇAIS", "NOËL 26 SÉSAME LV2 ALLEMAND"],
+  );
+  // Deux chapitres du même nom ne se confondent plus.
+  assert.deepEqual(groupes[0].chapitres.map((c) => c.chapitre), ["Grammaire"]);
+  // Dans un groupe, le taux le plus faible reste en tête.
+  assert.deepEqual(
+    groupes[1].chapitres.map((c) => c.chapitre),
+    ["Grammaire", "Lexique"],
+  );
+});
+
+test("un chapitre sans épreuve connue n'est pas perdu", () => {
+  const groupes = grouperChapitresParEpreuve(
+    classerChapitres([chapitre({ chapitre: "Suites", epreuve: "" })]),
+  );
+  assert.equal(groupes.length, 1);
+  assert.equal(groupes[0].epreuve, "Autres");
 });

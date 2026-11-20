@@ -1,4 +1,5 @@
-import { LIBELLE_CHAPITRE } from "@/lib/bilan-cb";
+import { Fragment } from "react";
+import { grouperChapitresParEpreuve, LIBELLE_CHAPITRE } from "@/lib/bilan-cb";
 import type { BilanAssemble } from "@/lib/bilans-generation";
 
 /**
@@ -200,16 +201,30 @@ export function BilanV10({ bilan }: { bilan: BilanAssemble }) {
               </tr>
             </thead>
             <tbody>
-              {bilan.chapitres.map((c) => (
-                <tr key={`${c.matiere}-${c.chapitre}`}>
-                  <td className="border border-ligne p-2">{c.chapitre}</td>
-                  <td className="border border-ligne p-2 tabular-nums">
-                    {c.justes}/{c.posees} ({c.tauxReussite} %)
-                  </td>
-                  <td className="border border-ligne p-2">
-                    {LIBELLE_CHAPITRE[c.niveau]}
-                  </td>
-                </tr>
+              {/* Chaque épreuve ouvre son bloc : un même intitulé de chapitre
+                  peut venir de deux matières, et la table les mêlait. */}
+              {grouperChapitresParEpreuve(bilan.chapitres).map((g) => (
+                <Fragment key={g.epreuve}>
+                  <tr>
+                    <th
+                      colSpan={3}
+                      className="border border-ligne bg-fond-doux p-2 text-left font-extrabold text-encre"
+                    >
+                      {g.epreuve}
+                    </th>
+                  </tr>
+                  {g.chapitres.map((c) => (
+                    <tr key={`${g.epreuve}-${c.chapitre}`}>
+                      <td className="border border-ligne p-2 pl-4">{c.chapitre}</td>
+                      <td className="border border-ligne p-2 tabular-nums">
+                        {c.justes}/{c.posees} ({c.tauxReussite} %)
+                      </td>
+                      <td className="border border-ligne p-2">
+                        {LIBELLE_CHAPITRE[c.niveau]}
+                      </td>
+                    </tr>
+                  ))}
+                </Fragment>
               ))}
             </tbody>
           </table>

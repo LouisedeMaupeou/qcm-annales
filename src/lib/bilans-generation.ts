@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { libelleEpreuveImportee } from "@/lib/epreuves-cb";
 import { orauxDuBilan, type SectionOrauxBilan } from "@/lib/oraux-donnees";
 import {
   classerChapitres,
@@ -323,6 +324,11 @@ async function statsParChapitre(
 
     // La matière se lit sur l'identifiant d'épreuve : AV-MAT-… → mathématiques.
     const matiere = (q.epreuve_id_externe ?? "").split("-")[1] ?? "";
+    // Et l'épreuve entière, telle qu'on la nomme aux familles, pour que le
+    // détail par chapitre dise de quelle épreuve chaque chapitre vient.
+    const epreuve = q.epreuve_id_externe
+      ? (libelleEpreuveImportee(q.epreuve_id_externe) ?? q.epreuve_id_externe)
+      : "";
 
     const cle = `${matiere}|${q.chapitre}`;
     const entree =
@@ -330,6 +336,7 @@ async function statsParChapitre(
       ({
         chapitre: q.chapitre,
         matiere,
+        epreuve,
         posees: 0,
         justes: 0,
         fausses: 0,
