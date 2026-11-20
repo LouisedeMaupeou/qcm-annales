@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { grouperParExercice } from "@/lib/groupes-passage";
 import { formaterMath } from "@/lib/notation-math";
 import { remettreCopie, sauvegarder } from "./actions";
 import type { QuestionPassage, ReponseEleveCb } from "@/lib/passage-cb";
@@ -8,11 +9,21 @@ import type { QuestionPassage, ReponseEleveCb } from "@/lib/passage-cb";
 /**
  * Composition d'une épreuve blanche (§4.3).
  *
- * Une question à la fois, navigation libre, chronomètre, abstention explicite,
+ * Un exercice à la fois, navigation libre, chronomètre, abstention explicite,
  * sauvegarde continue. Le chronomètre affiché ne fait pas foi : il déclenche
  * la remise, mais c'est le serveur qui refuse une réponse en retard. Un poste
  * dont l'horloge avance ne vole rien à personne.
+ *
+ * L'écran montre un exercice entier, pas une sous-question. Les quatre
+ * propositions d'un exercice Puissance Alpha se jugent les unes par rapport
+ * aux autres, et les sous-questions d'une question à trous sont notées tout ou
+ * rien : les présenter sur quatre écrans séparés demandait à l'élève de
+ * retenir ce qu'il venait de lire, et lui cachait que son barème les liait.
  */
+
+const estTraitee = (r: ReponseEleveCb | undefined) =>
+  Boolean(r && (r.reponseId || r.reponseIds?.length || r.texte || r.abstention));
+
 export function Composer({
   epreuveId,
   concours,
@@ -26,6 +37,8 @@ export function Composer({
   finLe: string;
   questions: QuestionPassage[];
 }) {
+  const groupes = useMemo(() => grouperParExercice(questions), [questions]);
+
   const [index, setIndex] = useState(0);
   const [reponses, setReponses] = useState<Record<string, ReponseEleveCb>>(() =>
     Object.fromEntries(
@@ -40,8 +53,8 @@ export function Composer({
   const formRemise = useRef<HTMLFormElement>(null);
   const remiseLancee = useRef(false);
 
-  const question = questions[index];
-  const reponse = reponses[question.id] ?? {};
+  const groupe = groupes[index] ?? [];
+  const tete = groupe[0];
 
   // --- Chronomètre ---------------------------------------------------------
   useEffect(() => {
@@ -81,10 +94,11 @@ export function Composer({
     [epreuveId],
   );
 
-  const modifier = (valeur: ReponseEleveCb) => {
-    const suivante = { ...reponse, ...valeur };
-    setReponses((r) => ({ ...r, [question.id]: suivante }));
-    enregistrer(question.id, suivante);
+  /** Chaque sous-question garde sa propre réponse : le barème les distingue. */
+  const modifier = (questionId: string, valeur: ReponseEleveCb) => {
+    const suivante = { ...(reponses[questionId] ?? {}), ...valeur };
+    setReponses((r) => ({ ...r, [questionId]: suivante }));
+    enregistrer(questionId, suivante);
   };
 
   // --- Décompte ------------------------------------------------------------
@@ -92,10 +106,12 @@ export function Composer({
   const secondes = Math.floor((restant % 60000) / 1000);
   const urgence = restant < 5 * 60000;
 
-  const repondues = questions.filter((q) => {
-    const r = reponses[q.id];
-    return r && (r.reponseId || r.reponseIds?.length || r.texte || r.abstention);
-  }).length;
+  const repondues = questions.filter((q) => estTraitee(reponses[q.id])).length;
+  const aRevoirIci = groupe.some((q) => reponses[q.id]?.aRevoir);
+
+  // Numéro de la première sous-question de l'exercice, pour que l'élève
+  // retrouve la numérotation du sujet papier.
+  const premiere = questions.indexOf(tete) + 1;
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-[820px] flex-col px-[22px]">
@@ -128,146 +144,70 @@ export function Composer({
       <main className="flex-1 py-6">
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <span className="text-sm font-extrabold tracking-[.08em] text-primaire-fonce uppercase">
-            Question {index + 1} sur {questions.length}
+            {groupe.length > 1
+              ? `Exercice ${index + 1} sur ${groupes.length} · questions ${premiere} à ${premiere + groupe.length - 1}`
+              : `Question ${premiere} sur ${questions.length}`}
           </span>
           <label className="flex cursor-pointer items-center gap-2 text-sm font-bold">
             <input
               type="checkbox"
-              checked={Boolean(reponse.aRevoir)}
-              onChange={(e) => modifier({ aRevoir: e.target.checked })}
+              checked={aRevoirIci}
+              onChange={(e) =>
+                groupe.forEach((q) => modifier(q.id, { aRevoir: e.target.checked }))
+              }
               className="size-4.5 accent-soleil"
             />
             À revoir
           </label>
         </div>
 
-        {question.enonceCommun && (
+        {/* L'énoncé commun et le document appartiennent à l'exercice entier :
+            ils ne sont affichés qu'une fois, en tête. */}
+        {tete?.enonceCommun && (
           <p className="mb-4 rounded-carte bg-fond-doux p-4 whitespace-pre-line">
-            {formaterMath(question.enonceCommun)}
+            {formaterMath(tete.enonceCommun)}
           </p>
         )}
 
-        {/* La figure n'est pas décorative : sans elle, beaucoup de questions
-            scientifiques n'ont pas de sens. Si elle manque, on le dit à l'élève
-            plutôt que de le laisser chercher — mais sans lui montrer un chemin
-            de stockage, qui ne lui apprendrait rien. */}
-        {question.figureUrl && (
-          <figure className="mb-5">
-            {/* eslint-disable-next-line @next/next/no-img-element -- URL signée temporaire */}
-            <img
-              src={question.figureUrl}
-              alt="Figure de la question"
-              className="w-full rounded-carte border border-ligne bg-white"
-            />
-          </figure>
-        )}
-        {question.figureManquante && (
-          <p
-            role="alert"
-            className="mb-5 rounded-carte border-2 border-negatif bg-negatif/5 p-4 text-sm text-negatif"
-          >
-            La figure de cette question n&apos;a pas pu être chargée. Préviens
-            ton surveillant : ta copie est enregistrée, tu peux passer à la
-            suite et y revenir.
-          </p>
-        )}
-
-        <p className="mb-5 text-[1.05rem] whitespace-pre-line">
-          {formaterMath(question.enonce)}
-        </p>
-
-        {question.type === "redaction" ? (
-          <textarea
-            value={reponse.texte ?? ""}
-            onChange={(e) => modifier({ texte: e.target.value, abstention: false })}
-            rows={10}
-            placeholder="Rédige ta réponse ici."
-            className="w-full rounded-carte border border-ligne bg-white px-4 py-3"
-          />
-        ) : (
-          <ul className="space-y-3">
-            {question.propositions.map((p, i) => {
-              const choisie =
-                question.type === "choix_multiple"
-                  ? (reponse.reponseIds ?? []).includes(p.id)
-                  : reponse.reponseId === p.id;
-
-              return (
-                <li key={p.id}>
-                  <label
-                    className={`flex cursor-pointer items-start gap-3 rounded-carte border-2 p-4 transition ${
-                      choisie ? "border-primaire bg-fond-doux/60" : "border-ligne bg-white"
-                    }`}
-                  >
-                    <input
-                      type={question.type === "choix_multiple" ? "checkbox" : "radio"}
-                      name={`q-${question.id}`}
-                      checked={choisie}
-                      onChange={() => {
-                        if (question.type === "choix_multiple") {
-                          const actuelles = new Set(reponse.reponseIds ?? []);
-                          if (actuelles.has(p.id)) actuelles.delete(p.id);
-                          else actuelles.add(p.id);
-                          modifier({ reponseIds: [...actuelles], abstention: false });
-                        } else {
-                          modifier({ reponseId: p.id, abstention: false });
-                        }
-                      }}
-                      className="mt-1 size-4.5 shrink-0 accent-primaire"
-                    />
-                    <span>
-                      <strong className="mr-2 text-encre">{"ABCDEF"[i]}.</strong>
-                      {formaterMath(p.texte)}
-                    </span>
-                  </label>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-
-        {/* §4.3 : l'abstention est un choix, pas une absence de choix. */}
-        <button
-          type="button"
-          onClick={() =>
-            modifier({
-              abstention: true,
-              reponseId: undefined,
-              reponseIds: [],
-              texte: "",
-            })
-          }
-          className={`mt-4 cursor-pointer rounded-full border-2 px-6 py-2.5 font-bold transition ${
-            reponse.abstention
-              ? "border-encre bg-encre text-white"
-              : "border-ligne hover:bg-fond-doux"
-          }`}
-        >
-          {reponse.abstention ? "Tu ne réponds pas à cette question" : "Je ne réponds pas"}
-        </button>
+        <ol className="space-y-7">
+          {groupe.map((q, rang) => (
+            <li key={q.id}>
+              <SousQuestion
+                question={q}
+                numero={premiere + rang}
+                lettre={groupe.length > 1 ? "ABCDEFGH"[rang] : null}
+                reponse={reponses[q.id] ?? {}}
+                modifier={(valeur) => modifier(q.id, valeur)}
+              />
+            </li>
+          ))}
+        </ol>
       </main>
 
       {/* Navigation */}
       <nav className="sticky bottom-0 border-t border-ligne bg-white py-4">
         <div className="mb-3 flex flex-wrap gap-1.5">
-          {questions.map((q, i) => {
-            const r = reponses[q.id];
-            const traitee = r && (r.reponseId || r.reponseIds?.length || r.texte || r.abstention);
+          {groupes.map((g, i) => {
+            const traitees = g.filter((q) => estTraitee(reponses[q.id])).length;
+            const complet = traitees === g.length;
+            const aRevoir = g.some((q) => reponses[q.id]?.aRevoir);
             return (
               <button
-                key={q.id}
+                key={g[0].id}
                 type="button"
                 onClick={() => setIndex(i)}
                 aria-current={i === index}
-                aria-label={`Question ${i + 1}${traitee ? ", traitée" : ""}${r?.aRevoir ? ", à revoir" : ""}`}
+                aria-label={`Exercice ${i + 1}, ${traitees} sur ${g.length} traitée(s)${aRevoir ? ", à revoir" : ""}`}
                 className={`size-8 cursor-pointer rounded-[8px] text-[0.75rem] font-bold transition ${
                   i === index
                     ? "bg-primaire text-white"
-                    : r?.aRevoir
+                    : aRevoir
                       ? "bg-soleil/40 text-encre"
-                      : traitee
+                      : complet
                         ? "bg-fond-doux text-encre"
-                        : "border border-ligne text-encre"
+                        : traitees > 0
+                          ? "border-2 border-soleil text-encre"
+                          : "border border-ligne text-encre"
                 }`}
               >
                 {i + 1}
@@ -283,15 +223,15 @@ export function Composer({
             disabled={index === 0}
             className="cursor-pointer rounded-full border-2 border-ligne px-6 py-2.5 font-bold disabled:opacity-40"
           >
-            Précédente
+            Précédent
           </button>
           <button
             type="button"
-            onClick={() => setIndex((i) => Math.min(questions.length - 1, i + 1))}
-            disabled={index === questions.length - 1}
+            onClick={() => setIndex((i) => Math.min(groupes.length - 1, i + 1))}
+            disabled={index === groupes.length - 1}
             className="cursor-pointer rounded-full border-2 border-primaire px-6 py-2.5 font-extrabold text-primaire disabled:opacity-40"
           >
-            Suivante
+            Suivant
           </button>
 
           <form action={remettreCopie} ref={formRemise} className="ml-auto">
@@ -305,6 +245,131 @@ export function Composer({
           </form>
         </div>
       </nav>
+    </div>
+  );
+}
+
+/**
+ * Une sous-question : son énoncé, sa figure, ses propositions, son abstention.
+ *
+ * Elle porte sa propre réponse même quand elle partage l'écran avec ses
+ * voisines — l'élève peut très bien trancher la proposition A et s'abstenir
+ * sur la B, et le barème compte chacune séparément avant de les regrouper.
+ */
+function SousQuestion({
+  question,
+  numero,
+  lettre,
+  reponse,
+  modifier,
+}: {
+  question: QuestionPassage;
+  numero: number;
+  lettre: string | null;
+  reponse: ReponseEleveCb;
+  modifier: (valeur: ReponseEleveCb) => void;
+}) {
+  return (
+    <div className={lettre ? "border-l-2 border-ligne pl-4" : ""}>
+      {/* La figure n'est pas décorative : sans elle, beaucoup de questions
+          scientifiques n'ont pas de sens. Si elle manque, on le dit à l'élève
+          plutôt que de le laisser chercher — mais sans lui montrer un chemin
+          de stockage, qui ne lui apprendrait rien. */}
+      {question.figureUrl && (
+        <figure className="mb-4">
+          {/* eslint-disable-next-line @next/next/no-img-element -- URL signée temporaire */}
+          <img
+            src={question.figureUrl}
+            alt={`Figure de la question ${numero}`}
+            className="w-full rounded-carte border border-ligne bg-white"
+          />
+        </figure>
+      )}
+      {question.figureManquante && (
+        <p
+          role="alert"
+          className="mb-4 rounded-carte border-2 border-negatif bg-negatif/5 p-4 text-sm text-negatif"
+        >
+          La figure de cette question n&apos;a pas pu être chargée. Préviens ton
+          surveillant : ta copie est enregistrée, tu peux passer à la suite et y
+          revenir.
+        </p>
+      )}
+
+      <p className="mb-4 text-[1.05rem] whitespace-pre-line">
+        {lettre && <strong className="mr-2 text-primaire-fonce">{lettre}.</strong>}
+        {formaterMath(question.enonce)}
+      </p>
+
+      {question.type === "redaction" ? (
+        <textarea
+          value={reponse.texte ?? ""}
+          onChange={(e) => modifier({ texte: e.target.value, abstention: false })}
+          rows={10}
+          placeholder="Rédige ta réponse ici."
+          className="w-full rounded-carte border border-ligne bg-white px-4 py-3"
+        />
+      ) : (
+        <ul className="space-y-3">
+          {question.propositions.map((p, i) => {
+            const choisie =
+              question.type === "choix_multiple"
+                ? (reponse.reponseIds ?? []).includes(p.id)
+                : reponse.reponseId === p.id;
+
+            return (
+              <li key={p.id}>
+                <label
+                  className={`flex cursor-pointer items-start gap-3 rounded-carte border-2 p-4 transition ${
+                    choisie ? "border-primaire bg-fond-doux/60" : "border-ligne bg-white"
+                  }`}
+                >
+                  <input
+                    type={question.type === "choix_multiple" ? "checkbox" : "radio"}
+                    name={`q-${question.id}`}
+                    checked={choisie}
+                    onChange={() => {
+                      if (question.type === "choix_multiple") {
+                        const actuelles = new Set(reponse.reponseIds ?? []);
+                        if (actuelles.has(p.id)) actuelles.delete(p.id);
+                        else actuelles.add(p.id);
+                        modifier({ reponseIds: [...actuelles], abstention: false });
+                      } else {
+                        modifier({ reponseId: p.id, abstention: false });
+                      }
+                    }}
+                    className="mt-1 size-4.5 shrink-0 accent-primaire"
+                  />
+                  <span>
+                    <strong className="mr-2 text-encre">{"ABCDEF"[i]}.</strong>
+                    {formaterMath(p.texte)}
+                  </span>
+                </label>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {/* §4.3 : l'abstention est un choix, pas une absence de choix. */}
+      <button
+        type="button"
+        onClick={() =>
+          modifier({
+            abstention: true,
+            reponseId: undefined,
+            reponseIds: [],
+            texte: "",
+          })
+        }
+        className={`mt-4 cursor-pointer rounded-full border-2 px-6 py-2.5 text-sm font-bold transition ${
+          reponse.abstention
+            ? "border-encre bg-encre text-white"
+            : "border-ligne hover:bg-fond-doux"
+        }`}
+      >
+        {reponse.abstention ? "Tu ne réponds pas" : "Je ne réponds pas"}
+      </button>
     </div>
   );
 }

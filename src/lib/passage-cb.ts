@@ -23,6 +23,16 @@ export type PropositionJouable = { id: string; texte: string };
 export type QuestionPassage = {
   id: string;
   ordre: number;
+  /**
+   * Exercice auquel la question appartient.
+   *
+   * Avec la partie entière de `ordre`, il dit ce qui forme un tout : les
+   * quatre propositions d'un exercice Puissance Alpha, les sous-questions
+   * d'une question à trous. C'est déjà l'unité de notation (cf. la règle
+   * `tout_ou_rien_par_question` de la correction) ; c'est donc aussi l'unité
+   * d'affichage, sans quoi l'élève juge séparément ce qui sera noté ensemble.
+   */
+  blocId: string;
   type: "choix_unique" | "choix_multiple" | "redaction";
   enonce: string;
   enonceCommun: string | null;
@@ -263,6 +273,7 @@ export async function chargerPassage(
     questions.push({
       id: q.id,
       ordre: Number(lien.ordre),
+      blocId: q.bloc_id,
       type: q.type,
       enonce: q.enonce,
       enonceCommun: enonceDuBloc.get(q.bloc_id) ?? null,
