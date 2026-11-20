@@ -156,13 +156,7 @@ export function BilanV10({ bilan }: { bilan: BilanAssemble }) {
                   texte={(c) => c.conseils}
                 />
               </>
-            ) : (
-              <LigneTexte
-                titre="Commentaire"
-                colonnes={colonnes}
-                texte={(c) => c.conseils || c.ameliorations}
-              />
-            )}
+            ) : null}
           </tbody>
         </table>
       </div>

@@ -135,21 +135,72 @@ export type Priorite = {
 };
 
 /**
- * « À travailler en priorité » : top 3 des chapitres.
+ * Les matières que la prépa veut voir travaillées d'abord.
  *
- * La règle du modèle est « 4 erreurs ou plus, si confirmé ». « Confirmé » est
- * entendu ici comme : l'échec n'est pas un accident isolé, donc le chapitre
- * est aussi sous le seuil de maîtrise. Un élève qui rate 4 questions sur 40
- * dans un chapitre par ailleurs réussi n'a pas à le voir en priorité.
+ * Maths et français portent le plus de coefficients et se rattrapent le mieux
+ * par un travail de fond : la prépa demande qu'elles passent devant. Une
+ * matière se reconnaît à son code d'épreuve — MAT, FR — ou à son intitulé,
+ * selon ce que la statistique porte.
  */
-export function prioriser(
-  chapitres: ChapitreClasse[],
-  seuils: SeuilsChapitre = SEUILS_PAR_DEFAUT,
-): Priorite[] {
-  return chapitres
-    .filter((c) => c.fausses >= seuils.erreursPriorite && c.niveau !== "maitrise")
-    .sort((a, b) => b.fausses - a.fausses || a.tauxReussite - b.tauxReussite)
-    .slice(0, 3)
+const MATIERES_PRIORITAIRES = /^(MAT|FR)$|MATH|FRAN[CÇ]AIS/i;
+
+function estPrioritaire(c: { matiere: string; epreuve?: string }): boolean {
+  return (
+    MATIERES_PRIORITAIRES.test(c.matiere.trim()) ||
+    MATIERES_PRIORITAIRES.test(c.epreuve ?? "")
+  );
+}
+
+/** Les matières prioritaires présentes, dans l'ordre maths puis français. */
+export function matieresATravailler(chapitres: ChapitreClasse[]): string[] {
+  const noms = new Set<string>();
+  for (const c of chapitres.filter(estPrioritaire)) {
+    const texte = `${c.matiere} ${c.epreuve ?? ""}`;
+    if (/^MAT$|MATH/i.test(c.matiere.trim()) || /MATH/i.test(texte)) {
+      noms.add("mathématiques");
+    }
+    if (/^FR$/i.test(c.matiere.trim()) || /FRAN[CÇ]AIS/i.test(texte)) {
+      noms.add("français");
+    }
+  }
+  return ["mathématiques", "français"].filter((n) => noms.has(n));
+}
+
+/**
+ * « À travailler en priorité » : le tiers le moins réussi, en maths et en
+ * français.
+ *
+ * La règle précédente retenait les trois chapitres les plus ratés, toutes
+ * matières confondues : un élève pouvait n'y voir que de l'anglais, alors que
+ * ce sont les maths et le français qui le feront admettre. On raisonne donc
+ * matière par matière, et sur une part plutôt qu'un nombre fixe — trois
+ * chapitres sur six, ce n'est pas la même chose que trois sur trente.
+ *
+ * Un chapitre entièrement réussi n'y figure jamais, même s'il tombe dans le
+ * tiers de queue d'un élève excellent : on ne demande pas de retravailler ce
+ * qui est juste. On ne s'arrête pas au nombre d'erreurs, en revanche — un
+ * élève qui s'abstient sur tout un chapitre n'en fait aucune, et c'est
+ * pourtant là qu'il a le plus à reprendre.
+ */
+export function prioriser(chapitres: ChapitreClasse[]): Priorite[] {
+  const parMatiere = new Map<string, ChapitreClasse[]>();
+  for (const c of chapitres.filter(estPrioritaire)) {
+    const cle = c.epreuve?.trim() || c.matiere;
+    if (!parMatiere.has(cle)) parMatiere.set(cle, []);
+    parMatiere.get(cle)!.push(c);
+  }
+
+  const retenus: ChapitreClasse[] = [];
+  for (const liste of parMatiere.values()) {
+    const classes = [...liste].sort(
+      (a, b) => a.tauxReussite - b.tauxReussite || b.fausses - a.fausses,
+    );
+    const combien = Math.max(1, Math.ceil(classes.length / 3));
+    retenus.push(...classes.slice(0, combien).filter((c) => c.justes < c.posees));
+  }
+
+  return retenus
+    .sort((a, b) => a.tauxReussite - b.tauxReussite || b.fausses - a.fausses)
     .map((c) => ({
       chapitre: c.chapitre,
       matiere: c.matiere,
@@ -185,6 +236,7 @@ export function enQuelquesMots(
   prenom: string,
   epreuves: ResumeEpreuve[],
   priorites: Priorite[],
+  matieres: string[] = [],
 ): string {
   if (epreuves.length === 0) {
     return `${prenom} n'a composé aucune épreuve de cette session.`;
@@ -203,14 +255,25 @@ export function enQuelquesMots(
     `au niveau de la moyenne du groupe ou au-dessus, avec un point haut en ` +
     `${meilleure.matiere} (${meilleure.noteSur20.toString().replace(".", ",")}/20).`;
 
-  const phrase2 =
-    priorites.length > 0
-      ? `Les chapitres à reprendre en priorité sont ${priorites
-          .map((p) => p.chapitre)
-          .join(", ")}.`
-      : `Aucun chapitre ne ressort comme prioritaire : le travail peut porter sur la régularité et la méthode.`;
+  // On nomme d'abord les matières, puis les chapitres : un parent retient
+  // « les maths et le français » mieux qu'une liste de chapitres, et c'est
+  // sur ces deux matières que la prépa veut voir porter l'effort.
+  const liste = (mots: string[]) =>
+    mots.length > 1
+      ? `${mots.slice(0, -1).join(", ")} et ${mots[mots.length - 1]}`
+      : (mots[0] ?? "");
 
-  return `${phrase1} ${phrase2}`;
+  const phrase2 =
+    matieres.length > 0
+      ? `L'effort doit porter en priorité sur ${liste(matieres)}.`
+      : "";
+
+  const phrase3 =
+    priorites.length > 0
+      ? `Les chapitres à reprendre sont ${liste(priorites.map((p) => p.chapitre))}.`
+      : "Aucun chapitre ne ressort comme prioritaire : le travail peut porter sur la régularité et la méthode.";
+
+  return [phrase1, phrase2, phrase3].filter(Boolean).join(" ");
 }
 
 /**

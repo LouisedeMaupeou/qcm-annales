@@ -5,6 +5,7 @@ import { libelleEpreuveImportee } from "@/lib/epreuves-cb";
 import { orauxDuBilan, type SectionOrauxBilan } from "@/lib/oraux-donnees";
 import {
   grouperChapitresParEpreuve,
+  matieresATravailler,
   classerChapitres,
   enQuelquesMots,
   moyenne,
@@ -264,7 +265,7 @@ export async function assemblerBilan(
       ...groupe.chapitres.filter((c) => c.niveau === "a_consolider"),
     ];
   }
-  const prioritesCalculees = prioriser(classes, seuils);
+  const prioritesCalculees = prioriser(classes);
 
   const prioritesEditees = (bilan?.priorites ?? []) as Priorite[];
   const priorites =
@@ -306,6 +307,7 @@ export async function assemblerBilan(
           participants: c.participants,
         })),
         priorites,
+        matieresATravailler(classes),
       ),
     bloqueParCorrection,
     valideLe: (bilan?.valide_le as string | null) ?? null,

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   grouperChapitresParEpreuve,
+  matieresATravailler,
   classerChapitre,
   classerChapitres,
   enQuelquesMots,
@@ -9,7 +10,6 @@ import {
   niveauEpreuve,
   prioriser,
   rang,
-  SEUILS_PAR_DEFAUT,
   type StatsChapitre,
 } from "./bilan-cb.ts";
 
@@ -67,7 +67,9 @@ test("moyenne : nulle sur un groupe vide, arrondie au centième sinon", () => {
 const chapitre = (attrs: Partial<StatsChapitre>): StatsChapitre => ({
   chapitre: attrs.chapitre ?? "Suites",
   matiere: attrs.matiere ?? "Mathématiques",
-  epreuve: attrs.epreuve ?? "NOËL 26 SÉSAME MATHÉMATIQUES",
+  // L'épreuve suit la matière : un chapitre d'anglais ne doit pas hériter
+  // d'un libellé de mathématiques, qui le ferait passer pour prioritaire.
+  epreuve: attrs.epreuve ?? `NOËL 26 SÉSAME ${attrs.matiere ?? "Mathématiques"}`,
   posees: attrs.posees ?? 10,
   justes: attrs.justes ?? 5,
   fausses: attrs.fausses ?? 5,
@@ -104,34 +106,76 @@ test("un chapitre sans question posée ne plante pas et reste insuffisant", () =
 // Priorités (§5.4 : « 4 erreurs ou plus, si confirmé », top 3)
 // ---------------------------------------------------------------------------
 
-test("priorités : en dessous de 4 erreurs, un chapitre n'entre pas", () => {
+test("priorités : seuls les chapitres de maths et de français entrent", () => {
   const classes = classerChapitres([
-    chapitre({ chapitre: "Trois erreurs", posees: 10, justes: 7, fausses: 3 }),
+    chapitre({ chapitre: "Anglais raté", matiere: "ANG", posees: 10, justes: 0, fausses: 10 }),
+    chapitre({ chapitre: "Suites", matiere: "MAT", posees: 10, justes: 5, fausses: 5 }),
   ]);
-  assert.deepEqual(prioriser(classes), []);
-});
-
-test("priorités : 4 erreurs dans un chapitre par ailleurs maîtrisé n'est pas une priorité", () => {
-  const classes = classerChapitres([
-    chapitre({ chapitre: "Large", posees: 40, justes: 36, fausses: 4 }),
-  ]);
-  // 90 % de réussite : l'échec n'est pas confirmé.
-  assert.deepEqual(prioriser(classes), []);
-});
-
-test("priorités : au plus trois, les plus fautifs d'abord", () => {
-  const classes = classerChapitres([
-    chapitre({ chapitre: "A", posees: 20, justes: 10, fausses: 10 }),
-    chapitre({ chapitre: "B", posees: 20, justes: 12, fausses: 8 }),
-    chapitre({ chapitre: "C", posees: 20, justes: 14, fausses: 6 }),
-    chapitre({ chapitre: "D", posees: 20, justes: 15, fausses: 5 }),
-  ]);
-  const top = prioriser(classes);
-  assert.equal(top.length, 3);
+  // L'anglais peut être plus mauvais : ce n'est pas lui qui fera admettre.
   assert.deepEqual(
-    top.map((p) => p.chapitre),
-    ["A", "B", "C"],
+    prioriser(classes).map((p) => p.chapitre),
+    ["Suites"],
   );
+});
+
+test("priorités : le tiers le moins réussi de chaque matière, pas un nombre fixe", () => {
+  const maths = ["A", "B", "C", "D", "E", "F"].map((nom, i) =>
+    chapitre({
+      chapitre: nom,
+      matiere: "MAT",
+      posees: 10,
+      justes: i + 2,
+      fausses: 8 - i,
+    }),
+  );
+  const retenus = prioriser(classerChapitres(maths)).map((p) => p.chapitre);
+  // Six chapitres : le tiers en fait deux, les deux moins bien réussis.
+  assert.deepEqual(retenus, ["A", "B"]);
+});
+
+test("priorités : chaque matière est jugée chez elle", () => {
+  const classes = classerChapitres([
+    chapitre({ chapitre: "Maths faible", matiere: "MAT", posees: 10, justes: 3, fausses: 7 }),
+    chapitre({ chapitre: "Maths fort", matiere: "MAT", posees: 10, justes: 9, fausses: 1 }),
+    chapitre({ chapitre: "Français faible", matiere: "FR", posees: 10, justes: 4, fausses: 6 }),
+    chapitre({ chapitre: "Français fort", matiere: "FR", posees: 10, justes: 10, fausses: 0 }),
+  ]);
+  // Un chapitre faible en français sort, même s'il réussit mieux qu'un
+  // chapitre de maths : on ne compare pas les matières entre elles.
+  assert.deepEqual(
+    prioriser(classes).map((p) => p.chapitre),
+    ["Maths faible", "Français faible"],
+  );
+});
+
+test("priorités : une abstention compte, même sans erreur", () => {
+  // L'élève n'a rien traité : zéro erreur, mais tout à reprendre.
+  const classes = classerChapitres([
+    chapitre({ chapitre: "Géométrie", matiere: "MAT", posees: 4, justes: 0, fausses: 0, abstentions: 4 }),
+  ]);
+  assert.deepEqual(
+    prioriser(classes).map((p) => p.chapitre),
+    ["Géométrie"],
+  );
+});
+
+test("priorités : un chapitre entièrement réussi n'est jamais à retravailler", () => {
+  // Élève excellent partout : le tiers de queue existe quand même, mais on ne
+  // demande pas de reprendre ce qui est juste.
+  const classes = classerChapitres([
+    chapitre({ chapitre: "Parfait", matiere: "MAT", posees: 10, justes: 10, fausses: 0 }),
+    chapitre({ chapitre: "Presque", matiere: "MAT", posees: 10, justes: 10, fausses: 0 }),
+  ]);
+  assert.deepEqual(prioriser(classes), []);
+});
+
+test("matières à travailler : maths avant français, et rien d'autre", () => {
+  const classes = classerChapitres([
+    chapitre({ chapitre: "X", matiere: "FR", posees: 10, justes: 4, fausses: 6 }),
+    chapitre({ chapitre: "Y", matiere: "ANG", posees: 10, justes: 1, fausses: 9 }),
+    chapitre({ chapitre: "Z", matiere: "MAT", posees: 10, justes: 3, fausses: 7 }),
+  ]);
+  assert.deepEqual(matieresATravailler(classes), ["mathématiques", "français"]);
 });
 
 test("priorités : l'action vient du référentiel quand il en fournit une", () => {
@@ -152,19 +196,6 @@ test("priorités : sans action au référentiel, une consigne par défaut est po
     chapitre({ chapitre: "Suites", posees: 10, justes: 2, fausses: 8 }),
   ]);
   assert.match(prioriser(classes)[0].action, /Reprendre « Suites »/);
-});
-
-test("priorités : le seuil d'erreurs est configurable", () => {
-  // 50 % de réussite : sous le seuil de maîtrise, donc l'échec est « confirmé ».
-  // Seul le nombre d'erreurs décide alors de l'entrée dans le top 3.
-  const classes = classerChapitres([
-    chapitre({ chapitre: "Deux", posees: 4, justes: 2, fausses: 2 }),
-  ]);
-  assert.equal(prioriser(classes).length, 0);
-  assert.equal(
-    prioriser(classes, { ...SEUILS_PAR_DEFAUT, erreursPriorite: 2 }).length,
-    1,
-  );
 });
 
 // ---------------------------------------------------------------------------

@@ -239,13 +239,7 @@ function DocumentBilan({ bilan }: { bilan: BilanAssemble }) {
                 masquerSiVide
               />
             </>
-          ) : (
-            <Ligne
-              titre="Commentaire"
-              valeurs={c.map((x) => x.conseils || x.ameliorations)}
-              masquerSiVide
-            />
-          )}
+          ) : null}
         </View>
 
         {/* §5.5 : les oraux viennent après les résultats des écrits. */}
