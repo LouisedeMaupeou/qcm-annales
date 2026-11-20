@@ -80,11 +80,20 @@ export function FormulaireQuestion({
       <Bloc
         titre="Propositions"
         aide={
-          question.type === "vrai_faux"
-            ? "Chaque proposition est jugée Vrai ou Faux. La question n'est correcte que si les quatre jugements sont exacts (§2.3)."
-            : "Coche l'unique bonne réponse."
+          question.type === "redaction"
+            ? "Une question rédigée n'a pas de proposition : l'élève écrit sa réponse, et elle est notée à la main."
+            : question.type === "vrai_faux"
+              ? "Chaque proposition est jugée Vrai ou Faux. La question n'est correcte que si les quatre jugements sont exacts (§2.3)."
+              : question.type === "choix_multiple"
+                ? "Coche toutes les bonnes réponses : une seule mauvaise coche annule la question."
+                : "Coche l'unique bonne réponse."
         }
       >
+        {propositions.length === 0 && (
+          <p className="text-sm opacity-75">
+            Aucune proposition, et c&apos;est normal pour ce type de question.
+          </p>
+        )}
         <ul className="space-y-3">
           {propositions.map((p, i) => (
             <li key={p.id} className="flex flex-wrap items-start gap-3">
