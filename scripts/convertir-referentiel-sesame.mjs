@@ -68,6 +68,33 @@ const PASSAGES_SUPPLEES = {
   },
 };
 
+/**
+ * Énoncés dont la mise en page a été aplatie par le référentiel.
+ *
+ * Un algorithme se lit sur plusieurs lignes : l'indentation d'une boucle est
+ * ce qui permet de voir combien de fois elle tourne. Recopié sur une seule
+ * ligne — « N ← 0 POUR i DE 1 À 4 FAIRE N ← N + 3 FIN POUR » — il reste exact
+ * mais demande à l'élève de le remettre en forme de tête avant de pouvoir y
+ * répondre, ce que le sujet papier ne lui demandait pas.
+ *
+ * Le texte est repris du sujet, saut de ligne compris ; l'affichage respecte
+ * les retours (`whitespace-pre-line`).
+ */
+const ENONCES_STRUCTURES = {
+  "SES-SQ1-DIG-Q06":
+    "Après exécution de l’algorithme suivant, quelle valeur sera affichée ?\n" +
+    "N ← 0\n" +
+    "POUR i DE 1 À 4 FAIRE\n" +
+    "    N ← N + 3\n" +
+    "FIN POUR",
+  "SES-SQ1-DIG-Q19":
+    "Quelle valeur sera affichée par cet algorithme ?\n" +
+    "resultat ← 1\n" +
+    "POUR i DE 1 À 3 FAIRE\n" +
+    "    resultat ← resultat × 2\n" +
+    "FIN POUR",
+};
+
 /** Statuts par lesquels le référentiel atteste qu'une clé est sûre. */
 const STATUTS_SURS = new Set([
   "RÉPONSE PÉDAGOGIQUE RETENUE",
@@ -237,7 +264,9 @@ for (const [feuille, epreuve] of Object.entries(EPREUVES)) {
       bloc_id: blocId,
       type: TYPES[txt(l["Type Moodle"]).toUpperCase()] ?? "choix_unique",
       enonce_commun: passage?.texte ?? "",
-      enonce: txt(l["Énoncé exact / version validée"]),
+      // `txt` écrase les sauts de ligne ; un énoncé structuré les garde.
+      enonce:
+        ENONCES_STRUCTURES[txt(l.ID_question)] ?? txt(l["Énoncé exact / version validée"]),
       proposition_a: txt(l["Réponse A"]),
       proposition_b: txt(l["Réponse B"]),
       proposition_c: txt(l["Réponse C"]),
