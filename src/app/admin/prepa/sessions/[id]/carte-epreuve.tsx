@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { heureParisPourChamp } from "@/lib/heure-paris";
 import {
   enregistrerEpreuve,
   relancerRetardataires,
@@ -31,12 +32,14 @@ type Epreuve = {
 };
 
 /** Pour un <input type="datetime-local">, qui ne lit pas l'ISO avec fuseau. */
-function pourChamp(iso: string | null) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
+/**
+ * Le champ affiche l'heure de Paris, et l'action la relit comme telle.
+ *
+ * Les getters locaux rendaient le fuseau du poste : un navigateur en France et
+ * un serveur en UTC ne parlaient pas de la même heure, et la fenêtre se
+ * décalait d'une heure à chaque aller-retour.
+ */
+const pourChamp = heureParisPourChamp;
 
 export function CarteEpreuve({
   sessionId,
@@ -139,14 +142,14 @@ export function CarteEpreuve({
           <Champ
             id={`debut-${epreuve.id}`}
             nom="fenetreDebut"
-            libelle="Ouverture"
+            libelle="Ouverture (heure de Paris)"
             type="datetime-local"
             valeur={pourChamp(epreuve.fenetreDebut)}
           />
           <Champ
             id={`fin-${epreuve.id}`}
             nom="fenetreFin"
-            libelle="Fermeture"
+            libelle="Fermeture (heure de Paris)"
             type="datetime-local"
             valeur={pourChamp(epreuve.fenetreFin)}
           />

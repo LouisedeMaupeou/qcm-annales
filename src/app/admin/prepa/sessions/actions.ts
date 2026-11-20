@@ -5,6 +5,7 @@ import { exigerPrepa } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { baremeOfficiel, decoderEpreuveId, dureeOfficielle } from "@/lib/epreuves-cb";
 import { emailRelanceConcoursBlanc, envoyerEmail } from "@/lib/emails";
+import { instantDepuisHeureParis } from "@/lib/heure-paris";
 import { urlSite } from "@/lib/site";
 
 /**
@@ -208,10 +209,11 @@ export async function enregistrerEpreuve(
     return { message: "Note sur : valeur invalide." };
   }
 
-  const lireDate = (cle: string) => {
-    const v = String(donnees.get(cle) ?? "").trim();
-    return v ? new Date(v).toISOString() : null;
-  };
+  // Le champ rend une heure sans fuseau ; `new Date()` l'aurait lue dans celui
+  // du serveur — UTC en production — et décalé la fenêtre d'une heure à chaque
+  // enregistrement. Les concours blancs se déroulent à l'heure française.
+  const lireDate = (cle: string) =>
+    instantDepuisHeureParis(String(donnees.get(cle) ?? ""));
   const debut = lireDate("fenetreDebut");
   const fin = lireDate("fenetreFin");
   if (debut && fin && debut >= fin) {
