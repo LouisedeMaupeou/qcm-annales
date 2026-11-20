@@ -1,5 +1,9 @@
 import { Fragment } from "react";
-import { grouperChapitresParEpreuve, LIBELLE_CHAPITRE } from "@/lib/bilan-cb";
+import {
+  grouperChapitresParEpreuve,
+  LIBELLE_CHAPITRE,
+  type ChapitreClasse,
+} from "@/lib/bilan-cb";
 import type { BilanAssemble } from "@/lib/bilans-generation";
 
 /**
@@ -122,18 +126,25 @@ export function BilanV10({ bilan }: { bilan: BilanAssemble }) {
               valeur={(c) => c.niveau ?? "—"}
             />
 
+            {/* Les chapitres sont calculés : ces deux lignes ont donc un
+                contenu même quand la responsable n'a rien écrit, et valent
+                pour les deux filières. Elles disparaissent si l'épreuve n'a
+                aucun chapitre classé. */}
+            <LigneTexte
+              titre="Forces identifiées (chapitres et méthode)"
+              colonnes={colonnes}
+              texte={(c) => c.forces}
+              chapitres={(c) => c.chapitresForces}
+            />
+            <LigneTexte
+              titre="Points d'amélioration (chapitres et méthode)"
+              colonnes={colonnes}
+              texte={(c) => c.ameliorations}
+              chapitres={(c) => c.chapitresAmeliorer}
+            />
+
             {detaille ? (
               <>
-                <LigneTexte
-                  titre="Forces identifiées (chapitres et méthode)"
-                  colonnes={colonnes}
-                  texte={(c) => c.forces}
-                />
-                <LigneTexte
-                  titre="Points d'amélioration (chapitres et méthode)"
-                  colonnes={colonnes}
-                  texte={(c) => c.ameliorations}
-                />
                 <LigneTexte
                   titre="Maîtrise de la méthode"
                   colonnes={colonnes}
@@ -262,28 +273,60 @@ function Ligne({
   );
 }
 
+/**
+ * Une ligne de texte du tableau, éventuellement précédée de ses chapitres.
+ *
+ * Deux règles s'y rejoignent. Les chapitres sont calculés depuis la
+ * correction : la responsable n'a pas à recopier ce que la copie dit déjà,
+ * elle commente à côté. Et une ligne vide sur toutes les épreuves disparaît —
+ * un bilan envoyé aux familles n'a pas à montrer des cases à remplir.
+ */
 function LigneTexte({
   titre,
   colonnes,
   texte,
+  chapitres,
 }: {
   titre: string;
   colonnes: BilanAssemble["colonnes"];
   texte: (c: BilanAssemble["colonnes"][number]) => string;
+  chapitres?: (c: BilanAssemble["colonnes"][number]) => ChapitreClasse[];
 }) {
+  const vide = colonnes.every(
+    (c) => !texte(c).trim() && (chapitres?.(c).length ?? 0) === 0,
+  );
+  if (vide) return null;
+
   return (
     <tr>
       <th className="border border-ligne bg-fond-doux/60 p-2 text-left align-top font-bold">
         {titre}
       </th>
-      {colonnes.map((c) => (
-        <td
-          key={c.epreuveCbId}
-          className="border border-ligne p-2 align-top whitespace-pre-line"
-        >
-          {texte(c) || <span className="opacity-40">—</span>}
-        </td>
-      ))}
+      {colonnes.map((c) => {
+        const liste = chapitres?.(c) ?? [];
+        const commentaire = texte(c).trim();
+        return (
+          <td
+            key={c.epreuveCbId}
+            className="border border-ligne p-2 align-top whitespace-pre-line"
+          >
+            {liste.length > 0 && (
+              <ul className="mb-1.5 space-y-0.5">
+                {liste.map((ch) => (
+                  <li key={ch.chapitre}>
+                    {ch.chapitre}{" "}
+                    <span className="opacity-70">
+                      — {LIBELLE_CHAPITRE[ch.niveau]} ({ch.tauxReussite} %)
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {commentaire}
+            {liste.length === 0 && !commentaire && <span className="opacity-40">—</span>}
+          </td>
+        );
+      })}
     </tr>
   );
 }

@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { libelleEpreuveImportee } from "@/lib/epreuves-cb";
 import { orauxDuBilan, type SectionOrauxBilan } from "@/lib/oraux-donnees";
 import {
+  grouperChapitresParEpreuve,
   classerChapitres,
   enQuelquesMots,
   moyenne,
@@ -46,6 +47,17 @@ export type ColonneBilan = {
   nbFausses: number;
   nbAbstentions: number;
   niveau: string | null;
+  /**
+   * Chapitres de l'épreuve, classés par la correction.
+   *
+   * Ils sont calculés, jamais saisis : le §5.4 veut que les chiffres viennent
+   * des copies. La responsable ajoute son commentaire à côté, elle ne recopie
+   * pas la liste.
+   */
+  /** Nom de l'épreuve dans la nomenclature, qui relie la colonne aux chapitres. */
+  epreuveLibelle: string;
+  chapitresForces: ChapitreClasse[];
+  chapitresAmeliorer: ChapitreClasse[];
   /** Textes relus par la responsable, vides tant qu'elle n'a rien écrit. */
   forces: string;
   ameliorations: string;
@@ -153,7 +165,7 @@ export async function assemblerBilan(
   // --- Épreuves de la session assignées à la cohorte de l'élève ------------
   const { data: epreuves } = await admin
     .from("epreuves_cb")
-    .select("id, matiere, concours(nom), epreuve_cb_cohortes(cohorte_id)")
+    .select("id, matiere, epreuve_id_externe, concours(nom), epreuve_cb_cohortes(cohorte_id)")
     .eq("session_cb_id", sessionCbId)
     .eq("statut", "publiee")
     .order("epreuve_id_externe");
@@ -221,6 +233,12 @@ export async function assemblerBilan(
       nbFausses: mien?.nb_fausses ?? 0,
       nbAbstentions: mien?.nb_abstentions ?? 0,
       niveau: note === null ? null : niveauEpreuve(note, seuils),
+      epreuveLibelle: e.epreuve_id_externe
+        ? (libelleEpreuveImportee(e.epreuve_id_externe as string) ??
+          (e.epreuve_id_externe as string))
+        : "",
+      chapitresForces: [],
+      chapitresAmeliorer: [],
       forces: t.forces ?? "",
       ameliorations: t.ameliorations ?? "",
       methode: t.methode ?? "",
@@ -233,6 +251,19 @@ export async function assemblerBilan(
   // --- Analyse par chapitre -------------------------------------------------
   const chapitres = await statsParChapitre(userId, epreuveIds);
   const classes = classerChapitres(chapitres, seuils);
+
+  // Chaque colonne reçoit les chapitres de son épreuve : ce que l'élève
+  // maîtrise d'un côté, ce qui reste à reprendre de l'autre. Les insuffisants
+  // passent devant les « à consolider » — c'est l'ordre de l'urgence.
+  for (const groupe of grouperChapitresParEpreuve(classes)) {
+    const colonne = colonnes.find((c) => c.epreuveLibelle === groupe.epreuve);
+    if (!colonne) continue;
+    colonne.chapitresForces = groupe.chapitres.filter((c) => c.niveau === "maitrise");
+    colonne.chapitresAmeliorer = [
+      ...groupe.chapitres.filter((c) => c.niveau === "insuffisant"),
+      ...groupe.chapitres.filter((c) => c.niveau === "a_consolider"),
+    ];
+  }
   const prioritesCalculees = prioriser(classes, seuils);
 
   const prioritesEditees = (bilan?.priorites ?? []) as Priorite[];

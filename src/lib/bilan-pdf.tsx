@@ -8,7 +8,11 @@ import {
   View,
   renderToBuffer,
 } from "@react-pdf/renderer";
-import { grouperChapitresParEpreuve, LIBELLE_CHAPITRE } from "@/lib/bilan-cb";
+import {
+  grouperChapitresParEpreuve,
+  LIBELLE_CHAPITRE,
+  type ChapitreClasse,
+} from "@/lib/bilan-cb";
 import type { BilanAssemble } from "@/lib/bilans-generation";
 
 /**
@@ -102,10 +106,21 @@ const nombre = (n: number | null, suffixe = "") =>
 function Ligne({
   titre,
   valeurs,
+  masquerSiVide = false,
 }: {
   titre: string;
   valeurs: string[];
+  /**
+   * Pour les lignes de commentaire : une ligne vide sur toutes les épreuves
+   * disparaît du document envoyé aux familles. Les lignes de chiffres, elles,
+   * gardent leur tiret — une absence s'y lit.
+   */
+  masquerSiVide?: boolean;
 }) {
+  if (masquerSiVide && valeurs.every((v) => !v.trim() || v.trim() === "—")) {
+    return null;
+  }
+
   return (
     <View style={s.ligne} wrap={false}>
       <Text style={s.entete}>{titre}</Text>
@@ -116,6 +131,21 @@ function Ligne({
       ))}
     </View>
   );
+}
+
+/**
+ * Les chapitres d'une épreuve, puis le commentaire de la responsable.
+ *
+ * Les chapitres viennent de la correction ; elle n'a pas à les recopier, elle
+ * ajoute ce que les chiffres ne disent pas.
+ */
+function celluleChapitres(chapitres: ChapitreClasse[], commentaire: string): string {
+  const lignes = chapitres.map(
+    (c) => `• ${c.chapitre} — ${LIBELLE_CHAPITRE[c.niveau]} (${c.tauxReussite} %)`,
+  );
+  const texte = commentaire.trim();
+  if (texte) lignes.push(texte);
+  return lignes.join("\n");
 }
 
 function DocumentBilan({ bilan }: { bilan: BilanAssemble }) {
@@ -184,20 +214,36 @@ function DocumentBilan({ bilan }: { bilan: BilanAssemble }) {
 
           <Ligne titre="Niveau de maîtrise" valeurs={c.map((x) => x.niveau ?? "—")} />
 
+          {/* Calculées, donc valables pour les deux filières. */}
+          <Ligne
+            titre="Forces identifiées"
+            valeurs={c.map((x) => celluleChapitres(x.chapitresForces, x.forces))}
+            masquerSiVide
+          />
+          <Ligne
+            titre="Points d'amélioration"
+            valeurs={c.map((x) => celluleChapitres(x.chapitresAmeliorer, x.ameliorations))}
+            masquerSiVide
+          />
+
           {detaille ? (
             <>
-              <Ligne titre="Forces identifiées" valeurs={c.map((x) => x.forces || "—")} />
               <Ligne
-                titre="Points d'amélioration"
-                valeurs={c.map((x) => x.ameliorations || "—")}
+                titre="Maîtrise de la méthode"
+                valeurs={c.map((x) => x.methode)}
+                masquerSiVide
               />
-              <Ligne titre="Maîtrise de la méthode" valeurs={c.map((x) => x.methode || "—")} />
-              <Ligne titre="Conseils de reprise" valeurs={c.map((x) => x.conseils || "—")} />
+              <Ligne
+                titre="Conseils de reprise"
+                valeurs={c.map((x) => x.conseils)}
+                masquerSiVide
+              />
             </>
           ) : (
             <Ligne
               titre="Commentaire"
-              valeurs={c.map((x) => x.conseils || x.ameliorations || "—")}
+              valeurs={c.map((x) => x.conseils || x.ameliorations)}
+              masquerSiVide
             />
           )}
         </View>
