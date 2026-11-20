@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { exigerStaff } from "@/lib/admin";
+import { libelleEpreuveImportee } from "@/lib/epreuves-cb";
 import { chargerEpreuveImportee, type QuestionImportee } from "@/lib/epreuves-importees";
 import { formaterMath } from "@/lib/notation-math";
 
@@ -107,7 +108,8 @@ export default async function EpreuveImportee({
       </p>
 
       <h1 className="mb-2 text-3xl font-black">
-        {entete.concours} — {entete.matiere}
+        {libelleEpreuveImportee(entete.epreuveIdExterne) ??
+          `${entete.concours} — ${entete.matiere}`}
       </h1>
       <p className="mb-6 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm">
         <code className="rounded-full bg-fond-doux px-2.5 py-0.5 font-bold">
@@ -138,7 +140,7 @@ export default async function EpreuveImportee({
 
       {vue === "liste" ? (
         <ul className="space-y-2.5">
-          {questions.map((q) => {
+          {questions.map((q, rang) => {
             const etiquette = ETIQUETTE_STATUT[q.statut] ?? {
               libelle: q.statut,
               classe: "bg-fond-doux text-encre",
@@ -147,7 +149,7 @@ export default async function EpreuveImportee({
               <li key={q.id}>
                 <div className="flex flex-wrap items-start gap-4 rounded-carte border border-ligne p-4">
                   <span className="w-10 shrink-0 text-center font-black text-primaire-fonce tabular-nums">
-                    {q.ordre ?? "—"}
+                    {q.ordre ?? rang + 1}
                   </span>
 
                   <div className="min-w-0 flex-1">
@@ -260,10 +262,10 @@ export default async function EpreuveImportee({
               )}
 
               <ol className="space-y-8">
-                {questions.map((q) => (
+                {questions.map((q, rang) => (
                     <li key={q.id}>
                       <p className="mb-2 text-sm font-extrabold tracking-[.08em] text-primaire-fonce uppercase">
-                        Question {q.ordre ?? "?"}
+                        Question {q.ordre ?? rang + 1}
                       </p>
 
                       {q.enonce?.trim() ? (

@@ -22,15 +22,35 @@ const SOURCE = process.argv[2];
 const SORTIE = process.argv[3];
 mkdirSync(SORTIE, { recursive: true });
 
-const EPREUVES = {
-  "FRANÇAIS": { id: "SES-FR-S2", fichier: "SES-FR-S2-francais" },
-  "ANGLAIS": { id: "SES-ANG-S2", fichier: "SES-ANG-S2-anglais" },
-  "MATHÉMATIQUES": { id: "SES-MAT-S1", fichier: "SES-MAT-S1-mathematiques" },
-  "COMPÉTENCES DIGITALES": { id: "SES-DIG-S1", fichier: "SES-DIG-S1-competences-digitales" },
-  "ANALYSE DOCUMENTAIRE": { id: "SES-ADOC-CB1", fichier: "SES-ADOC-CB1-analyse-documentaire" },
-  "ALLEMAND": { id: "SES-DE-S2", fichier: "SES-DE-S2-lv2-allemand" },
-  "ESPAGNOL": { id: "SES-ES-S2", fichier: "SES-ES-S2-lv2-espagnol" },
+/**
+ * Période de la campagne, qui entre dans l'identifiant des épreuves.
+ *
+ * La nomenclature retenue est PÉRIODE ANNÉE CONCOURS MATIÈRE — « NOËL 26
+ * SÉSAME FRANÇAIS » — et l'identifiant la porte : `SES-FR-NOEL26`. Sans elle,
+ * deux campagnes d'une même matière partageaient un identifiant et se
+ * retrouvaient mélangées dans la banque, ce qui est arrivé.
+ */
+const PERIODE = process.env.PERIODE ?? "NOEL26";
+
+const MATIERES = {
+  "FRANÇAIS": { code: "FR", fichier: "francais" },
+  "ANGLAIS": { code: "ANG", fichier: "anglais" },
+  "MATHÉMATIQUES": { code: "MAT", fichier: "mathematiques" },
+  "COMPÉTENCES DIGITALES": { code: "DIG", fichier: "competences-digitales" },
+  "ANALYSE DOCUMENTAIRE": { code: "ADOC", fichier: "analyse-documentaire" },
+  "ALLEMAND": { code: "DE", fichier: "lv2-allemand" },
+  "ESPAGNOL": { code: "ES", fichier: "lv2-espagnol" },
 };
+
+const EPREUVES = Object.fromEntries(
+  Object.entries(MATIERES).map(([feuille, m]) => [
+    feuille,
+    {
+      id: `SES-${m.code}-${PERIODE}`,
+      fichier: `SES-${m.code}-${PERIODE}-${m.fichier}`,
+    },
+  ]),
+);
 
 /**
  * Épreuves dont le sujet a été découpé en une capture par question.

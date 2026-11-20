@@ -253,3 +253,53 @@ export function baremeOfficiel(concours: string, matiere: string): BaremeOfficie
 
   return base;
 }
+
+// ---------------------------------------------------------------------------
+// Nomenclature d'affichage (§3)
+// ---------------------------------------------------------------------------
+/**
+ * Périodes de concours blancs, telles que la prépa les nomme.
+ *
+ * Le code de session d'un identifiant porte la période et l'année : NOEL26,
+ * TOUS26, HIVER27. On les développe pour l'affichage, sans toucher aux
+ * identifiants eux-mêmes, qui restent la clé de l'import.
+ */
+const PERIODES: Record<string, string> = {
+  NOEL: "NOËL",
+  TOUS: "TOUSSAINT",
+  TOUSSAINT: "TOUSSAINT",
+  HIVER: "HIVER",
+  FEV: "FÉVRIER",
+  PAQUES: "PÂQUES",
+  PRINT: "PRINTEMPS",
+  ETE: "ÉTÉ",
+  SEPT: "SEPTEMBRE",
+  OCT: "OCTOBRE",
+  TEST: "TEST",
+};
+
+/**
+ * Libellé d'une épreuve importée : PÉRIODE ANNÉE CONCOURS MATIÈRE.
+ *
+ * « SES-FR-NOEL26 » devient « NOËL 26 SÉSAME FRANÇAIS ». C'est ainsi que la
+ * prépa désigne ses concours blancs à l'oral ; un identifiant technique ne
+ * dit rien de la période, et deux sessions d'une même matière se confondaient.
+ *
+ * Quand le code de session ne porte pas de période — les anciens « S2 », « CB1 »
+ * — on le rend tel quel plutôt que d'inventer une date.
+ */
+export function libelleEpreuveImportee(id: string): string | null {
+  const decodee = decoderEpreuveId(id);
+  if (!decodee) return null;
+
+  const concours = decodee.concours.toUpperCase();
+  const matiere = decodee.matiere.toUpperCase();
+
+  if (!decodee.session) return `${concours} ${matiere}`;
+
+  const periode = decodee.session.match(/^([A-ZÀ-Ÿ]+)(\d{2})$/);
+  if (!periode) return `${decodee.session} ${concours} ${matiere}`;
+
+  const nom = PERIODES[periode[1]] ?? periode[1];
+  return `${nom} ${periode[2]} ${concours} ${matiere}`;
+}

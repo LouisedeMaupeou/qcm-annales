@@ -4,6 +4,7 @@ import {
   baremeOfficiel,
   decoderEpreuveId,
   dureeOfficielle,
+  libelleEpreuveImportee,
 } from "./epreuves-cb.ts";
 
 test("décode un identifiant avec session", () => {
@@ -100,4 +101,26 @@ test("les autres concours gardent le nom générique", () => {
 
 test("durée officielle : connue sous le nom de filière retenu", () => {
   assert.equal(dureeOfficielle("Puissance Alpha", "Mathématiques (générale)"), 90);
+});
+
+test("libellé d'épreuve importée : PÉRIODE ANNÉE CONCOURS MATIÈRE", () => {
+  assert.equal(libelleEpreuveImportee("SES-FR-NOEL26"), "NOËL 26 SÉSAME FRANÇAIS");
+  assert.equal(
+    libelleEpreuveImportee("SES-ADOC-NOEL26"),
+    "NOËL 26 SÉSAME ANALYSE DOCUMENTAIRE",
+  );
+  assert.equal(libelleEpreuveImportee("AV-MAT-TOUS26"), "TOUSSAINT 26 AVENIR MATHÉMATIQUES");
+});
+
+test("libellé : un code de session sans période est rendu tel quel", () => {
+  // Mieux vaut montrer « S2 » que d'inventer une date qu'il ne porte pas.
+  assert.equal(libelleEpreuveImportee("SES-FR-S2"), "S2 SÉSAME FRANÇAIS");
+});
+
+test("libellé : sans session, concours et matière suffisent", () => {
+  assert.equal(libelleEpreuveImportee("SES-DE"), "SÉSAME LV2 ALLEMAND");
+});
+
+test("libellé : un identifiant indéchiffrable n'en a pas", () => {
+  assert.equal(libelleEpreuveImportee("XX-YY-NOEL26"), null);
 });

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { exigerStaff } from "@/lib/admin";
+import { libelleEpreuveImportee } from "@/lib/epreuves-cb";
 import { listerEpreuvesImportees } from "@/lib/epreuves-importees";
 
 export const dynamic = "force-dynamic";
@@ -61,10 +62,8 @@ export default async function EpreuvesImportees() {
                 >
                   <div className="mb-2 flex flex-wrap items-baseline justify-between gap-3">
                     <h2 className="text-lg font-extrabold text-encre">
-                      {e.concours} — {e.matiere}
-                      {e.session && (
-                        <span className="ml-2 font-bold opacity-60">{e.session}</span>
-                      )}
+                      {libelleEpreuveImportee(e.epreuveIdExterne) ??
+                        `${e.concours} — ${e.matiere}`}
                     </h2>
                     <code className="rounded-full bg-fond-doux px-2.5 py-0.5 text-[0.75rem] font-bold">
                       {e.epreuveIdExterne}
