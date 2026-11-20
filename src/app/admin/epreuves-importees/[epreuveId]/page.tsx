@@ -24,29 +24,53 @@ const VUES = [
 type Vue = (typeof VUES)[number]["cle"];
 
 /**
- * Regroupe les questions consécutives qui partagent le même dossier.
+ * Le dossier de l'épreuve entière, rassemblé une fois pour toutes.
  *
- * Sans cela, les mêmes textes seraient réaffichés entre chaque question : en
- * analyse documentaire, le Texte 7 revient sur plusieurs questions d'affilée,
- * et le relecteur verrait dix fois la même image en faisant défiler l'épreuve.
+ * Chaque question porte les pièces qu'elle cite, et la plupart se répètent :
+ * le Texte 7 revient sur plusieurs questions. Les afficher question par
+ * question, c'était découper le dossier en une vingtaine de panneaux
+ * défilants montrant souvent la même chose. On en fait un seul, dans l'ordre
+ * du sujet — les textes puis les encarts — et les questions se lisent à côté.
  */
-function grouperParDossier(questions: QuestionImportee[]): QuestionImportee[][] {
-  const groupes: QuestionImportee[][] = [];
-  let signaturePrecedente: string | null = null;
+function rassemblerDossier(questions: QuestionImportee[]) {
+  const pieces = new Map<string, { titre: string | null; url: string | null }>();
+  const passages: string[] = [];
 
   for (const q of questions) {
-    const signature = `${q.enonceCommun ?? ""}##${q.documents
-      .map((d) => d.titre ?? "")
-      .join("|")}`;
-    if (signature !== signaturePrecedente) {
-      groupes.push([q]);
-      signaturePrecedente = signature;
-    } else {
-      groupes[groupes.length - 1].push(q);
+    if (q.enonceCommun && !passages.includes(q.enonceCommun)) passages.push(q.enonceCommun);
+    for (const d of q.documents) {
+      const cle = d.url ?? d.titre ?? "";
+      if (cle && !pieces.has(cle)) pieces.set(cle, d);
     }
   }
 
-  return groupes;
+  const rang = (titre: string | null) => {
+    const t = (titre ?? "").toLowerCase();
+    const texte = t.match(/texte[ -]?(\d+)/);
+    if (texte) return [0, Number(texte[1]), ""] as const;
+    const encart = t.match(/encart[ -]?([a-z])/);
+    if (encart) return [1, 0, encart[1]] as const;
+    return [2, 0, t] as const;
+  };
+
+  const documents = [...pieces.values()].sort((a, b) => {
+    const [ga, na, la] = rang(a.titre);
+    const [gb, nb, lb] = rang(b.titre);
+    return ga - gb || na - nb || la.localeCompare(lb);
+  });
+
+  return { passages, documents };
+}
+
+/** « texte-7.png » → « Texte 7 » ; « encart-C.png » → « Encart C ». */
+function libelleDocument(titre: string | null): string | null {
+  if (!titre) return null;
+  const sansExtension = titre.replace(/\.[a-z0-9]+$/i, "");
+  const texte = sansExtension.match(/^texte[ -]?(\d+)$/i);
+  if (texte) return `Texte ${texte[1]}`;
+  const encart = sansExtension.match(/^encart[ -]?([a-z])$/i);
+  if (encart) return `Encart ${encart[1].toUpperCase()}`;
+  return sansExtension;
 }
 
 const ETIQUETTE_STATUT: Record<string, { libelle: string; classe: string }> = {
@@ -176,62 +200,67 @@ export default async function EpreuveImportee({
           })}
         </ul>
       ) : (
-        <div className="space-y-12">
-          {grouperParDossier(questions).map((groupe) => {
-            const tete = groupe[0];
-            const aDossier = Boolean(tete.enonceCommun) || tete.documents.length > 0;
+        (() => {
+          const dossier = rassemblerDossier(questions);
+          const aDossier = dossier.passages.length > 0 || dossier.documents.length > 0;
 
-            return (
-              <section
-                key={tete.id}
-                className={
-                  aDossier
-                    ? "lg:grid lg:grid-cols-[minmax(0,46%)_minmax(0,1fr)] lg:items-start lg:gap-9"
-                    : ""
-                }
-              >
-                {/* Le texte à gauche, dans sa propre zone de défilement : c'est
-                    la situation de l'élève, qui relit un passage en gardant la
-                    question sous les yeux. */}
-                {aDossier && (
-                  <aside
-                    aria-label="Textes de l'exercice"
-                    className="mb-6 max-h-[60vh] overflow-y-auto rounded-carte border border-ligne bg-fond-doux/40 p-5 lg:sticky lg:top-6 lg:mb-0 lg:max-h-[calc(100dvh-6rem)]"
-                  >
-                    <h2 className="mb-3 text-sm font-extrabold tracking-[.08em] text-primaire-fonce uppercase">
-                      Dossier
-                    </h2>
-                    {tete.enonceCommun && (
-                      <p className="mb-5 leading-relaxed whitespace-pre-line">
-                        {formaterMath(tete.enonceCommun)}
-                      </p>
-                    )}
-                    {tete.documents.map((d, n) => (
-                      <figure key={`${tete.id}-doc-${n}`} className="mb-5 last:mb-0">
-                        {d.titre && (
-                          <figcaption className="mb-1.5 text-sm font-extrabold text-encre">
-                            {d.titre}
-                          </figcaption>
-                        )}
-                        {d.url ? (
-                          // eslint-disable-next-line @next/next/no-img-element -- URL signée temporaire
-                          <img
-                            src={d.url}
-                            alt={d.titre ?? "Document"}
-                            className="w-full rounded-[10px] border border-ligne bg-white"
-                          />
-                        ) : (
-                          <p className="rounded-[10px] bg-negatif/5 p-3 text-sm text-negatif">
-                            Document introuvable dans le stockage.
-                          </p>
-                        )}
-                      </figure>
-                    ))}
-                  </aside>
-                )}
+          return (
+            <div
+              className={
+                aDossier
+                  ? "lg:grid lg:grid-cols-[minmax(0,46%)_minmax(0,1fr)] lg:items-start lg:gap-9"
+                  : ""
+              }
+            >
+              {/* Un seul dossier, à gauche, dans une seule zone de défilement :
+                  c'est la situation de l'élève, qui relit un passage en gardant
+                  la question sous les yeux — et le dossier ne se découpe pas. */}
+              {aDossier && (
+                <aside
+                  aria-label="Dossier documentaire"
+                  className="mb-8 max-h-[70vh] overflow-y-auto rounded-carte border border-ligne bg-fond-doux/40 p-5 lg:sticky lg:top-6 lg:mb-0 lg:max-h-[calc(100dvh-6rem)]"
+                >
+                  <h2 className="mb-1 text-sm font-extrabold tracking-[.08em] text-primaire-fonce uppercase">
+                    Dossier
+                  </h2>
+                  <p className="mb-5 text-[0.82rem] opacity-70">
+                    {dossier.documents.length > 0 &&
+                      `${dossier.documents.length} pièce${dossier.documents.length > 1 ? "s" : ""}, `}
+                    dans l&apos;ordre du sujet.
+                  </p>
 
-                <ol className="space-y-8">
-                  {groupe.map((q) => (
+                  {dossier.passages.map((texte, n) => (
+                    <p key={`passage-${n}`} className="mb-6 leading-relaxed whitespace-pre-line">
+                      {formaterMath(texte)}
+                    </p>
+                  ))}
+
+                  {dossier.documents.map((d, n) => (
+                    <figure key={`doc-${n}`} className="mb-7 last:mb-0">
+                      {libelleDocument(d.titre) && (
+                        <figcaption className="mb-1.5 text-sm font-extrabold text-encre">
+                          {libelleDocument(d.titre)}
+                        </figcaption>
+                      )}
+                      {d.url ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- URL signée temporaire
+                        <img
+                          src={d.url}
+                          alt={libelleDocument(d.titre) ?? "Document"}
+                          className="w-full rounded-[10px] border border-ligne bg-white"
+                        />
+                      ) : (
+                        <p className="rounded-[10px] bg-negatif/5 p-3 text-sm text-negatif">
+                          Document introuvable dans le stockage.
+                        </p>
+                      )}
+                    </figure>
+                  ))}
+                </aside>
+              )}
+
+              <ol className="space-y-8">
+                {questions.map((q) => (
                     <li key={q.id}>
                       <p className="mb-2 text-sm font-extrabold tracking-[.08em] text-primaire-fonce uppercase">
                         Question {q.ordre ?? "?"}
@@ -304,13 +333,12 @@ export default async function EpreuveImportee({
                           Modifier cette question
                         </Link>
                       </p>
-                    </li>
-                  ))}
-                </ol>
-              </section>
-            );
-          })}
-        </div>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          );
+        })()
       )}
     </>
   );
