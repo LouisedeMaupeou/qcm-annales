@@ -49,6 +49,7 @@ export function Composer({
     Math.max(0, new Date(finLe).getTime() - Date.now()),
   );
   const [etatSauvegarde, setEtatSauvegarde] = useState<"ok" | "en_cours" | "echec">("ok");
+  const [confirmeRemise, setConfirmeRemise] = useState(false);
   const [, demarrerTransition] = useTransition();
   const formRemise = useRef<HTMLFormElement>(null);
   const remiseLancee = useRef(false);
@@ -158,7 +159,13 @@ export function Composer({
               ? `Exercice ${index + 1} sur ${groupes.length} · questions ${premiere} à ${premiere + groupe.length - 1}`
               : `Question ${premiere} sur ${questions.length}`}
           </span>
-          <label className="flex cursor-pointer items-center gap-2 text-sm font-bold">
+          {/* Marque-page de l'élève, et rien d'autre : il colore la pastille de
+              navigation et n'entre dans aucun calcul de note. L'intitulé
+              « À revoir » laissait croire à un signalement au correcteur. */}
+          <label
+            className="flex cursor-pointer items-center gap-2 text-sm font-bold"
+            title="Marque cet exercice pour y revenir avant de remettre. Sans effet sur ta note."
+          >
             <input
               type="checkbox"
               checked={aRevoirIci}
@@ -167,7 +174,7 @@ export function Composer({
               }
               className="size-4.5 accent-soleil"
             />
-            À revoir
+            Marquer pour y revenir
           </label>
         </div>
 
@@ -233,6 +240,28 @@ export function Composer({
           })}
         </div>
 
+        {confirmeRemise && (
+          <p
+            role="alert"
+            className="mb-3 rounded-carte border-2 border-soleil bg-soleil/10 p-4 text-sm"
+          >
+            <strong className="text-encre">La remise est définitive.</strong>{" "}
+            Tu ne pourras plus revenir sur tes réponses, et ni score ni corrigé
+            ne s&apos;afficheront : ton bilan arrive après la correction.
+            {repondues < questions.length && (
+              <>
+                {" "}
+                Il te reste{" "}
+                <strong className="text-negatif">
+                  {questions.length - repondues} question
+                  {questions.length - repondues > 1 ? "s" : ""} sans réponse
+                </strong>
+                .
+              </>
+            )}
+          </p>
+        )}
+
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
@@ -251,14 +280,41 @@ export function Composer({
             Suivant
           </button>
 
+          {/* La remise est définitive : on la fait confirmer, et on dit au
+              passage ce qui reste en suspens — une question oubliée se
+              rattrape avant la remise, jamais après. Le formulaire reste
+              monté pour que la remise automatique à l'expiration du
+              chronomètre continue de fonctionner sans confirmation. */}
           <form action={remettreCopie} ref={formRemise} className="ml-auto">
             <input type="hidden" name="epreuveId" value={epreuveId} />
-            <button
-              type="submit"
-              className="cursor-pointer rounded-full bg-primaire px-7 py-3 font-extrabold text-white transition hover:bg-primaire-fonce"
-            >
-              Remettre ma copie
-            </button>
+            {confirmeRemise ? (
+              <div className="flex flex-wrap items-center justify-end gap-3">
+                <span className="text-sm font-bold text-encre">
+                  Es-tu sûr de vouloir remettre ta copie ?
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setConfirmeRemise(false)}
+                  className="cursor-pointer rounded-full border-2 border-ligne px-6 py-2.5 font-bold"
+                >
+                  Non
+                </button>
+                <button
+                  type="submit"
+                  className="cursor-pointer rounded-full bg-primaire px-7 py-3 font-extrabold text-white transition hover:bg-primaire-fonce"
+                >
+                  Oui, remettre
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmeRemise(true)}
+                className="cursor-pointer rounded-full bg-primaire px-7 py-3 font-extrabold text-white transition hover:bg-primaire-fonce"
+              >
+                Remettre ma copie
+              </button>
+            )}
           </form>
         </div>
       </nav>
