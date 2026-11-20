@@ -53,14 +53,19 @@ const EPREUVES = Object.fromEntries(
 );
 
 /**
- * Épreuves dont le sujet a été découpé en une capture par question.
+ * Épreuves dont le sujet est découpé en une capture par question.
  *
- * L'analyse documentaire en a besoin : la question 19 est un texte à trous,
- * la 16 oppose deux plans sur plusieurs lignes — la mise en page fait partie
- * de l'énoncé. Les propositions restent du texte sélectionnable à côté de la
- * capture : enfermer les réponses dans l'image les rendrait incliquables.
+ * Aucune pour l'instant. L'analyse documentaire en a eu, le temps que sa
+ * transcription soit complète ; elles faisaient double emploi avec les
+ * propositions servies en texte cliquable, et l'élève lisait deux fois la
+ * même chose sans pouvoir cliquer sur la version imprimée.
+ *
+ * Une capture ne se justifie que lorsqu'un énoncé ne peut pas se transcrire —
+ * une figure, un tableau. Et comme elle porte aussi les propositions, il faut
+ * alors l'amputer de celles-ci, ce que les blancs du sujet ne permettent pas
+ * de faire au jugé : ce sera un découpage à la main.
  */
-const CAPTURES = new Set(["ANALYSE DOCUMENTAIRE"]);
+const CAPTURES = new Set();
 
 /**
  * Passages que le référentiel désigne sans les porter.
@@ -107,6 +112,17 @@ const ENONCES_STRUCTURES = {
     "POUR i DE 1 À 4 FAIRE\n" +
     "    N ← N + 3\n" +
     "FIN POUR",
+  // Texte à trous : seul le visuel du sujet le portait, et la consigne
+  // annonce déjà les repères X, Y et Z.
+  "SES-CB1-AD-Q19":
+    "Complétez la conclusion ci-dessous avec les termes appropriés (X, Y et Z) dans le texte de synthèse." +
+    "\n" +
+    "« En définitive, la modernité repose largement sur l’idée que X est émancipateur par le temps " +
+    "qu’il permet de libérer grâce aux gains de productivité. Or, cette idée semble largement Y par " +
+    "la sensation qu’éprouvent un grand nombre de nos contemporains de « manquer de temps », voire " +
+    "d’être « pressé par le temps ». C’est la raison pour laquelle des initiatives en faveur d’un Z " +
+    "entre « rapidité » et « lenteur » sont apparues. L’objectif est de redevenir « maître de son " +
+    "temps de vie », source de « liberté individuelle » et de sérénité. »",
   "SES-SQ1-DIG-Q19":
     "Quelle valeur sera affichée par cet algorithme ?\n" +
     "resultat ← 1\n" +

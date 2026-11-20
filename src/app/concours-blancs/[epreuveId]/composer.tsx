@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { libellePiece, rassemblerDossier } from "@/lib/dossier-passage";
 import { grouperParExercice } from "@/lib/groupes-passage";
 import { formaterMath } from "@/lib/notation-math";
 import { remettreCopie, sauvegarder } from "./actions";
-import type { DocumentPassage, QuestionPassage, ReponseEleveCb } from "@/lib/passage-cb";
+import type { PieceDossier } from "@/lib/dossier-passage";
+import type { QuestionPassage, ReponseEleveCb } from "@/lib/passage-cb";
 
 /**
  * Composition d'une épreuve blanche (§4.3).
@@ -38,6 +40,11 @@ export function Composer({
   questions: QuestionPassage[];
 }) {
   const groupes = useMemo(() => grouperParExercice(questions), [questions]);
+
+  // Le dossier appartient à l'épreuve, pas à la question : il est rassemblé
+  // une fois et ne bouge plus. Un passage propre à un exercice, lui, suit son
+  // exercice.
+  const dossier = useMemo(() => rassemblerDossier(questions), [questions]);
 
   const [index, setIndex] = useState(0);
   const [reponses, setReponses] = useState<Record<string, ReponseEleveCb>>(() =>
@@ -117,7 +124,6 @@ export function Composer({
   // Un dossier à lire change la mise en page : il passe à gauche, dans sa
   // propre colonne qui défile, et les questions occupent la droite. Sans
   // dossier, une colonne large nuirait à la lecture de l'énoncé.
-  const dossier = tete?.documents ?? [];
   const aDossier = Boolean(tete?.enonceCommun) || dossier.length > 0;
 
   return (
@@ -188,7 +194,7 @@ export function Composer({
           {aDossier && (
             <PanneauDossier
               enonceCommun={tete?.enonceCommun ?? null}
-              documents={dossier}
+              pieces={dossier}
             />
           )}
 
@@ -337,10 +343,10 @@ export function Composer({
  */
 function PanneauDossier({
   enonceCommun,
-  documents,
+  pieces,
 }: {
   enonceCommun: string | null;
-  documents: DocumentPassage[];
+  pieces: PieceDossier[];
 }) {
   return (
     <aside
@@ -357,16 +363,18 @@ function PanneauDossier({
         </p>
       )}
 
-      {documents.map((d, i) => (
+      {pieces.map((d, i) => (
         <figure key={`${d.titre ?? "doc"}-${i}`} className="mb-5 last:mb-0">
-          {d.titre && (
-            <figcaption className="mb-1.5 font-extrabold text-encre">{d.titre}</figcaption>
+          {libellePiece(d.titre) && (
+            <figcaption className="mb-1.5 font-extrabold text-encre">
+              {libellePiece(d.titre)}
+            </figcaption>
           )}
           {d.url ? (
             // eslint-disable-next-line @next/next/no-img-element -- URL signée temporaire
             <img
               src={d.url}
-              alt={d.titre ?? `Document ${i + 1}`}
+              alt={libellePiece(d.titre) ?? `Document ${i + 1}`}
               className="w-full rounded-[10px] border border-ligne bg-white"
             />
           ) : (

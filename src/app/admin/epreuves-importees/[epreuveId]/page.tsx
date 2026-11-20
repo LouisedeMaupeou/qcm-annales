@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { exigerStaff } from "@/lib/admin";
+import { libellePiece, rassemblerDossier } from "@/lib/dossier-passage";
 import { libelleEpreuveImportee } from "@/lib/epreuves-cb";
-import { chargerEpreuveImportee, type QuestionImportee } from "@/lib/epreuves-importees";
+import { chargerEpreuveImportee } from "@/lib/epreuves-importees";
 import { formaterMath } from "@/lib/notation-math";
 
 export const dynamic = "force-dynamic";
@@ -24,55 +25,6 @@ const VUES = [
 
 type Vue = (typeof VUES)[number]["cle"];
 
-/**
- * Le dossier de l'épreuve entière, rassemblé une fois pour toutes.
- *
- * Chaque question porte les pièces qu'elle cite, et la plupart se répètent :
- * le Texte 7 revient sur plusieurs questions. Les afficher question par
- * question, c'était découper le dossier en une vingtaine de panneaux
- * défilants montrant souvent la même chose. On en fait un seul, dans l'ordre
- * du sujet — les textes puis les encarts — et les questions se lisent à côté.
- */
-function rassemblerDossier(questions: QuestionImportee[]) {
-  const pieces = new Map<string, { titre: string | null; url: string | null }>();
-  const passages: string[] = [];
-
-  for (const q of questions) {
-    if (q.enonceCommun && !passages.includes(q.enonceCommun)) passages.push(q.enonceCommun);
-    for (const d of q.documents) {
-      const cle = d.url ?? d.titre ?? "";
-      if (cle && !pieces.has(cle)) pieces.set(cle, d);
-    }
-  }
-
-  const rang = (titre: string | null) => {
-    const t = (titre ?? "").toLowerCase();
-    const texte = t.match(/texte[ -]?(\d+)/);
-    if (texte) return [0, Number(texte[1]), ""] as const;
-    const encart = t.match(/encart[ -]?([a-z])/);
-    if (encart) return [1, 0, encart[1]] as const;
-    return [2, 0, t] as const;
-  };
-
-  const documents = [...pieces.values()].sort((a, b) => {
-    const [ga, na, la] = rang(a.titre);
-    const [gb, nb, lb] = rang(b.titre);
-    return ga - gb || na - nb || la.localeCompare(lb);
-  });
-
-  return { passages, documents };
-}
-
-/** « texte-7.png » → « Texte 7 » ; « encart-C.png » → « Encart C ». */
-function libelleDocument(titre: string | null): string | null {
-  if (!titre) return null;
-  const sansExtension = titre.replace(/\.[a-z0-9]+$/i, "");
-  const texte = sansExtension.match(/^texte[ -]?(\d+)$/i);
-  if (texte) return `Texte ${texte[1]}`;
-  const encart = sansExtension.match(/^encart[ -]?([a-z])$/i);
-  if (encart) return `Encart ${encart[1].toUpperCase()}`;
-  return sansExtension;
-}
 
 const ETIQUETTE_STATUT: Record<string, { libelle: string; classe: string }> = {
   publie: { libelle: "validée", classe: "bg-positif/15 text-positif" },
@@ -206,8 +158,11 @@ export default async function EpreuveImportee({
         </ul>
       ) : (
         (() => {
-          const dossier = rassemblerDossier(questions);
-          const aDossier = dossier.passages.length > 0 || dossier.documents.length > 0;
+          const pieces = rassemblerDossier(questions);
+          const passages = [
+            ...new Set(questions.map((q) => q.enonceCommun).filter(Boolean)),
+          ] as string[];
+          const aDossier = passages.length > 0 || pieces.length > 0;
 
           return (
             <div
@@ -229,29 +184,29 @@ export default async function EpreuveImportee({
                     Dossier
                   </h2>
                   <p className="mb-5 text-[0.82rem] opacity-70">
-                    {dossier.documents.length > 0 &&
-                      `${dossier.documents.length} pièce${dossier.documents.length > 1 ? "s" : ""}, `}
+                    {pieces.length > 0 &&
+                      `${pieces.length} pièce${pieces.length > 1 ? "s" : ""}, `}
                     dans l&apos;ordre du sujet.
                   </p>
 
-                  {dossier.passages.map((texte, n) => (
+                  {passages.map((texte, n) => (
                     <p key={`passage-${n}`} className="mb-6 leading-relaxed whitespace-pre-line">
                       {formaterMath(texte)}
                     </p>
                   ))}
 
-                  {dossier.documents.map((d, n) => (
+                  {pieces.map((d, n) => (
                     <figure key={`doc-${n}`} className="mb-7 last:mb-0">
-                      {libelleDocument(d.titre) && (
+                      {libellePiece(d.titre) && (
                         <figcaption className="mb-1.5 text-sm font-extrabold text-encre">
-                          {libelleDocument(d.titre)}
+                          {libellePiece(d.titre)}
                         </figcaption>
                       )}
                       {d.url ? (
                         // eslint-disable-next-line @next/next/no-img-element -- URL signée temporaire
                         <img
                           src={d.url}
-                          alt={libelleDocument(d.titre) ?? "Document"}
+                          alt={libellePiece(d.titre) ?? "Document"}
                           className="w-full rounded-[10px] border border-ligne bg-white"
                         />
                       ) : (
