@@ -83,6 +83,25 @@ export default async function FileCorrection() {
                         )}
                       </div>
 
+                      {r.attendu && (
+                        <details className="mb-3 rounded-[10px] border border-ligne p-3">
+                          <summary className="cursor-pointer text-[0.82rem] font-bold text-encre">
+                            Réponse attendue
+                            {r.attenduNonRelu && " — proposition non relue"}
+                          </summary>
+                          <p className="mt-2 text-[0.9rem] whitespace-pre-line">
+                            {r.attendu}
+                          </p>
+                          {r.attenduNonRelu && (
+                            <p className="mt-2 text-[0.82rem] text-negatif">
+                              Cette réponse attendue vient du référentiel et
+                              n&apos;a pas encore été validée par un enseignant :
+                              elle oriente la correction, elle ne la décide pas.
+                            </p>
+                          )}
+                        </details>
+                      )}
+
                       <FormulaireNote
                         passageId={r.passageId}
                         questionId={r.questionId}

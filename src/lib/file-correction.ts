@@ -23,6 +23,10 @@ export type ReponseACorriger = {
   maximum: number;
   pointsActuels: number | null;
   annotation: string | null;
+  /** Réponse attendue, telle que le référentiel la donne. */
+  attendu: string | null;
+  /** Vrai tant qu'aucun enseignant n'a validé cette réponse attendue (§6.1). */
+  attenduNonRelu: boolean;
 };
 
 export type CopieEnCorrection = {
@@ -54,7 +58,7 @@ export async function chargerFileCorrection(): Promise<CopieEnCorrection[]> {
       .in("id", passageIds),
     admin
       .from("questions")
-      .select("id, enonce, bloc_id, blocs(enonce_commun)")
+      .select("id, enonce, bloc_id, explication, explication_relue, blocs(enonce_commun)")
       .in("id", questionIds),
   ]);
 
@@ -117,6 +121,10 @@ export async function chargerFileCorrection(): Promise<CopieEnCorrection[]> {
       maximum: Number(epreuveRow?.points_bonne ?? 1) * Number(lien?.points ?? 1),
       pointsActuels: r.points === null ? null : Number(r.points),
       annotation: (r.annotation as string | null) ?? null,
+      // Le correcteur note une réponse rédigée : sans la réponse attendue
+      // sous les yeux, il doit rouvrir le sujet pour chaque copie.
+      attendu: (question.explication as string | null) ?? null,
+      attenduNonRelu: question.explication_relue !== true,
     });
   }
 
