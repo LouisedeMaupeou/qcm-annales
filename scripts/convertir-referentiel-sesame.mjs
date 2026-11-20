@@ -42,6 +42,32 @@ const EPREUVES = {
  */
 const CAPTURES = new Set(["ANALYSE DOCUMENTAIRE"]);
 
+/**
+ * Passages que le référentiel désigne sans les porter.
+ *
+ * Certaines cellules « Document / encart associé » ne contiennent qu'une
+ * référence — « Texte commun Q5-Q6 » — là où d'autres portent le passage en
+ * entier. Sans le texte, les deux questions seraient posées à l'élève sans ce
+ * sur quoi elles portent : « Selon le texte, la lecture est aujourd'hui… ».
+ * Le passage est donc relevé dans le sujet et fourni ici, à l'identique.
+ */
+const PASSAGES_SUPPLEES = {
+  "FRANÇAIS": {
+    "Texte commun Q5-Q6":
+      "Pendant longtemps, la lecture a été perçue comme l’activité culturelle par " +
+      "excellence, symbole d’instruction, de distinction sociale et de plaisir " +
+      "intellectuel. Aujourd’hui encore, elle demeure largement admirée ; mais elle " +
+      "semble aussi concurrencée par des pratiques numériques de plus en plus " +
+      "envahissantes. Beaucoup de jeunes lisent différemment, par fragments, sur des " +
+      "écrans, dans un univers où les images, les vidéos et les flux d’informations " +
+      "rapides dominent. Pourtant, les études montrent que la lecture prolongée " +
+      "développe une attention plus profonde, une capacité d’analyse et une " +
+      "sensibilité particulière au langage. L’enjeu n’est donc pas d’opposer lecture " +
+      "« traditionnelle » et pratiques numériques, mais de comprendre comment elles " +
+      "peuvent coexister sans que l’une n’appauvrisse l’autre.",
+  },
+};
+
 /** Statuts par lesquels le référentiel atteste qu'une clé est sûre. */
 const STATUTS_SURS = new Set([
   "RÉPONSE PÉDAGOGIQUE RETENUE",
@@ -148,12 +174,14 @@ for (const [feuille, epreuve] of Object.entries(EPREUVES)) {
   // Un même passage partagé par plusieurs questions devient un bloc. Un vrai
   // passage porte le texte ; une simple référence (« Texte 7 ») ne le porte pas.
   const passages = new Map();
+  const suppleements = PASSAGES_SUPPLEES[feuille] ?? {};
   if (feuille !== "ANALYSE DOCUMENTAIRE") {
     for (const l of lignes) {
       const doc = txt(l["Document / encart associé"]);
-      if (doc.length > 120 && !passages.has(doc)) {
-        passages.set(doc, `${epreuve.id}-B${passages.size + 1}`);
-      }
+      if (!doc || passages.has(doc)) continue;
+      // Soit la cellule porte le passage, soit elle le désigne et il est fourni.
+      const texte = doc.length > 120 ? doc : suppleements[doc];
+      if (texte) passages.set(doc, { bloc: `${epreuve.id}-B${passages.size + 1}`, texte });
     }
   }
 
@@ -195,8 +223,8 @@ for (const [feuille, epreuve] of Object.entries(EPREUVES)) {
     if (servable) servables += 1;
     else reserves.push(`${txt(l.ID_question)} — ${motifs.join(" ")}`);
 
-    const passage = txt(l["Document / encart associé"]);
-    const blocId = passages.get(passage) ?? "";
+    const passage = passages.get(txt(l["Document / encart associé"]));
+    const blocId = passage?.bloc ?? "";
 
     // Les captures ne sont produites que pour les épreuves dont le sujet a été
     // découpé ; ailleurs, l'énoncé transcrit se suffit.
@@ -208,7 +236,7 @@ for (const [feuille, epreuve] of Object.entries(EPREUVES)) {
       ordre: numero,
       bloc_id: blocId,
       type: TYPES[txt(l["Type Moodle"]).toUpperCase()] ?? "choix_unique",
-      enonce_commun: blocId ? passage : "",
+      enonce_commun: passage?.texte ?? "",
       enonce: txt(l["Énoncé exact / version validée"]),
       proposition_a: txt(l["Réponse A"]),
       proposition_b: txt(l["Réponse B"]),
