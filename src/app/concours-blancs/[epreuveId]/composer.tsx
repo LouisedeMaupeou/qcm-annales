@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useFormStatus } from "react-dom";
 import { libellePiece, rassemblerDossier } from "@/lib/dossier-passage";
 import { grouperParExercice } from "@/lib/groupes-passage";
 import { formaterMath } from "@/lib/notation-math";
@@ -293,34 +294,11 @@ export function Composer({
               chronomètre continue de fonctionner sans confirmation. */}
           <form action={remettreCopie} ref={formRemise} className="ml-auto">
             <input type="hidden" name="epreuveId" value={epreuveId} />
-            {confirmeRemise ? (
-              <div className="flex flex-wrap items-center justify-end gap-3">
-                <span className="text-sm font-bold text-encre">
-                  Es-tu sûr de vouloir remettre ta copie ?
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setConfirmeRemise(false)}
-                  className="cursor-pointer rounded-full border-2 border-ligne px-6 py-2.5 font-bold"
-                >
-                  Non
-                </button>
-                <button
-                  type="submit"
-                  className="cursor-pointer rounded-full bg-primaire px-7 py-3 font-extrabold text-white transition hover:bg-primaire-fonce"
-                >
-                  Oui, remettre
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setConfirmeRemise(true)}
-                className="cursor-pointer rounded-full bg-primaire px-7 py-3 font-extrabold text-white transition hover:bg-primaire-fonce"
-              >
-                Remettre ma copie
-              </button>
-            )}
+            <ZoneRemise
+              confirme={confirmeRemise}
+              demander={() => setConfirmeRemise(true)}
+              annuler={() => setConfirmeRemise(false)}
+            />
           </form>
         </div>
       </nav>
@@ -512,6 +490,79 @@ function SousQuestion({
         }`}
       >
         {reponse.abstention ? "Tu ne réponds pas" : "Je ne réponds pas"}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Le bouton de remise, et ce qu'il devient pendant que le serveur travaille.
+ *
+ * La remise enregistre la copie, arrête le chronomètre et redirige : quelques
+ * secondes peuvent s'écouler. Sans rien montrer, l'élève croit que son clic
+ * n'a pas pris et recommence — sur l'action la moins rattrapable de
+ * l'épreuve. Le bouton annonce donc son travail et se verrouille, et
+ * l'annulation disparaît : une remise partie ne se rappelle pas.
+ *
+ * Composant enfant du formulaire, car `useFormStatus` ne voit que la
+ * soumission du formulaire qui l'englobe. Il couvre aussi la remise
+ * automatique déclenchée par l'expiration du chronomètre.
+ */
+function ZoneRemise({
+  confirme,
+  demander,
+  annuler,
+}: {
+  confirme: boolean;
+  demander: () => void;
+  annuler: () => void;
+}) {
+  const { pending } = useFormStatus();
+
+  if (pending) {
+    return (
+      <p
+        aria-live="polite"
+        className="flex items-center justify-end gap-3 rounded-full bg-fond-doux px-6 py-3 font-extrabold text-encre"
+      >
+        <span
+          aria-hidden
+          className="size-5 animate-spin rounded-full border-[3px] border-ligne border-t-primaire"
+        />
+        Remise en cours…
+      </p>
+    );
+  }
+
+  if (!confirme) {
+    return (
+      <button
+        type="button"
+        onClick={demander}
+        className="cursor-pointer rounded-full bg-primaire px-7 py-3 font-extrabold text-white transition hover:bg-primaire-fonce"
+      >
+        Remettre ma copie
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center justify-end gap-3">
+      <span className="text-sm font-bold text-encre">
+        Es-tu sûr de vouloir remettre ta copie ?
+      </span>
+      <button
+        type="button"
+        onClick={annuler}
+        className="cursor-pointer rounded-full border-2 border-ligne px-6 py-2.5 font-bold"
+      >
+        Non
+      </button>
+      <button
+        type="submit"
+        className="cursor-pointer rounded-full bg-primaire px-7 py-3 font-extrabold text-white transition hover:bg-primaire-fonce"
+      >
+        Oui, remettre
       </button>
     </div>
   );
