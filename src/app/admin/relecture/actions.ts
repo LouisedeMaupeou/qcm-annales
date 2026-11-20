@@ -166,11 +166,15 @@ export type EtatSuppression = {
  * Trois garde-fous, parce que l'opération ne se rattrape pas.
  *
  * 1. Réservée à l'admin. Un contributeur relit, il ne détruit pas.
- * 2. Une question déjà servie à un élève n'est jamais supprimée. La base le
- *    refuserait de toute façon — `session_questions` et `passage_reponses`
- *    sont en `on delete restrict` — mais l'échec arriverait au milieu du lot,
- *    sous forme d'erreur de contrainte. On regarde donc avant, et on nomme ces
- *    questions dans le rapport : la copie d'un élève doit rester lisible.
+ * 2. Une question retenue ailleurs n'est jamais supprimée. Trois tables la
+ *    retiennent, toutes en `on delete restrict` : `session_questions` et
+ *    `passage_reponses` pour ce qu'un élève a déjà vu ou répondu, et
+ *    `epreuve_cb_questions` pour ce qu'une épreuve blanche a déjà composé.
+ *    La base refuserait de toute façon, mais l'échec arriverait au milieu du
+ *    lot sous forme d'erreur de contrainte. On regarde donc avant et on les
+ *    nomme : la copie d'un élève doit rester lisible, et une épreuve ne doit
+ *    pas se vider à l'insu de celui qui l'a montée — pour celle-là, on la
+ *    retire d'abord de la session, puis on la supprime.
  * 3. Seules les questions non publiées sont concernées. Supprimer depuis cet
  *    écran une question publiée serait un effet de bord du filtre, pas une
  *    décision.
@@ -202,18 +206,33 @@ export async function supprimerEnMasse(
 
   const presents = questions.map((q) => q.id as string);
 
-  // Ce qui a déjà été servi à un élève : on regarde les deux tables qui
-  // retiennent une question, l'entraînement libre et le concours blanc.
+  // Les trois tables qui retiennent une question.
   const retenues = new Map<string, string>();
   for (const lot of decouper(presents)) {
-    const [{ data: entrainement }, { data: concoursBlanc }] = await Promise.all([
-      admin.from("session_questions").select("question_id").in("question_id", lot),
-      admin.from("passage_reponses").select("question_id").in("question_id", lot),
-    ]);
+    const [{ data: entrainement }, { data: repondues }, { data: composees }] =
+      await Promise.all([
+        admin.from("session_questions").select("question_id").in("question_id", lot),
+        admin.from("passage_reponses").select("question_id").in("question_id", lot),
+        admin
+          .from("epreuve_cb_questions")
+          .select("question_id, epreuves_cb(matiere, sessions_cb(nom))")
+          .in("question_id", lot),
+      ]);
     for (const l of entrainement ?? []) {
       retenues.set(l.question_id as string, "déjà servie en entraînement");
     }
-    for (const l of concoursBlanc ?? []) {
+    for (const l of composees ?? []) {
+      const e = l.epreuves_cb as unknown as {
+        matiere: string;
+        sessions_cb: { nom: string } | null;
+      } | null;
+      retenues.set(
+        l.question_id as string,
+        `placée dans l'épreuve ${e?.sessions_cb?.nom ?? "?"} › ${e?.matiere ?? "?"} — la retirer de la session d'abord`,
+      );
+    }
+    // La réponse d'un élève prime sur les autres motifs : c'est le plus fort.
+    for (const l of repondues ?? []) {
       retenues.set(l.question_id as string, "déjà répondue dans un concours blanc");
     }
   }
