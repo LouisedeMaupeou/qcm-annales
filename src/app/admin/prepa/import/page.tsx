@@ -1,13 +1,17 @@
 import Link from "next/link";
 import { exigerPrepa } from "@/lib/admin";
 import { COLONNES_CB, COLONNES_CB_FACULTATIVES } from "@/lib/import-cb";
+import { chargerDepots } from "@/lib/depots-extraction";
 import { FormulaireImportCb } from "./formulaire";
+import { FormulaireDepot } from "./formulaire-depot";
+import { ListeDepots } from "./liste-depots";
 
 export const dynamic = "force-dynamic";
 
 /** §3 et §9 (étape 10) : import CSV/XLSX au format Parkours + zip d'images. */
 export default async function ImportConcoursBlancs() {
   await exigerPrepa();
+  const depots = await chargerDepots();
 
   return (
     <>
@@ -87,6 +91,25 @@ export default async function ImportConcoursBlancs() {
           </section>
         </aside>
       </div>
+
+      <section className="mt-12 border-t border-ligne pt-10">
+        <h2 className="mb-2 text-2xl font-black">Sujets à transcrire</h2>
+        <p className="mb-6 max-w-[70ch]">
+          L&apos;import ci-dessus attend un fichier déjà au format Parkours. En
+          amont, les sujets arrivent en PDF avec un tableur de réponses : on les
+          dépose ici, et leur transcription suit son avancement jusqu&apos;à
+          l&apos;import en banque.
+        </p>
+
+        <div className="mb-8">
+          <FormulaireDepot />
+        </div>
+
+        <h3 className="mb-3 text-sm font-extrabold tracking-[.08em] text-primaire-fonce uppercase">
+          Dépôts
+        </h3>
+        <ListeDepots depots={depots} />
+      </section>
     </>
   );
 }

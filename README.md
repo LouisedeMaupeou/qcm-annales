@@ -171,6 +171,24 @@ documentaire a besoin — et qu'aucune reconstruction depuis `blocs.ordre` ne
 pouvait donner, les 29 questions de cette épreuve partageant le bloc qui porte
 le corpus.
 
+### Déposer des sujets à transcrire
+
+Back-office → Prépa → Import, section « Sujets à transcrire » : on y dépose
+les PDF des sujets et le tableur des réponses, et le dépôt suit son
+avancement (déposé → extraction en cours → CSV et images livrés → importé).
+
+**Il n'y a pas d'extraction automatique, et c'est délibéré** : le tableau
+ci-dessus le montre, un parseur rend les maths scannées et la notation à deux
+dimensions illisibles, soit l'essentiel du corpus. Les 490 questions de la
+session Noël ont été transcrites à la main depuis les PDF. Le dépôt sert donc
+à conserver et suivre la matière première, pas à la convertir.
+
+Le téléversement va du navigateur directement au stockage, avec une URL
+signée délivrée par le serveur : le corps d'une Server Action est plafonné à
+quelques méga-octets sur la plateforme, un sujet scanné pèse davantage. Le
+serveur constate ensuite la présence des fichiers plutôt que de croire le
+client.
+
 ### Préparer un import
 
 Les classeurs d'extraction ne sont pas au format Parkours (propositions dans
