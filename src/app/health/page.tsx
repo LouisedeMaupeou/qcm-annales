@@ -27,6 +27,16 @@ const TABLES_CLES = [
   "questions",
   "reponses_possibles",
   "sessions",
+  // Module concours blancs : une table absente ici signale une migration non
+  // appliquée, et c'est ce décalage entre code et base qui a déjà cassé
+  // l'écran des bilans.
+  "cohortes",
+  "sessions_cb",
+  "epreuves_cb",
+  "passages",
+  "bilans",
+  "epreuves_orales",
+  "depots_extraction",
 ] as const;
 
 /** Compte les lignes d'une table sans les rapatrier (head + count exact). */
@@ -38,12 +48,46 @@ async function compter(db: SupabaseClient, table: string) {
   return count ?? 0;
 }
 
+/**
+ * Version déployée : commit, branche et date de construction.
+ *
+ * Ce voyant répond à une question qui revient à chaque mise en ligne — « quel
+ * code tourne en ce moment ? ». Un écran qui semble ne pas avoir changé est
+ * presque toujours un déploiement en retard, et le savoir en un coup d'œil
+ * évite de chercher le défaut dans le code.
+ *
+ * Les variables sont posées par la plateforme ; en local elles sont absentes,
+ * et c'est l'information utile.
+ */
+function voyantVersion(): Voyant {
+  const sha = process.env.VERCEL_GIT_COMMIT_SHA;
+  const branche = process.env.VERCEL_GIT_COMMIT_REF;
+  const message = process.env.VERCEL_GIT_COMMIT_MESSAGE;
+
+  if (!sha) {
+    return {
+      titre: "Version déployée",
+      etat: "attention",
+      detail:
+        "Aucune information de déploiement : ce serveur tourne en local, le code affiché est celui du dossier de travail.",
+    };
+  }
+
+  return {
+    titre: "Version déployée",
+    etat: "ok",
+    detail:
+      `Commit ${sha.slice(0, 7)}${branche ? ` sur ${branche}` : ""}` +
+      (message ? ` — « ${message.split(/\r?\n/)[0]} »` : ""),
+  };
+}
+
 async function construireVoyants(): Promise<Voyant[]> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const clePub = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
   const cleSecrete = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
 
-  const voyants: Voyant[] = [];
+  const voyants: Voyant[] = [voyantVersion()];
 
   // 1 — Configuration : présence et format des trois variables. Les nouvelles
   // clés Supabase (sb_publishable_ / sb_secret_) comme les anciennes (JWT eyJ…)
@@ -292,8 +336,9 @@ export default async function PageSante() {
           État du système
         </h1>
         <p className="mb-6 text-sm text-texte">
-          Contrôle d&apos;infrastructure de fin d&apos;étape 1 — {nbOk}/
-          {voyants.length} voyants au vert.
+          Contrôle d&apos;infrastructure — {nbOk}/{voyants.length} voyants au
+          vert. Le premier dit quel code est en ligne : un écran qui semble ne
+          pas avoir changé est presque toujours un déploiement en retard.
         </p>
 
         <div
