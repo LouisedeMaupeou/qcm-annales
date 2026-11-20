@@ -115,6 +115,31 @@ const ENONCES_STRUCTURES = {
     "FIN POUR",
 };
 
+/**
+ * Remet à la ligne les éléments d'un énoncé qui énumère.
+ *
+ * Une cellule de tableur n'a pas de retour à la ligne : une question qui
+ * propose quatre phrases numérotées en arrive d'un seul tenant, et l'élève
+ * doit la redécouper des yeux avant de pouvoir y répondre — quand le sujet
+ * papier les présente l'une sous l'autre. On insère les retours sans réécrire
+ * le texte, apostrophes typographiques comprises.
+ *
+ * Deux marqueurs seulement, et jamais « 1) » : en mathématiques, un couple de
+ * coordonnées « (0 ; 3) et (2 ; 7) » en a l'apparence sans être une
+ * énumération.
+ */
+function aerer(texte) {
+  if (texte.includes("\n")) return texte;
+
+  const numerotee = texte.replace(/\s+([1-9]-\s)/g, "\n$1");
+  if ((numerotee.match(/\n[1-9]-\s/g) ?? []).length >= 2) return numerotee;
+
+  const tiretee = texte.replace(/\s+-\s(?=[A-ZÀ-ÜÉÈÊ«“"])/g, "\n- ");
+  if ((tiretee.match(/\n- /g) ?? []).length >= 2) return tiretee;
+
+  return texte;
+}
+
 /** Statuts par lesquels le référentiel atteste qu'une clé est sûre. */
 const STATUTS_SURS = new Set([
   "RÉPONSE PÉDAGOGIQUE RETENUE",
@@ -284,9 +309,11 @@ for (const [feuille, epreuve] of Object.entries(EPREUVES)) {
       bloc_id: blocId,
       type: TYPES[txt(l["Type Moodle"]).toUpperCase()] ?? "choix_unique",
       enonce_commun: passage?.texte ?? "",
-      // `txt` écrase les sauts de ligne ; un énoncé structuré les garde.
+      // `txt` écrase les sauts de ligne ; un énoncé structuré les garde, et
+      // une énumération les retrouve.
       enonce:
-        ENONCES_STRUCTURES[txt(l.ID_question)] ?? txt(l["Énoncé exact / version validée"]),
+        ENONCES_STRUCTURES[txt(l.ID_question)] ??
+        aerer(txt(l["Énoncé exact / version validée"])),
       proposition_a: txt(l["Réponse A"]),
       proposition_b: txt(l["Réponse B"]),
       proposition_c: txt(l["Réponse C"]),
