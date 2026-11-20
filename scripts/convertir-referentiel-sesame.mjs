@@ -32,6 +32,16 @@ const EPREUVES = {
   "ESPAGNOL": { id: "SES-ES-S2", fichier: "SES-ES-S2-lv2-espagnol" },
 };
 
+/**
+ * Épreuves dont le sujet a été découpé en une capture par question.
+ *
+ * L'analyse documentaire en a besoin : la question 19 est un texte à trous,
+ * la 16 oppose deux plans sur plusieurs lignes — la mise en page fait partie
+ * de l'énoncé. Les propositions restent du texte sélectionnable à côté de la
+ * capture : enfermer les réponses dans l'image les rendrait incliquables.
+ */
+const CAPTURES = new Set(["ANALYSE DOCUMENTAIRE"]);
+
 /** Statuts par lesquels le référentiel atteste qu'une clé est sûre. */
 const STATUTS_SURS = new Set([
   "RÉPONSE PÉDAGOGIQUE RETENUE",
@@ -52,7 +62,7 @@ const COLONNES = [
   "id_question", "epreuve_id", "ordre", "bloc_id", "type", "enonce_commun", "enonce",
   "proposition_a", "proposition_b", "proposition_c", "proposition_d",
   "cle", "points", "chapitre", "sous_chapitre", "notions",
-  "retroaction", "document_associe", "statut_extraction", "commentaire",
+  "retroaction", "fichier_image", "document_associe", "statut_extraction", "commentaire",
 ];
 
 const txt = (v) => String(v ?? "").replace(/\s+/g, " ").trim();
@@ -111,10 +121,15 @@ function appliquerCorrection(ligne, defaut) {
 }
 
 /** « Texte 2, encart C » → ["texte-2.png", "encart-C.png"] */
+/** Les neuf textes du dossier, pour une question qui porte sur son ensemble. */
+const DOSSIER_COMPLET = Array.from({ length: 9 }, (_, i) => `texte-${i + 1}.png`);
+
 function documents(mention) {
   const m = txt(mention);
-  const complet = /dossier complet/i.test(m);
-  if (!m || complet) return { fichiers: [], complet };
+  // Les questions de synthèse portent sur tout le dossier : on le leur donne
+  // en entier plutôt que de les renvoyer en relecture faute de document.
+  if (/dossier complet/i.test(m)) return { fichiers: DOSSIER_COMPLET, complet: false };
+  if (!m) return { fichiers: [], complet: false };
   const fichiers = [];
   for (const n of m.matchAll(/textes?\s*([0-9]+(?:\s*(?:,|et)\s*[0-9]+)*)/gi)) {
     for (const num of n[1].match(/[0-9]+/g) ?? []) fichiers.push(`texte-${num}.png`);
@@ -183,6 +198,10 @@ for (const [feuille, epreuve] of Object.entries(EPREUVES)) {
     const passage = txt(l["Document / encart associé"]);
     const blocId = passages.get(passage) ?? "";
 
+    // Les captures ne sont produites que pour les épreuves dont le sujet a été
+    // découpé ; ailleurs, l'énoncé transcrit se suffit.
+    const capture = CAPTURES.has(feuille) ? `question-${numero.padStart(2, "0")}.png` : "";
+
     sortie.push({
       id_question: txt(l.ID_question),
       epreuve_id: epreuve.id,
@@ -202,8 +221,15 @@ for (const [feuille, epreuve] of Object.entries(EPREUVES)) {
       notions: txt(l["Sous-notion précise"]) || txt(l["Code notion"]),
       retroaction: txt(l["Feedback général Moodle"]) || txt(l["Correction expliquée - élève"]),
       document_associe: doc.fichiers.join("|"),
+      // Capture de la question telle qu'elle est imprimée. Elle vaut surtout
+      // pour l'analyse documentaire, dont certains énoncés sont des textes à
+      // trous : la mise en page fait partie de la question.
+      fichier_image: capture,
       statut_extraction: servable ? "OK" : "À VÉRIFIER",
-      commentaire: [...motifs, remarque].filter(Boolean).join(" ").slice(0, 900),
+      // Aucune troncature : un commentaire coupé en plein milieu ferait
+      // perdre justement ce qui doit être relu, et il n'y a pas de limite à
+      // respecter côté import.
+      commentaire: [...motifs, remarque].filter(Boolean).join(" "),
     });
   }
 
