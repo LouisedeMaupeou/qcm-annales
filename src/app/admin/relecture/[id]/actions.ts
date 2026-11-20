@@ -15,15 +15,16 @@ const schema = z.object({
   chapitre: z.string().trim().min(1, "Le chapitre est obligatoire."),
   explication: z.string().trim(),
   explicationRelue: z.boolean(),
-  propositions: z
-    .array(
-      z.object({
-        id: z.uuid(),
-        texte: z.string().trim().min(1, "Une proposition ne peut être vide."),
-        estCorrecte: z.boolean(),
-      }),
-    )
-    .min(2),
+  // Pas de minimum ici : une question de rédaction n'a aucune proposition, et
+  // le type n'est connu qu'après lecture en base. La règle « au moins deux »
+  // est donc appliquée plus bas, pour les seuls types à choix.
+  propositions: z.array(
+    z.object({
+      id: z.uuid(),
+      texte: z.string().trim().min(1, "Une proposition ne peut être vide."),
+      estCorrecte: z.boolean(),
+    }),
+  ),
 });
 
 /**
@@ -66,6 +67,14 @@ export async function deciderRelecture(
     .single();
 
   if (!question) return { message: "Question introuvable." };
+
+  // Une rédaction se corrige à la main : elle n'a ni proposition ni clé, et
+  // valider une telle question signifie seulement que son énoncé est juste.
+  if (question.type !== "redaction" && d.propositions.length < 2) {
+    return {
+      message: `Une question de type « ${question.type} » doit avoir au moins deux propositions (${d.propositions.length} trouvée·s).`,
+    };
+  }
 
   if (question.type === "choix_unique") {
     const correctes = d.propositions.filter((p) => p.estCorrecte).length;

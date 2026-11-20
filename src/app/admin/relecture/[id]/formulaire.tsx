@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
 import { ApercuMath } from "@/lib/notation-math";
 import { deciderRelecture, type EtatRelecture } from "./actions";
@@ -69,12 +70,32 @@ export function FormulaireRelecture({
         <ApercuMath texte={enonce} />
       </div>
 
+      {/* Une rédaction n'a pas de proposition : l'élève écrit, un correcteur
+          humain note. Afficher une liste vide laissait croire à un import
+          incomplet, et le formulaire refusait de valider faute de deux
+          propositions. */}
+      {question.type === "redaction" ? (
+        <div className="rounded-carte bg-fond-doux p-4 text-sm">
+          <p className="mb-1 font-bold text-encre">Réponse rédigée</p>
+          <p>
+            Cette question n&apos;a pas de proposition : l&apos;élève rédige sa
+            réponse, et elle est notée à la main dans{" "}
+            <Link href="/admin/prepa/correction" className="font-bold text-primaire">
+              la file de correction manuelle
+            </Link>
+            . Relire cette question, c&apos;est vérifier son énoncé, son
+            chapitre et sa figure — il n&apos;y a ni options ni clé à contrôler.
+          </p>
+        </div>
+      ) : (
       <div>
         <p className="mb-1.5 font-bold text-encre">Propositions</p>
         <p className="mb-3 text-[0.85rem] opacity-75">
           {question.type === "vrai_faux"
             ? "La question n'est correcte que si les quatre jugements sont exacts."
-            : "Coche l'unique bonne réponse."}
+            : question.type === "choix_multiple"
+              ? "Coche toutes les bonnes réponses : une seule mauvaise coche annule la question."
+              : "Coche l'unique bonne réponse."}
         </p>
         <ul className="space-y-3">
           {propositions.map((p, i) => (
@@ -106,6 +127,7 @@ export function FormulaireRelecture({
           ))}
         </ul>
       </div>
+      )}
 
       <div>
         <label htmlFor="chapitre" className="mb-1.5 block font-bold text-encre">
