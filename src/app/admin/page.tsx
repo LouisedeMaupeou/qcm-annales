@@ -53,6 +53,11 @@ export default async function AdminAccueil() {
           texte="Questions sous le seuil de confiance et questions signalées par les élèves."
         />
         <Carte
+          href="/admin/epreuves-importees"
+          titre="Épreuves importées"
+          texte="Les questions de concours blancs entrées en banque : relire, modifier, prévisualiser."
+        />
+        <Carte
           href="/admin/prepa"
           titre="Prépa"
           texte="Cohortes de la prépa Parkours, rattachements et invitations."
