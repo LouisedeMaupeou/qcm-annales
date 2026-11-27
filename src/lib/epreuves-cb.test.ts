@@ -55,11 +55,19 @@ test("durée officielle : null plutôt qu'une valeur inventée", () => {
   assert.equal(dureeOfficielle("Inconnu", "Mathématiques"), null);
 });
 
-test("barème Avenir : +3 / −1 / 0, relevé sur le sujet", () => {
-  const b = baremeOfficiel("Avenir", "Mathématiques");
+test("barème Avenir : +3 / −1 / 0 en physique, 30 réponses sur 40", () => {
+  const b = baremeOfficiel("Avenir", "Physique-Chimie");
   assert.equal(b?.pointsBonne, 3);
   assert.equal(b?.pointsMauvaise, -1);
   assert.equal(b?.pointsAbstention, 0);
+  assert.equal(b?.regles.reponses_maximum, 30);
+});
+
+test("barème Avenir maths (Noël 2026) : +1 / −1, 45 réponses sur 60", () => {
+  const b = baremeOfficiel("Avenir", "Mathématiques");
+  assert.equal(b?.pointsBonne, 1);
+  assert.equal(b?.pointsMauvaise, -1);
+  assert.equal(b?.regles.reponses_maximum, 45);
 });
 
 test("barème GEIPI : plancher par exercice, que le triplet ne sait pas dire", () => {
@@ -70,7 +78,13 @@ test("barème GEIPI : plancher par exercice, que le triplet ne sait pas dire", (
 test("barème Puissance Alpha : bonification et exercices au choix", () => {
   const b = baremeOfficiel("Puissance Alpha", "Mathématiques");
   assert.equal(b?.regles.bonification_bloc_complet, 1);
-  assert.deepEqual(b?.regles.blocs_au_choix, { obligatoires: 4, a_choisir: 4 });
+  // Sujet de Noël : hors fondamentaux, « les 4 premiers », pas les meilleurs.
+  assert.deepEqual(b?.regles.blocs_au_choix, { obligatoires: 4, a_choisir: 4, selection: "premiers" });
+});
+
+test("barème Puissance Alpha physique (Noël 2026) : 6 exercices sur 7, les premiers", () => {
+  const b = baremeOfficiel("Puissance Alpha", "Physique-Chimie");
+  assert.deepEqual(b?.regles.blocs_au_choix, { obligatoires: 0, a_choisir: 6, selection: "premiers" });
 });
 
 test("analyse documentaire SÉSAME : tout ou rien, contrairement aux autres SÉSAME", () => {
