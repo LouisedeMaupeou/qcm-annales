@@ -6,6 +6,7 @@ import { corriger, type ReponseCopie, type StatutReponseCb } from "@/lib/correct
 import { chargerCadreCorrection } from "@/lib/correction-cb-execution";
 import {
   chargerQuestionsJouables,
+  lireMaximum,
   type QuestionPassage,
   type ReponseEleveCb,
 } from "@/lib/passage-cb";
@@ -34,6 +35,7 @@ type EpreuveOuverte = {
   matiere: string;
   concours: string;
   dureeMinutes: number;
+  reponsesMaximum: number | null;
 };
 
 /**
@@ -49,7 +51,7 @@ async function ouverteApresBilan(
 
   const { data: epreuve } = await admin
     .from("epreuves_cb")
-    .select("id, session_cb_id, matiere, duree_minutes, statut, concours(nom)")
+    .select("id, session_cb_id, matiere, duree_minutes, statut, regles, concours(nom)")
     .eq("id", epreuveCbId)
     .maybeSingle();
   if (!epreuve || epreuve.statut !== "publiee") return { refus: "introuvable" };
@@ -89,6 +91,7 @@ async function ouverteApresBilan(
       matiere: epreuve.matiere as string,
       concours: (epreuve.concours as unknown as { nom: string } | null)?.nom ?? "—",
       dureeMinutes: epreuve.duree_minutes as number,
+      reponsesMaximum: lireMaximum(epreuve.regles as Record<string, unknown> | null),
     },
   };
 }
@@ -397,6 +400,7 @@ export type EtatReprise =
       concours: string;
       matiere: string;
       dureeMinutes: number;
+      reponsesMaximum: number | null;
       commenceeLe: string;
       questions: QuestionPassage[];
     }
@@ -420,6 +424,7 @@ export async function chargerReprise(
       concours: epreuve.concours,
       matiere: epreuve.matiere,
       dureeMinutes: epreuve.dureeMinutes,
+      reponsesMaximum: epreuve.reponsesMaximum,
       commenceeLe: reprise.started_at,
       questions: await chargerQuestionsJouables(epreuve.id, reponses, SIGNATURE_REPRISE),
     };

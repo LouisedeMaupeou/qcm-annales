@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { exigerPrepa } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { corrigerPassage } from "@/lib/correction-cb-execution";
 import { baremeOfficiel, decoderEpreuveId, dureeOfficielle } from "@/lib/epreuves-cb";
 import { emailRelanceConcoursBlanc, envoyerEmail } from "@/lib/emails";
 import { instantDepuisHeureParis } from "@/lib/heure-paris";
@@ -220,6 +221,22 @@ export async function enregistrerEpreuve(
     return { message: "La fenêtre se termine avant de commencer." };
   }
 
+  // Réponses comptées au maximum : vide retire la règle, un entier la pose.
+  // Les autres règles de l'épreuve (plancher, bonification…) sont gardées.
+  const maximumBrut = String(donnees.get("reponsesMaximum") ?? "").trim();
+  const maximum = maximumBrut ? Number(maximumBrut) : null;
+  if (maximum !== null && (!Number.isInteger(maximum) || maximum < 1)) {
+    return { message: "Réponses comptées au maximum : un nombre entier, ou vide." };
+  }
+  const { data: actuelle } = await admin
+    .from("epreuves_cb")
+    .select("regles")
+    .eq("id", id)
+    .maybeSingle();
+  const regles = { ...((actuelle?.regles ?? {}) as Record<string, unknown>) };
+  if (maximum === null) delete regles.reponses_maximum;
+  else regles.reponses_maximum = maximum;
+
   const statut = donnees.get("statut") === "publiee" ? "publiee" : "brouillon";
 
   // Une épreuve ne se publie pas avec des questions en relecture : l'élève
@@ -252,6 +269,7 @@ export async function enregistrerEpreuve(
       points_mauvaise: Number(donnees.get("pointsMauvaise") ?? 0),
       points_abstention: Number(donnees.get("pointsAbstention") ?? 0),
       note_sur: noteSur,
+      regles,
       statut,
     })
     .eq("id", id);
@@ -267,8 +285,25 @@ export async function enregistrerEpreuve(
     if (eCohortes) return { message: `Cohortes : ${eCohortes.message}` };
   }
 
+  // Le barème ou les règles ont pu changer : les copies déjà remises sont
+  // recorrigées, sans quoi leurs notes resteraient celles de l'ancien barème.
+  // La correction est idempotente et garde les points attribués à la main.
+  const { data: copies } = await admin
+    .from("passages")
+    .select("id")
+    .eq("epreuve_cb_id", id)
+    .in("statut", ["remis", "corrige"]);
+  for (const copie of copies ?? []) {
+    await corrigerPassage(copie.id as string);
+  }
+
   revalidatePath(`/admin/prepa/sessions/${sessionCbId}`);
-  return { succes: "Épreuve enregistrée." };
+  return {
+    succes:
+      copies && copies.length > 0
+        ? `Épreuve enregistrée ; ${copies.length} copie(s) recorrigée(s).`
+        : "Épreuve enregistrée.",
+  };
 }
 
 export async function retirerEpreuve(formulaire: FormData) {

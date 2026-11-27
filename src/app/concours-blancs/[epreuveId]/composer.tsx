@@ -40,6 +40,7 @@ export function Composer({
   finLe,
   questions,
   reprise,
+  reponsesMaximum = null,
 }: {
   epreuveId: string;
   concours: string;
@@ -49,6 +50,8 @@ export function Composer({
   questions: QuestionPassage[];
   /** Présent pour une reprise après bilan : entraînement, sans échéance. */
   reprise?: { id: string; commenceeLe: string; dureeMinutes: number };
+  /** Sciences Avenir : seules les N premières réponses, dans l'ordre du sujet, comptent. */
+  reponsesMaximum?: number | null;
 }) {
   const groupes = useMemo(() => grouperParExercice(questions), [questions]);
 
@@ -144,6 +147,12 @@ export function Composer({
   const heures = Math.floor(restant / 3600000);
 
   const repondues = questions.filter((q) => estTraitee(reponses[q.id])).length;
+  // Les réponses données, abstentions exclues : c'est ce que compte la limite.
+  const donnees = questions.filter((q) => {
+    const r = reponses[q.id];
+    return Boolean(r && !r.abstention && (r.reponseId || r.reponseIds?.length || r.texte?.trim()));
+  }).length;
+  const auDelaDuMaximum = reponsesMaximum !== null && donnees > reponsesMaximum;
   const aRevoirIci = groupe.some((q) => reponses[q.id]?.aRevoir);
 
   // Numéro de la première sous-question de l'exercice, pour que l'élève
@@ -174,6 +183,11 @@ export function Composer({
           <p className="text-[0.85rem] opacity-70">
             {reprise && "Entraînement, sans effet sur ta note · "}
             {repondues} / {questions.length} traitées ·{" "}
+            {reponsesMaximum !== null && (
+              <span className={auDelaDuMaximum ? "font-bold text-negatif" : ""}>
+                {Math.min(donnees, reponsesMaximum)} / {reponsesMaximum} réponses comptées ·{" "}
+              </span>
+            )}
             {etatSauvegarde === "en_cours"
               ? "enregistrement…"
               : etatSauvegarde === "echec"
@@ -203,6 +217,19 @@ export function Composer({
       </header>
 
       <main className="flex-1 py-6">
+        {auDelaDuMaximum && (
+          <p
+            role="alert"
+            className="mb-4 rounded-carte border-2 border-negatif bg-negatif/5 p-3 text-sm text-encre"
+          >
+            <strong className="text-negatif">
+              Tu as donné {donnees} réponses : seules les {reponsesMaximum}{" "}
+              premières, dans l&apos;ordre du sujet, seront notées.
+            </strong>{" "}
+            Les suivantes ne rapportent ni ne retirent de points. Pour en faire compter une
+            autre, retire une réponse plus haut (« Je ne réponds pas »).
+          </p>
+        )}
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <span className="text-sm font-extrabold tracking-[.08em] text-primaire-fonce uppercase">
             {groupe.length > 1

@@ -62,6 +62,7 @@ export default async function Passage({
       matiere={etat.matiere}
       finLe={etat.finLe}
       questions={etat.questions}
+      reponsesMaximum={etat.reponsesMaximum}
     />
   );
 }

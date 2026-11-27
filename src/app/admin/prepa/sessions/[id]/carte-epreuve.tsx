@@ -190,6 +190,28 @@ export function CarteEpreuve({
           />
         </div>
 
+        {/* Sciences Avenir : « seules les 30 premières répondues comptent ». Vide :
+            toutes les réponses comptent. */}
+        <div className="grid gap-4 sm:grid-cols-4">
+          <Champ
+            id={`maximum-${epreuve.id}`}
+            nom="reponsesMaximum"
+            libelle="Réponses comptées au maximum"
+            type="number"
+            pas="1"
+            valeur={
+              typeof epreuve.regles.reponses_maximum === "number"
+                ? String(epreuve.regles.reponses_maximum)
+                : ""
+            }
+          />
+          <p className="self-end pb-2.5 text-[0.8rem] opacity-75 sm:col-span-3">
+            Vide : toutes les réponses comptent. Sinon, seules les premières réponses
+            données, dans l&apos;ordre du sujet, sont notées (sciences Avenir : 30), et la
+            note se calcule sur ce nombre de questions.
+          </p>
+        </div>
+
         {epreuve.baremeSource && (
           <details className="rounded-[14px] bg-fond-doux p-4 text-sm">
             <summary className="cursor-pointer font-bold text-encre">

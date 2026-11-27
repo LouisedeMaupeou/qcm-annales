@@ -49,6 +49,7 @@ export default async function ReprisePage({
         matiere={etat.matiere}
         finLe={null}
         questions={etat.questions}
+        reponsesMaximum={etat.reponsesMaximum}
         reprise={{
           id: etat.repriseId,
           commenceeLe: etat.commenceeLe,

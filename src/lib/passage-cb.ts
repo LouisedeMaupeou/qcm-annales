@@ -70,6 +70,8 @@ export type EtatPassage = {
   /** Échéance effective : début + durée, ou fermeture de la fenêtre si plus tôt. */
   finLe: string;
   remis: boolean;
+  /** Sciences Avenir : seules les N premières réponses comptent. */
+  reponsesMaximum: number | null;
   questions: QuestionPassage[];
 };
 
@@ -88,6 +90,7 @@ type EpreuveAutorisee = {
   fenetre_debut: string | null;
   fenetre_fin: string | null;
   statut: string;
+  regles: Record<string, unknown> | null;
   concours: { nom: string } | null;
 };
 
@@ -96,6 +99,12 @@ type EpreuveAutorisee = {
 type Autorisation =
   | { refus: RefusPassage; epreuve?: never }
   | { refus?: never; epreuve: EpreuveAutorisee };
+
+/** La règle « N réponses comptées au plus », si l'épreuve la porte. */
+export function lireMaximum(regles: Record<string, unknown> | null | undefined): number | null {
+  const n = regles?.reponses_maximum;
+  return typeof n === "number" && n > 0 ? n : null;
+}
 
 /** L'échéance : la durée officielle, sauf si la fenêtre se ferme avant. */
 function echeance(demarreLe: string, dureeMinutes: number, fenetreFin: string | null) {
@@ -123,7 +132,7 @@ async function autoriser(userId: string, epreuveCbId: string): Promise<Autorisat
 
   const { data: epreuve } = await admin
     .from("epreuves_cb")
-    .select("id, matiere, duree_minutes, fenetre_debut, fenetre_fin, statut, concours(nom)")
+    .select("id, matiere, duree_minutes, fenetre_debut, fenetre_fin, statut, regles, concours(nom)")
     .eq("id", epreuveCbId)
     .maybeSingle();
   if (!epreuve) return { refus: "introuvable" as const };
@@ -253,6 +262,7 @@ export async function chargerPassage(
     dureeMinutes: epreuve.duree_minutes,
     finLe,
     remis: passage.statut !== "en_cours",
+    reponsesMaximum: lireMaximum(epreuve.regles),
     questions,
   };
 }

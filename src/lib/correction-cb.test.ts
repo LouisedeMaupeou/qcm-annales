@@ -344,3 +344,53 @@ test("exercices au choix : un exercice non traité ne compte pas dans le maximum
   assert.equal(r.pointsMax, 1); // l'exercice jamais ouvert n'est pas noté
   assert.equal(r.noteSur20, 20);
 });
+
+// ---------------------------------------------------------------------------
+// Sciences Avenir : 30 réponses comptées au plus
+// ---------------------------------------------------------------------------
+
+test("Avenir sciences : au-delà de la limite, une réponse ne compte plus", () => {
+  const bareme: Bareme = {
+    pointsBonne: 3,
+    pointsMauvaise: -1,
+    pointsAbstention: 0,
+    noteSur: 20,
+    regles: { reponses_maximum: 2 },
+  };
+  // Dans l'ordre du sujet : juste, abstention, fausse, juste (la 3e réponse).
+  const qs = [1, 2, 3, 4].map((ordre) => question({ id: `m${ordre}`, ordre, bonne: "a" }));
+  const r = corriger(
+    qs,
+    copie([
+      ["m1", { reponseId: "m1-a" }],
+      ["m2", { abstention: true }],
+      ["m3", { reponseId: "m3-b" }],
+      ["m4", { reponseId: "m4-a" }],
+    ]),
+    bareme,
+  );
+  // Comptées : m1 (+3) et m3 (−1). m4, troisième réponse, est ignorée.
+  assert.equal(r.points, 2);
+  assert.equal(r.parQuestion.find((q) => q.questionId === "m4")?.points, 0);
+  // Maximum : 2 questions × 3 points, pas 4 × 3.
+  assert.equal(r.pointsMax, 6);
+  assert.equal(r.noteSur20, 6.67);
+  assert.deepEqual([r.nbBonnes, r.nbFausses, r.nbAbstentions], [1, 1, 1]);
+});
+
+test("Avenir sciences : sous la limite, la règle ne change rien… sauf le maximum", () => {
+  const bareme: Bareme = {
+    pointsBonne: 3,
+    pointsMauvaise: -1,
+    pointsAbstention: 0,
+    noteSur: 20,
+    regles: { reponses_maximum: 30 },
+  };
+  const qs = Array.from({ length: 40 }, (_, i) => question({ id: `n${i}`, ordre: i + 1 }));
+  const reponses = copie(qs.slice(0, 30).map((q) => [q.id, { reponseId: `${q.id}-a` }]));
+  const r = corriger(qs, reponses, bareme);
+  // 30 justes sur 30 autorisées : 20/20, et non 15/20.
+  assert.equal(r.points, 90);
+  assert.equal(r.pointsMax, 90);
+  assert.equal(r.noteSur20, 20);
+});

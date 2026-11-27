@@ -241,6 +241,19 @@ export function baremeOfficiel(concours: string, matiere: string): BaremeOfficie
   const base = BAREMES[concours];
   if (!base) return null;
 
+  // Les sciences Avenir : 30 questions comptées au plus sur 40 (sujet de Noël
+  // 2026, page de garde).
+  if (concours === "Avenir" && /physique|nsi|svt|sciences|^si$/i.test(matiere)) {
+    return {
+      ...base,
+      regles: { reponses_maximum: 30 },
+      source:
+        `${base.source} Chaque candidat ne doit répondre qu'à 30 questions (au choix) parmi ` +
+        "les 40 proposées ; s'il répond à plus de 30 questions, seules les 30 premières " +
+        "répondues sont prises en compte.",
+    };
+  }
+
   if (concours === "SÉSAME" && matiere === "Analyse documentaire") {
     return {
       ...base,

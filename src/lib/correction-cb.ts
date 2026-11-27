@@ -16,6 +16,12 @@
  *    juste rapporte un point de plus.
  *  - `plancher_par_bloc` (GEIPI) — le total d'un exercice ne peut pas être
  *    strictement négatif.
+ *  - `reponses_maximum` (sciences Avenir) — « l'élève ne doit répondre qu'à
+ *    30 questions parmi les 40 ; s'il répond à plus, seules les 30 premières
+ *    répondues sont prises en compte ». Les premières dans l'ordre du sujet :
+ *    c'est ainsi qu'un correcteur les lit sur la copie papier. Au-delà, une
+ *    réponse ne rapporte ni ne retire rien, et la note se calcule sur 30
+ *    questions, pas sur 40.
  *
  * L'ordre d'application n'est pas indifférent : on note chaque question, on
  * applique le tout ou rien qui peut annuler un groupe, puis la bonification
@@ -56,6 +62,7 @@ export type Bareme = {
     bonification_bloc_complet?: number;
     plancher_par_bloc?: boolean;
     blocs_au_choix?: { obligatoires: number; a_choisir: number };
+    reponses_maximum?: number;
   };
 };
 
@@ -147,6 +154,24 @@ export function corriger(
 
   const auto = questions.filter((q) => statuts.get(q.id) !== "a_corriger");
 
+  // --- 1 bis. Réponses comptées au maximum -----------------------------------
+  // Avant toute autre règle : une réponse au-delà de la limite n'existe pas
+  // pour la correction.
+  const ignorees = new Set<string>();
+  const maximum = bareme.regles.reponses_maximum;
+  if (maximum && maximum > 0) {
+    let comptees = 0;
+    for (const q of [...auto].sort((a, b) => a.ordre - b.ordre)) {
+      const statut = statuts.get(q.id);
+      if (statut !== "correcte" && statut !== "incorrecte") continue;
+      comptees += 1;
+      if (comptees > maximum) {
+        ignorees.add(q.id);
+        points.set(q.id, 0);
+      }
+    }
+  }
+
   // --- 2. Tout ou rien par question à trous --------------------------------
   if (bareme.regles.tout_ou_rien_par_question) {
     const groupes = new Map<number, QuestionACorriger[]>();
@@ -212,10 +237,19 @@ export function corriger(
   const questionsRetenues = auto.filter((q) => retenus.has(q.blocId));
 
   const totalPoints = blocsRetenus.reduce((s, b) => s + (totauxBloc.get(b) ?? 0), 0);
-  const pointsMax = questionsRetenues.reduce(
+  let pointsMax = questionsRetenues.reduce(
     (s, q) => s + bareme.pointsBonne * q.poids,
     0,
   );
+  // Avec une limite de réponses, le maximum est celui des questions qu'on a
+  // le droit de traiter : 30 × 3 points, pas 40 × 3.
+  if (maximum && maximum > 0) {
+    const meilleurs = questionsRetenues
+      .map((q) => bareme.pointsBonne * q.poids)
+      .sort((a, b) => b - a)
+      .slice(0, maximum);
+    pointsMax = Math.min(pointsMax, meilleurs.reduce((s, v) => s + v, 0));
+  }
 
   // Un total négatif existe (points négatifs), une note négative n'a pas de
   // sens sur un bilan : plancher à zéro, comme le score du socle.
@@ -224,8 +258,9 @@ export function corriger(
       ? Math.min(bareme.noteSur, Math.max(0, (totalPoints / pointsMax) * bareme.noteSur))
       : 0;
 
+  // Une réponse ignorée n'est ni juste, ni fausse, ni une abstention.
   const compter = (s: StatutReponseCb) =>
-    questionsRetenues.filter((q) => statuts.get(q.id) === s).length;
+    questionsRetenues.filter((q) => statuts.get(q.id) === s && !ignorees.has(q.id)).length;
 
   return {
     parQuestion: questions.map((q) => ({
