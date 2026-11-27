@@ -158,172 +158,170 @@ const couleurNote = (n: number | null) =>
   n === null ? C.pale : n >= 15 ? C.positif : n >= 8 ? C.primaire : C.negatif;
 
 // ---------------------------------------------------------------------------
-// Résultats : une carte par épreuve
+// Résultats : un tableau de synthèse, une ligne par épreuve
 // ---------------------------------------------------------------------------
 
-/** Jauge 0-20 : la note de l'élève, et un trait à la moyenne du groupe. */
-function Jauge({ note, moyenne }: { note: number | null; moyenne: number | null }) {
-  const pc = (n: number) => `${Math.max(0, Math.min(100, (n / 20) * 100))}%`;
-  return (
-    <View>
-      <View style={{ height: 8, backgroundColor: C.doux, borderRadius: 4, position: "relative" }}>
-        {note !== null && (
-          <View style={{ height: 8, width: pc(note), backgroundColor: couleurNote(note), borderRadius: 4 }} />
-        )}
-        {moyenne !== null && (
-          <View
-            style={{ position: "absolute", left: pc(moyenne), top: -3, width: 2, height: 14, backgroundColor: C.encre }}
-          />
-        )}
-      </View>
-      <View style={[s.ligne, { justifyContent: "space-between", marginTop: 3 }]}>
-        <Text style={s.petit}>0</Text>
-        <Text style={s.petit}>{moyenne !== null ? `| moyenne du groupe : ${virgule(moyenne, "/20")}` : ""}</Text>
-        <Text style={s.petit}>20</Text>
-      </View>
-    </View>
-  );
-}
+/** Largeurs des colonnes, en points : le tableau tient sur la largeur d'un A4 portrait. */
+const COL = { epreuve: 82, note: 38, moyenne: 34, place: 30, nombre: 27, liste: 0 };
 
-function Legende({ couleur, texte }: { couleur: string; texte: string }) {
-  return (
-    <View style={[s.ligne, { alignItems: "center", marginRight: 10 }]}>
-      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: couleur, marginRight: 3 }} />
-      <Text style={{ fontSize: 7.5 }}>{texte}</Text>
-    </View>
-  );
-}
-
-/** Barre des réponses : réussies, ratées, sans réponse, sur les attendues. */
-function BarreReponses({ c }: { c: ColonneBilan }) {
-  const total = Math.max(1, c.nbQuestions || c.nbBonnes + c.nbFausses + c.nbAbstentions);
-  const segments = [
-    { n: c.nbBonnes, couleur: C.positif },
-    { n: c.nbFausses, couleur: C.negatif },
-    { n: c.nbAbstentions, couleur: C.gris },
-  ];
-  return (
-    <View>
-      <View style={[s.ligne, { height: 8, borderRadius: 4, overflow: "hidden", backgroundColor: C.doux }]}>
-        {segments.map((seg, i) =>
-          seg.n > 0 ? (
-            <View key={i} style={{ width: `${(seg.n / total) * 100}%`, backgroundColor: seg.couleur }} />
-          ) : null,
-        )}
-      </View>
-      <View style={[s.ligne, { marginTop: 4, flexWrap: "wrap" }]}>
-        <Legende couleur={C.positif} texte={`${c.nbBonnes} réussies`} />
-        <Legende couleur={C.negatif} texte={`${c.nbFausses} ratées`} />
-        <Legende couleur={C.gris} texte={`${c.nbAbstentions} sans réponse`} />
-        <Text style={[s.petit, { marginLeft: "auto" }]}>{c.nbQuestions} questions attendues</Text>
-      </View>
-    </View>
-  );
-}
-
-function ListePoints({
-  titre,
-  points,
-  couleur,
-  fond,
-  detail,
-  commentaire,
+function Cellule({
+  largeur,
+  children,
+  centre = true,
+  style,
 }: {
-  titre: string;
-  points: PointAnalyse[];
-  couleur: string;
-  fond: string;
-  detail: (p: PointAnalyse) => string;
-  commentaire: string;
+  largeur: number;
+  children: React.ReactNode;
+  centre?: boolean;
+  style?: Record<string, unknown>;
 }) {
   return (
-    <View style={{ flex: 1, backgroundColor: fond, borderRadius: 6, paddingVertical: 5, paddingHorizontal: 7 }}>
-      <Text
-        style={{ fontSize: 7.5, fontWeight: 700, color: couleur, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 3 }}
-      >
-        {titre}
-      </Text>
-      {points.length === 0 && !commentaire.trim() && <Text style={s.petit}>—</Text>}
-      {points.map((p) => (
-        <View key={`${p.domaine}-${p.libelle}`} style={[s.ligne, { marginBottom: 1.5 }]}>
-          <Text style={{ color: couleur, width: 8 }}>•</Text>
-          <Text style={{ flex: 1 }}>
-            <Text style={s.gras}>{pourPdf(p.libelle)}</Text>
-            <Text style={{ color: couleur, fontSize: 8 }}> {detail(p)}</Text>
-          </Text>
-        </View>
-      ))}
-      {commentaire.trim() && <Text style={{ marginTop: 3, fontSize: 8 }}>{pourPdf(commentaire.trim())}</Text>}
+    <View
+      style={{
+        ...(largeur ? { width: largeur } : { flex: 1 }),
+        paddingHorizontal: 4,
+        paddingVertical: 5,
+        justifyContent: "center",
+        alignItems: centre ? "center" : "flex-start",
+        ...style,
+      }}
+    >
+      {children}
     </View>
   );
 }
 
-function CarteEpreuve({ c }: { c: ColonneBilan }) {
+function EnTete({ largeur, texte, centre = true }: { largeur: number; texte: string; centre?: boolean }) {
   return (
-    <View style={s.carte} wrap={false}>
-      <View style={[s.ligne, { alignItems: "flex-start" }]}>
-        <View style={{ width: 150 }}>
-          <Text style={{ fontSize: 7.5, color: C.pale, letterSpacing: 0.8, textTransform: "uppercase" }}>
-            {c.concours}
-          </Text>
-          <Text style={{ fontSize: 12, fontWeight: 800, color: C.encre }}>{c.matiere}</Text>
-          {c.absent ? (
-            <Text style={{ fontSize: 10, color: C.pale, marginTop: 6 }}>Non composée</Text>
-          ) : (
-            <Text style={{ marginTop: 2 }}>
-              <Text style={{ fontSize: 22, fontWeight: 800, color: couleurNote(c.noteSur20) }}>
-                {virgule(c.noteSur20)}
-              </Text>
-              <Text style={{ fontSize: 10, color: C.pale }}> /20</Text>
-            </Text>
-          )}
-        </View>
+    <Cellule largeur={largeur} centre={centre}>
+      <Text style={{ color: "#FFFFFF", fontSize: 7, fontWeight: 700, textAlign: centre ? "center" : "left" }}>
+        {texte}
+      </Text>
+    </Cellule>
+  );
+}
 
-        {!c.absent && (
-          <View style={{ flex: 1, paddingLeft: 10 }}>
-            <View style={[s.ligne, { justifyContent: "space-between", marginBottom: 6 }]}>
-              <Text style={{ fontSize: 8, flex: 1, paddingRight: 8 }}>{c.niveau ?? ""}</Text>
-              {c.rang !== null && (
-                <Text style={[s.pastille, { backgroundColor: C.doux, color: C.primaireFonce }]}>
-                  {c.rang === 1 ? "1re" : `${c.rang}e`} sur {c.participants}
-                </Text>
-              )}
-            </View>
-            <Jauge note={c.noteSur20} moyenne={c.moyenneGroupe} />
-            <View style={{ marginTop: 8 }}>
-              <BarreReponses c={c} />
-            </View>
-          </View>
-        )}
-      </View>
-
-      {!c.absent && (
-        <View style={[s.ligne, { marginTop: 8, gap: 8 }]}>
-          <ListePoints
-            titre="Acquis"
-            points={c.forcesPoints}
-            couleur={C.positif}
-            fond={C.positifDoux}
-            detail={(p) => `${p.justes}/${p.posees}`}
-            commentaire={c.forces}
-          />
-          <ListePoints
-            titre="À reprendre (faux plus de 2 fois)"
-            points={c.ameliorationsPoints}
-            couleur={C.negatif}
-            fond={C.negatifDoux}
-            detail={(p) => `${p.fausses} fautes`}
-            commentaire={c.ameliorations}
-          />
-        </View>
+/** Une liste de points dans une cellule : « Grammaire 13 », la mesure en couleur. */
+function PointsCellule({
+  points,
+  couleur,
+  mesure,
+  commentaire,
+}: {
+  points: PointAnalyse[];
+  couleur: string;
+  mesure: (p: PointAnalyse) => string;
+  commentaire: string;
+}) {
+  if (points.length === 0 && !commentaire.trim()) return <Text style={s.petit}>—</Text>;
+  return (
+    <View>
+      {points.map((p) => (
+        <Text key={`${p.domaine}-${p.libelle}`} style={{ fontSize: 7.5, marginBottom: 1 }}>
+          <Text style={{ color: couleur }}>• </Text>
+          <Text style={{ color: C.encre }}>{pourPdf(p.libelle)}</Text>
+          <Text style={{ color: couleur, fontWeight: 700 }}> {mesure(p)}</Text>
+        </Text>
+      ))}
+      {commentaire.trim() && (
+        <Text style={{ fontSize: 7.5, marginTop: 2 }}>{pourPdf(commentaire.trim())}</Text>
       )}
+    </View>
+  );
+}
 
-      {(c.methode.trim() || c.conseils.trim()) && (
-        <View style={{ marginTop: 6 }}>
+function TableauResultats({ colonnes }: { colonnes: ColonneBilan[] }) {
+  return (
+    <View style={{ borderRadius: 8, overflow: "hidden", borderWidth: 1, borderColor: C.ligne }}>
+      <View style={[s.ligne, { backgroundColor: C.encre }]} fixed>
+        <EnTete largeur={COL.epreuve} texte="Épreuve" centre={false} />
+        <EnTete largeur={COL.note} texte="Note" />
+        <EnTete largeur={COL.moyenne} texte="Moy. groupe" />
+        <EnTete largeur={COL.place} texte="Place" />
+        <EnTete largeur={COL.nombre} texte="Quest." />
+        <EnTete largeur={COL.nombre} texte="Réuss." />
+        <EnTete largeur={COL.nombre} texte="Ratées" />
+        <EnTete largeur={COL.nombre} texte="Sans rép." />
+        <EnTete largeur={COL.liste} texte="Acquis" centre={false} />
+        <EnTete largeur={COL.liste} texte="À reprendre (faux > 2 fois)" centre={false} />
+      </View>
+      {colonnes.map((c, i) => (
+        <View
+          key={c.epreuveCbId}
+          wrap={false}
+          style={[s.ligne, { backgroundColor: i % 2 ? C.doux : "#FFFFFF", borderTopWidth: 0.5, borderTopColor: C.ligne }]}
+        >
+          <Cellule largeur={COL.epreuve} centre={false}>
+            <Text style={{ fontSize: 6.5, color: C.pale, textTransform: "uppercase" }}>{c.concours}</Text>
+            <Text style={{ fontSize: 8.5, fontWeight: 700, color: C.encre }}>{c.matiere}</Text>
+          </Cellule>
+          {c.absent ? (
+            <Cellule largeur={COL.note + COL.moyenne + COL.place + COL.nombre * 4}>
+              <Text style={{ color: C.pale }}>Non composée</Text>
+            </Cellule>
+          ) : (
+            <>
+              <Cellule largeur={COL.note}>
+                <Text style={{ fontSize: 12, fontWeight: 800, color: couleurNote(c.noteSur20) }}>
+                  {virgule(c.noteSur20)}
+                </Text>
+                <Text style={{ fontSize: 6.5, color: C.pale }}>/20</Text>
+              </Cellule>
+              <Cellule largeur={COL.moyenne}>
+                <Text>{virgule(c.moyenneGroupe)}</Text>
+              </Cellule>
+              <Cellule largeur={COL.place}>
+                <Text>{c.rang === null ? "—" : `${c.rang}/${c.participants}`}</Text>
+              </Cellule>
+              <Cellule largeur={COL.nombre}>
+                <Text>{c.nbQuestions}</Text>
+              </Cellule>
+              <Cellule largeur={COL.nombre}>
+                <Text style={{ color: C.positif, fontWeight: 700 }}>{c.nbBonnes}</Text>
+              </Cellule>
+              <Cellule largeur={COL.nombre}>
+                <Text style={{ color: C.negatif, fontWeight: 700 }}>{c.nbFausses}</Text>
+              </Cellule>
+              <Cellule largeur={COL.nombre}>
+                <Text style={{ color: C.pale }}>{c.nbAbstentions}</Text>
+              </Cellule>
+            </>
+          )}
+          <Cellule largeur={COL.liste} centre={false}>
+            <PointsCellule
+              points={c.forcesPoints}
+              couleur={C.positif}
+              mesure={(p) => `${p.justes}/${p.posees}`}
+              commentaire={c.forces}
+            />
+          </Cellule>
+          <Cellule largeur={COL.liste} centre={false}>
+            <PointsCellule
+              points={c.ameliorationsPoints}
+              couleur={C.negatif}
+              mesure={(p) => String(p.fausses)}
+              commentaire={c.ameliorations}
+            />
+          </Cellule>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** Les commentaires de méthode et de reprise, quand la responsable en a écrit. */
+function CommentairesEpreuves({ colonnes }: { colonnes: ColonneBilan[] }) {
+  const avec = colonnes.filter((c) => c.methode.trim() || c.conseils.trim());
+  if (avec.length === 0) return null;
+  return (
+    <View style={{ marginTop: 10 }}>
+      {avec.map((c) => (
+        <View key={c.epreuveCbId} style={{ marginBottom: 4 }} wrap={false}>
+          <Text style={s.gras}>{c.matiere}</Text>
           {c.methode.trim() && <Rubrique libelle="Méthode" couleur={C.primaire} texte={c.methode.trim()} />}
           {c.conseils.trim() && <Rubrique libelle="Conseils" couleur={C.primaire} texte={c.conseils.trim()} />}
         </View>
-      )}
+      ))}
     </View>
   );
 }
@@ -461,14 +459,47 @@ function DocumentBilan({ bilan }: { bilan: BilanAssemble }) {
             <Text style={{ fontSize: 9.5, color: C.encre }}>{pourPdf(bilan.enQuelquesMots)}</Text>
           </View>
 
-          <Text style={s.titreSection}>Tes résultats, épreuve par épreuve</Text>
-          {bilan.colonnes.map((c) => (
-            <CarteEpreuve key={c.epreuveCbId} c={c} />
-          ))}
+          <Text style={s.titreSection}>Tes résultats</Text>
+          <TableauResultats colonnes={bilan.colonnes} />
+          <Text style={[s.petit, { marginTop: 4 }]}>
+            Note sur 20, en vert à partir de 15, en rouge sous 8. Place : ton rang parmi les élèves du groupe
+            qui ont composé. Acquis : réussites sur questions posées. À reprendre : nombre de fautes.
+          </Text>
+          <CommentairesEpreuves colonnes={bilan.colonnes} />
 
-          {/* §5.5 : les oraux viennent après les résultats des écrits. */}
+          {bilan.plan.length > 0 && (
+            <View break>
+              <Text style={[s.titreSection, { fontSize: 14, marginTop: 24 }]}>Ton plan de travail</Text>
+              <Text style={s.intro}>
+                Pour chaque épreuve, tes trois points à reprendre les plus fréquents, avec des exemples tirés de tes
+                copies : la notion, l&apos;erreur commise, et comment ne plus la refaire. Toutes tes fautes sont
+                détaillées dans ton bilan en ligne et tes copies corrigées.
+              </Text>
+              {bilan.plan.map((e) => (
+                <View key={e.epreuve} style={{ marginBottom: 6 }}>
+                  {e.points.map((p, i) => (
+                    <PointDuPlanPdf
+                      key={`${p.domaine}-${p.libelle}`}
+                      p={p}
+                      rang={i + 1}
+                      epreuve={i === 0 ? e.epreuve : undefined}
+                    />
+                  ))}
+                  {e.autresPoints.length > 0 && (
+                    <Text style={[s.petit, { marginBottom: 6 }]}>
+                      <Text style={{ fontWeight: 700, color: C.texte }}>Autres points à reprendre : </Text>
+                      {pourPdf(e.autresPoints.map((p) => `${p.libelle} (${p.fautes} fautes)`).join(", "))} — détail dans ton
+                      bilan en ligne.
+                    </Text>
+                  )}
+                </View>
+              ))}
+            </View>
+          )}
+          {/* Oraux en fin de document, après le plan de travail des écrits
+              (retours de la responsable des prépas, novembre 2026). */}
           {bilan.oraux.oraux.length > 0 && (
-            <View>
+            <View break>
               <Text style={s.titreSection}>
                 Oraux blancs
                 {bilan.oraux.complet && bilan.oraux.noteGlobale !== null
@@ -532,35 +563,6 @@ function DocumentBilan({ bilan }: { bilan: BilanAssemble }) {
             </View>
           )}
 
-          {bilan.plan.length > 0 && (
-            <View break>
-              <Text style={[s.titreSection, { fontSize: 14, marginTop: 24 }]}>Ton plan de travail</Text>
-              <Text style={s.intro}>
-                Pour chaque épreuve, tes trois points à reprendre les plus fréquents, avec des exemples tirés de tes
-                copies : la notion, l&apos;erreur commise, et comment ne plus la refaire. Toutes tes fautes sont
-                détaillées dans ton bilan en ligne et tes copies corrigées.
-              </Text>
-              {bilan.plan.map((e) => (
-                <View key={e.epreuve} style={{ marginBottom: 6 }}>
-                  {e.points.map((p, i) => (
-                    <PointDuPlanPdf
-                      key={`${p.domaine}-${p.libelle}`}
-                      p={p}
-                      rang={i + 1}
-                      epreuve={i === 0 ? e.epreuve : undefined}
-                    />
-                  ))}
-                  {e.autresPoints.length > 0 && (
-                    <Text style={[s.petit, { marginBottom: 6 }]}>
-                      <Text style={{ fontWeight: 700, color: C.texte }}>Autres points à reprendre : </Text>
-                      {pourPdf(e.autresPoints.map((p) => `${p.libelle} (${p.fautes} fautes)`).join(", "))} — détail dans ton
-                      bilan en ligne.
-                    </Text>
-                  )}
-                </View>
-              ))}
-            </View>
-          )}
         </View>
 
         <View style={s.piedDePage} fixed>
