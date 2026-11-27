@@ -360,6 +360,17 @@ export type PointAnalyse = {
 export const SEUIL_AMELIORATION = 2;
 /** Au plus quatre forces par épreuve. */
 export const FORCES_MAX = 4;
+/**
+ * En dessous de trois questions, un thème ne permet pas de conclure : une
+ * réponse juste sur une seule question ne fait pas un acquis. Mesuré sur les
+ * épreuves de Noël 2026 : dix chapitres de maths sur onze n'ont qu'une ou
+ * deux questions, quand presque tous les thèmes de langues en ont trois ou
+ * plus.
+ */
+export const QUESTIONS_MIN_THEME = 3;
+/** Acquis : au moins trois réussites, et au moins 75 % du thème. */
+export const REUSSITES_MIN_ACQUIS = 3;
+export const TAUX_MIN_ACQUIS = 75;
 
 /**
  * Les épreuves de langue s'analysent par domaine, pas par chapitre.
@@ -400,22 +411,29 @@ export function pointsDeLEpreuve(reponses: ReponseAnalysee[]): PointAnalyse[] {
 /**
  * Forces et points d'amélioration d'une épreuve.
  *
+ * Seuls les thèmes d'au moins trois questions sont classés : en dessous, on
+ * ne conclut ni dans un sens ni dans l'autre (les fautes restent dans la
+ * copie corrigée).
+ *
  * Amélioration : faux plus de deux fois, le plus fautif d'abord.
- * Forces : au plus quatre, parmi les points majoritairement réussis, ceux qui
- * comptent le moins de fautes — à fautes égales, le plus de réussites. Un
- * point à peine tenté (une réponse juste sur cinq, le reste sans réponse)
- * n'est pas une force : il faut plus de réussites que d'échecs et
- * d'abstentions réunis.
+ * Acquis : au moins trois réussites et 75 % du thème ; au plus quatre, les
+ * moins fautifs d'abord — à fautes égales, le plus de réussites.
  */
 export function forcesEtAmeliorations(points: PointAnalyse[]): {
   forces: PointAnalyse[];
   ameliorations: PointAnalyse[];
 } {
-  const ameliorations = points
+  const classables = points.filter((p) => p.posees >= QUESTIONS_MIN_THEME);
+  const ameliorations = classables
     .filter((p) => p.fausses > SEUIL_AMELIORATION)
     .sort((a, b) => b.fausses - a.fausses || a.libelle.localeCompare(b.libelle, "fr"));
-  const forces = points
-    .filter((p) => p.justes > p.fausses + p.abstentions && p.fausses <= SEUIL_AMELIORATION)
+  const forces = classables
+    .filter(
+      (p) =>
+        p.justes >= REUSSITES_MIN_ACQUIS &&
+        (p.justes / p.posees) * 100 >= TAUX_MIN_ACQUIS &&
+        p.fausses <= SEUIL_AMELIORATION,
+    )
     .sort(
       (a, b) =>
         a.fausses - b.fausses || b.justes - a.justes || a.libelle.localeCompare(b.libelle, "fr"),

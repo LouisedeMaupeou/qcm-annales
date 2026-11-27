@@ -320,6 +320,28 @@ test("hors langues, un point est un chapitre ; faux plus de deux fois = amélior
   assert.deepEqual(forces.map((p) => p.libelle), ["Dispersion"]);
 });
 
+test("un thème de moins de trois questions n'est ni acquis ni à reprendre", () => {
+  const points = pointsDeLEpreuve([
+    ...n(2, () => rep("MAT", "Arithmétique", "Parité", "correcte")),
+    rep("MAT", "Algèbre", "Inéquations", "correcte"),
+  ]);
+  const { ameliorations, forces } = forcesEtAmeliorations(points);
+  assert.deepEqual(forces, []);
+  assert.deepEqual(ameliorations, []);
+});
+
+test("acquis : trois réussites au moins, et 75 % du thème", () => {
+  const points = pointsDeLEpreuve([
+    // 3 sur 4 : acquis.
+    ...n(3, () => rep("FR", "Lexique", null, "correcte")),
+    rep("FR", "Lexique", null, "incorrecte"),
+    // 3 sur 5 : 60 %, pas acquis.
+    ...n(3, () => rep("FR", "Orthographe", null, "correcte")),
+    ...n(2, () => rep("FR", "Orthographe", null, "abstention")),
+  ]);
+  assert.deepEqual(forcesEtAmeliorations(points).forces.map((p) => p.libelle), ["Lexique"]);
+});
+
 test("en langues, la grammaire se compte toutes notions confondues, dès trois fautes", () => {
   const points = pointsDeLEpreuve([
     rep("FR", "Grammaire", "Accord du participe passé", "incorrecte"),
