@@ -241,6 +241,40 @@ export function baremeOfficiel(concours: string, matiere: string): BaremeOfficie
   const base = BAREMES[concours];
   if (!base) return null;
 
+  // Mathématiques Puissance Alpha (sujet de Noël 2026) : 8 exercices dont
+  // les 4 fondamentaux ; hors fondamentaux, les 4 premiers traités.
+  if (concours === "Puissance Alpha" && /math/i.test(matiere)) {
+    return {
+      ...base,
+      regles: {
+        bonification_bloc_complet: 1,
+        blocs_au_choix: { obligatoires: 4, a_choisir: 4, selection: "premiers" },
+      },
+      source:
+        "Vous devez traiter 8 exercices maximum dont les 4 exercices fondamentaux. Si vous " +
+        "traitez plus de 4 exercices hors des fondamentaux, seuls les 4 premiers seront " +
+        "corrigés. Toute réponse exacte rapporte un point, toute réponse inexacte retire 0,5 " +
+        "point ; l'abstention ne rapporte ni ne retire rien. Une bonification d'un point est " +
+        "ajoutée chaque fois qu'un exercice est traité correctement en entier.",
+    };
+  }
+
+  // Mathématiques Avenir (sujet de Noël 2026) : +1 / −1, 45 réponses sur 60.
+  if (concours === "Avenir" && /math/i.test(matiere)) {
+    return {
+      pointsBonne: 1,
+      pointsMauvaise: -1,
+      pointsAbstention: 0,
+      regles: { reponses_maximum: 45 },
+      source:
+        "Vous devez répondre à 45 questions au choix parmi les 60 proposées. Si vous traitez " +
+        "plus de 45 questions, seules les 45 premières répondues seront prises en compte. " +
+        "Une seule réponse est correcte par question. Chaque réponse exacte est gratifiée " +
+        "d'un point, chaque réponse fausse pénalisée par le retrait d'un point ; une question " +
+        "non traitée n'apporte et ne retire aucun point.",
+    };
+  }
+
   // Physique Puissance Alpha (sujet de Noël 2026, page de garde) : 6
   // exercices sur 7, et ce sont les premiers traités qui comptent, pas les
   // meilleurs.

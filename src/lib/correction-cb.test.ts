@@ -421,3 +421,29 @@ test("Puissance Alpha physique : au-delà de 6 exercices, les premiers comptent,
   assert.equal(r.parQuestion.find((q) => q.questionId === "x3")?.points, 0);
   assert.equal(r.parQuestion.find((q) => q.questionId === "x3")?.nonComptee, "exercice_non_retenu");
 });
+
+test("Puissance Alpha maths : les fondamentaux comptent toujours, la limite porte sur les autres", () => {
+  const bareme: Bareme = {
+    pointsBonne: 1,
+    pointsMauvaise: -0.5,
+    pointsAbstention: 0,
+    noteSur: 20,
+    regles: { blocs_au_choix: { obligatoires: 2, a_choisir: 1, selection: "premiers" } },
+  };
+  // Exercices 1 et 2 fondamentaux ; l'élève saute le 2 et traite 3 et 4.
+  const qs = [1, 2, 3, 4].map((n) => question({ id: `f${n}`, ordre: n, blocId: `ex${n}`, bonne: "a" }));
+  const r = corriger(
+    qs,
+    copie([
+      ["f1", { reponseId: "f1-a" }],
+      ["f3", { reponseId: "f3-a" }],
+      ["f4", { reponseId: "f4-a" }],
+    ]),
+    bareme,
+  );
+  // Le fondamental 1, et un seul hors fondamentaux — le premier, le 3 — même
+  // si le fondamental 2 n'a pas été traité.
+  assert.equal(r.points, 2);
+  assert.equal(r.parQuestion.find((q) => q.questionId === "f4")?.nonComptee, "exercice_non_retenu");
+});
+

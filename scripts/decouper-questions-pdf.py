@@ -8,6 +8,11 @@ Découpe chaque question d'un sujet PDF en une image (concours blancs).
                           l'ordre du sujet, doublons de numéro compris.
     mode « affirmations »: exercices « EXERCICE n : » et affirmations « a. … »
                           (Puissance Alpha). Images PREFIXE-01a.png…
+    mode « exercices »  : sujet dont seuls les titres d'exercice sont du texte
+                          (« EXERCICE 3 – … », « Exercice IV ») : un exercice
+                          entier par image, du titre au suivant, sur une ou deux
+                          pages. Images PREFIXE-EX01.png… L'image s'affiche une
+                          fois, en tête des affirmations de l'exercice.
     mode « titres »     : sujet scanné dont seul le titre « Question 12 » est du
                           texte (Advance) : chaque question va de son titre au
                           suivant, ou au bas de la page. Images PREFIXE-01.png…
@@ -60,6 +65,11 @@ def ligne_vide(image, y, x0, x1):
     return rangee.getextrema()[0] >= BLANC
 
 
+def ligne_vide_zone(image, haut, bas, x0, x1):
+    """Vrai si la zone ne porte rien d'autre que du blanc."""
+    return all(ligne_vide(image, y, x0, x1) for y in range(max(0, haut), bas, 3))
+
+
 def fin_par_bande_blanche(image, depart_px, limite_px, x0, x1):
     """Première bande blanche d'au moins BANDE_BLANCHE points après `depart_px`."""
     seuil = int(BANDE_BLANCHE * ECHELLE)
@@ -94,6 +104,49 @@ def main():
         subprocess.run(["pdftoppm", "-r", str(DPI), "-png", pdf, os.path.join(tmp, "p")], check=True)
         fichiers = sorted(os.listdir(tmp), key=lambda f: int(re.search(r"(\d+)", f).group(1)))
         images = {i + 1: Image.open(os.path.join(tmp, f)).convert("RGB") for i, f in enumerate(fichiers)}
+
+        if mode == "exercices":
+            romains = {"I": 1, "II": 2, "III": 3, "IV": 4, "V": 5, "VI": 6, "VII": 7, "VIII": 8, "IX": 9, "X": 10}
+            entete = re.compile(r"^(?:EXERCICE|Exercice)\s+(\d+|[IVX]+)\b")
+            titres = [l for l in lignes if entete.match(l["texte"])]
+            vus = {}
+            for k, l in enumerate(titres):
+                brut = entete.match(l["texte"]).group(1)
+                n = int(brut) if brut.isdigit() else romains[brut]
+                # Une seconde série numérotée (GEIPI : spécialité après le QCM)
+                # reçoit un suffixe : EX01, puis EX01-2.
+                vus[n] = vus.get(n, 0) + 1
+                suivant = titres[k + 1] if k + 1 < len(titres) else None
+                morceaux = []
+                derniere_page = suivant["page"] if suivant else l["page"]
+                for page in range(l["page"], derniere_page + 1):
+                    image = images[page]
+                    x0, x1 = int(40 * ECHELLE), image.width - int(40 * ECHELLE)
+                    bas_page = int((l["hauteur_page"] - MARGE_PAGE) * ECHELLE)
+                    haut = (
+                        max(0, int((l["y0"] - MARGE_HAUT) * ECHELLE))
+                        if page == l["page"]
+                        else premiere_ligne_pleine(image, int(MARGE_PAGE * ECHELLE), bas_page, x0, x1) - 4
+                    )
+                    limite = (
+                        int((suivant["y0"] - 4) * ECHELLE)
+                        if suivant and page == suivant["page"]
+                        else bas_page
+                    )
+                    if limite - haut < 10 or (page != l["page"] and ligne_vide_zone(image, haut, limite, x0, x1)):
+                        continue
+                    bas = derniere_ligne_pleine(image, haut, limite, x0, x1)
+                    morceaux.append(image.crop((x0, haut, x1, bas)))
+                total = sum(m.height for m in morceaux)
+                resultat = Image.new("RGB", (morceaux[0].width, total), "white")
+                y = 0
+                for m in morceaux:
+                    resultat.paste(m, (0, y))
+                    y += m.height
+                nom = f"{prefixe}-EX{n:02d}{'' if vus[n] == 1 else f'-{vus[n]}'}.png"
+                resultat.save(os.path.join(sortie, nom), optimize=True)
+                print(nom, f"pages {l['page']}-{derniere_page}", f"{resultat.width}×{resultat.height}")
+            return
 
         if mode == "titres":
             entete = re.compile(r"^Question\s+(\d+)")

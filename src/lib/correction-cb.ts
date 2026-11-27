@@ -241,7 +241,6 @@ export function corriger(
   let blocsRetenus = [...totauxBloc.keys()];
 
   if (auChoix) {
-    const limite = auChoix.obligatoires + auChoix.a_choisir;
     const traites = blocsRetenus.filter((blocId) =>
       (parBloc.get(blocId) ?? []).some(
         (q) => statuts.get(q.id) !== "abstention",
@@ -249,13 +248,21 @@ export function corriger(
     );
     const rangBloc = (blocId: string) =>
       Math.min(...(parBloc.get(blocId) ?? []).map((q) => q.ordre));
-    blocsRetenus = traites
+    // Les exercices obligatoires (« fondamentaux ») sont les premiers du
+    // sujet : ils comptent toujours. La limite ne porte que sur les autres —
+    // « si vous traitez plus de 4 exercices hors des fondamentaux, seuls les 4
+    // premiers seront corrigés ».
+    const parOrdre = [...totauxBloc.keys()].sort((a, b) => rangBloc(a) - rangBloc(b));
+    const obligatoires = new Set(parOrdre.slice(0, auChoix.obligatoires));
+    const auChoixTraites = traites
+      .filter((b) => !obligatoires.has(b))
       .sort((a, b) =>
         auChoix.selection === "premiers"
           ? rangBloc(a) - rangBloc(b)
           : (totauxBloc.get(b) ?? 0) - (totauxBloc.get(a) ?? 0),
       )
-      .slice(0, limite);
+      .slice(0, auChoix.a_choisir);
+    blocsRetenus = [...traites.filter((b) => obligatoires.has(b)), ...auChoixTraites];
   }
 
   const retenus = new Set(blocsRetenus);
