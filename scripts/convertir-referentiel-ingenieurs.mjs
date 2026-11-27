@@ -19,6 +19,12 @@ import * as XLSX from "xlsx";
  * question dont le texte a perdu ses formules renvoie alors au sujet, page
  * citée, et ses propositions deviennent les lettres A à D.
  *
+ * `--captures AV-PHY-NOEL26` remplace ce renvoi par l'image de la question
+ * elle-même, découpée dans le PDF par `decouper-questions-pdf.py`
+ * (`AV-PHY-NOEL26-14.png`, `PA-PHY-NOEL26-04b.png`), affichée au-dessus des
+ * boutons de réponse. « Page 8 » obligeait l'élève à chercher sa question
+ * parmi trois ou quatre ; l'image est exacte.
+ *
  * Comme pour SÉSAME, la conversion traduit, elle ne réécrit pas. Trois règles :
  *
  * 1. Seule une question « CONCORDANT / DOCUMENTÉ » entre servable. « À
@@ -37,7 +43,14 @@ const SOURCE = process.argv[2];
 const SORTIE = process.argv[3];
 const options = process.argv.slice(4);
 const SUJETS = new Map();
+const CAPTURES = new Set();
 for (let i = 0; i < options.length; i++) {
+  if (options[i] === "--captures") {
+    CAPTURES.add(String(options[i + 1] ?? "").toUpperCase());
+    options.splice(i, 2);
+    i -= 1;
+    continue;
+  }
   if (options[i] !== "--sujet") continue;
   const [id, plage] = String(options[i + 1] ?? "").split("=");
   const [premiere, derniere] = (plage ?? "").split("-").map(Number);
@@ -243,7 +256,14 @@ for (const l of lignes) {
     .split(/\s+A[.)]\s/)[0]
     .replace(/^\d+\s*[-–.)]\s*/, "");
   const ouEstCe = `${page ? `page ${page}` : "le sujet"}`;
-  const enonce = !renvoiAuSujet
+  // La question découpée dans le sujet : l'image porte l'énoncé exact.
+  const capture =
+    renvoiAuSujet && CAPTURES.has(epreuveId) ? `${epreuveId}-${id.split("-").pop()}.png` : "";
+  const enonce = capture
+    ? type === "vrai_faux"
+      ? `Exercice ${exercice}, affirmation ${sous} : vraie ou fausse ?`
+      : `Question ${numeroSujet} du sujet.`
+    : !renvoiAuSujet
     ? nbPropositions >= 2
       ? amorce
       : txt(l["Énoncé / propositions transcrits"])
@@ -296,7 +316,7 @@ for (const l of lignes) {
     retroaction_c: retours[2],
     retroaction_d: retours[3],
     retroaction_e: retours[4],
-    fichier_image: "",
+    fichier_image: capture,
     document_associe: pages ? pages.map((n) => pageSujet(epreuveId, n)).join("|") : "",
     statut_extraction: servable ? "OK" : "À VÉRIFIER",
     commentaire: [

@@ -516,10 +516,16 @@ function SousQuestion({
                     }}
                     className="mt-1 size-4.5 shrink-0 accent-primaire"
                   />
-                  <span>
-                    <strong className="mr-2 text-encre">{"ABCDEF"[i]}.</strong>
-                    {formaterMath(p.texte)}
-                  </span>
+                  {/* Une question découpée dans le sujet porte ses propositions
+                      dans l'image : le bouton ne dit alors que sa lettre. */}
+                  {p.texte.trim() === "ABCDEF"[i] ? (
+                    <strong className="text-encre">{"ABCDEF"[i]}</strong>
+                  ) : (
+                    <span>
+                      <strong className="mr-2 text-encre">{"ABCDEF"[i]}.</strong>
+                      {formaterMath(p.texte)}
+                    </span>
+                  )}
                 </label>
               </li>
             );
