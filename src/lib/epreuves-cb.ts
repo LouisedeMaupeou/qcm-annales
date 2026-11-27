@@ -241,6 +241,26 @@ export function baremeOfficiel(concours: string, matiere: string): BaremeOfficie
   const base = BAREMES[concours];
   if (!base) return null;
 
+  // Physique Puissance Alpha (sujet de Noël 2026, page de garde) : 6
+  // exercices sur 7, et ce sont les premiers traités qui comptent, pas les
+  // meilleurs.
+  if (concours === "Puissance Alpha" && /physique/i.test(matiere)) {
+    return {
+      ...base,
+      regles: {
+        bonification_bloc_complet: 1,
+        blocs_au_choix: { obligatoires: 0, a_choisir: 6, selection: "premiers" },
+      },
+      source:
+        "Vous devez traiter 6 exercices maximum parmi les 7 proposés. Si vous traitez plus " +
+        "de 6 exercices, seuls les 6 premiers seront corrigés. Un exercice est traité dès " +
+        "qu'une réponse à une des 4 affirmations est donnée. Toute réponse exacte rapporte " +
+        "un point, toute réponse inexacte retire 0,5 point ; l'abstention ne rapporte ni ne " +
+        "retire rien. Une bonification d'un point est ajoutée chaque fois qu'un exercice " +
+        "est traité correctement en entier.",
+    };
+  }
+
   // Les sciences Avenir : 30 questions comptées au plus sur 40 (sujet de Noël
   // 2026, page de garde).
   if (concours === "Avenir" && /physique|nsi|svt|sciences|^si$/i.test(matiere)) {

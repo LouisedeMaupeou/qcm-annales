@@ -6,6 +6,7 @@ import { corriger, type ReponseCopie, type StatutReponseCb } from "@/lib/correct
 import { chargerCadreCorrection } from "@/lib/correction-cb-execution";
 import {
   chargerQuestionsJouables,
+  lireExercicesMaximum,
   lireMaximum,
   type QuestionPassage,
   type ReponseEleveCb,
@@ -36,6 +37,7 @@ type EpreuveOuverte = {
   concours: string;
   dureeMinutes: number;
   reponsesMaximum: number | null;
+  exercicesMaximum: number | null;
 };
 
 /**
@@ -92,6 +94,7 @@ async function ouverteApresBilan(
       concours: (epreuve.concours as unknown as { nom: string } | null)?.nom ?? "—",
       dureeMinutes: epreuve.duree_minutes as number,
       reponsesMaximum: lireMaximum(epreuve.regles as Record<string, unknown> | null),
+      exercicesMaximum: lireExercicesMaximum(epreuve.regles as Record<string, unknown> | null),
     },
   };
 }
@@ -401,6 +404,7 @@ export type EtatReprise =
       matiere: string;
       dureeMinutes: number;
       reponsesMaximum: number | null;
+      exercicesMaximum: number | null;
       commenceeLe: string;
       questions: QuestionPassage[];
     }
@@ -425,6 +429,7 @@ export async function chargerReprise(
       matiere: epreuve.matiere,
       dureeMinutes: epreuve.dureeMinutes,
       reponsesMaximum: epreuve.reponsesMaximum,
+      exercicesMaximum: epreuve.exercicesMaximum,
       commenceeLe: reprise.started_at,
       questions: await chargerQuestionsJouables(epreuve.id, reponses, SIGNATURE_REPRISE),
     };

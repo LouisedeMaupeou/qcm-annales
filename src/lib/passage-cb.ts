@@ -72,6 +72,8 @@ export type EtatPassage = {
   remis: boolean;
   /** Sciences Avenir : seules les N premières réponses comptent. */
   reponsesMaximum: number | null;
+  /** Puissance Alpha : N exercices traités au plus. */
+  exercicesMaximum: number | null;
   questions: QuestionPassage[];
 };
 
@@ -104,6 +106,15 @@ type Autorisation =
 export function lireMaximum(regles: Record<string, unknown> | null | undefined): number | null {
   const n = regles?.reponses_maximum;
   return typeof n === "number" && n > 0 ? n : null;
+}
+
+/** La règle « N exercices traités au plus » (Puissance Alpha), si l'épreuve la porte. */
+export function lireExercicesMaximum(
+  regles: Record<string, unknown> | null | undefined,
+): number | null {
+  const choix = regles?.blocs_au_choix as { obligatoires?: number; a_choisir?: number } | undefined;
+  const n = (choix?.obligatoires ?? 0) + (choix?.a_choisir ?? 0);
+  return n > 0 ? n : null;
 }
 
 /** L'échéance : la durée officielle, sauf si la fenêtre se ferme avant. */
@@ -263,6 +274,7 @@ export async function chargerPassage(
     finLe,
     remis: passage.statut !== "en_cours",
     reponsesMaximum: lireMaximum(epreuve.regles),
+    exercicesMaximum: lireExercicesMaximum(epreuve.regles),
     questions,
   };
 }

@@ -61,7 +61,17 @@ export type Bareme = {
     tout_ou_rien_par_question?: boolean;
     bonification_bloc_complet?: number;
     plancher_par_bloc?: boolean;
-    blocs_au_choix?: { obligatoires: number; a_choisir: number };
+    blocs_au_choix?: {
+      obligatoires: number;
+      a_choisir: number;
+      /**
+       * Quels exercices garder quand l'élève en traite trop : les meilleurs
+       * (défaut, maths Puissance Alpha), ou les premiers dans l'ordre du sujet
+       * (physique Puissance Alpha de Noël : « seuls les 6 premiers seront
+       * corrigés »).
+       */
+      selection?: "meilleurs" | "premiers";
+    };
     reponses_maximum?: number;
   };
 };
@@ -228,8 +238,14 @@ export function corriger(
         (q) => statuts.get(q.id) !== "abstention",
       ),
     );
+    const rangBloc = (blocId: string) =>
+      Math.min(...(parBloc.get(blocId) ?? []).map((q) => q.ordre));
     blocsRetenus = traites
-      .sort((a, b) => (totauxBloc.get(b) ?? 0) - (totauxBloc.get(a) ?? 0))
+      .sort((a, b) =>
+        auChoix.selection === "premiers"
+          ? rangBloc(a) - rangBloc(b)
+          : (totauxBloc.get(b) ?? 0) - (totauxBloc.get(a) ?? 0),
+      )
       .slice(0, limite);
   }
 

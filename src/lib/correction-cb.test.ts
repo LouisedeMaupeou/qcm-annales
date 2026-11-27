@@ -394,3 +394,27 @@ test("Avenir sciences : sous la limite, la règle ne change rien… sauf le maxi
   assert.equal(r.pointsMax, 90);
   assert.equal(r.noteSur20, 20);
 });
+
+test("Puissance Alpha physique : au-delà de 6 exercices, les premiers comptent, pas les meilleurs", () => {
+  const bareme: Bareme = {
+    pointsBonne: 1,
+    pointsMauvaise: -0.5,
+    pointsAbstention: 0,
+    noteSur: 20,
+    regles: { blocs_au_choix: { obligatoires: 0, a_choisir: 2, selection: "premiers" } },
+  };
+  // Trois exercices d'une affirmation : faux, faux, juste. Limite : 2.
+  const qs = [1, 2, 3].map((n) => question({ id: `x${n}`, ordre: n, blocId: `ex${n}`, bonne: "a" }));
+  const r = corriger(
+    qs,
+    copie([
+      ["x1", { reponseId: "x1-b" }],
+      ["x2", { reponseId: "x2-b" }],
+      ["x3", { reponseId: "x3-a" }],
+    ]),
+    bareme,
+  );
+  // Les deux premiers (−0,5 chacun), pas le meilleur, troisième.
+  assert.equal(r.points, -1);
+  assert.equal(r.parQuestion.find((q) => q.questionId === "x3")?.points, 0);
+});

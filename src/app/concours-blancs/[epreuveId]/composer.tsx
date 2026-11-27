@@ -41,6 +41,7 @@ export function Composer({
   questions,
   reprise,
   reponsesMaximum = null,
+  exercicesMaximum = null,
 }: {
   epreuveId: string;
   concours: string;
@@ -52,6 +53,8 @@ export function Composer({
   reprise?: { id: string; commenceeLe: string; dureeMinutes: number };
   /** Sciences Avenir : seules les N premières réponses, dans l'ordre du sujet, comptent. */
   reponsesMaximum?: number | null;
+  /** Puissance Alpha : seuls les N premiers exercices traités comptent. */
+  exercicesMaximum?: number | null;
 }) {
   const groupes = useMemo(() => grouperParExercice(questions), [questions]);
 
@@ -153,6 +156,11 @@ export function Composer({
     return Boolean(r && !r.abstention && (r.reponseId || r.reponseIds?.length || r.texte?.trim()));
   }).length;
   const auDelaDuMaximum = reponsesMaximum !== null && donnees > reponsesMaximum;
+  // Un exercice est traité dès qu'une de ses affirmations a une réponse.
+  const estDonnee = (r: ReponseEleveCb | undefined) =>
+    Boolean(r && !r.abstention && (r.reponseId || r.reponseIds?.length || r.texte?.trim()));
+  const exercicesTraites = groupes.filter((g) => g.some((q) => estDonnee(reponses[q.id]))).length;
+  const auDelaDesExercices = exercicesMaximum !== null && exercicesTraites > exercicesMaximum;
   const aRevoirIci = groupe.some((q) => reponses[q.id]?.aRevoir);
 
   // Numéro de la première sous-question de l'exercice, pour que l'élève
@@ -183,6 +191,11 @@ export function Composer({
           <p className="text-[0.85rem] opacity-70">
             {reprise && "Entraînement, sans effet sur ta note · "}
             {repondues} / {questions.length} traitées ·{" "}
+            {exercicesMaximum !== null && (
+              <span className={auDelaDesExercices ? "font-bold text-negatif" : ""}>
+                {exercicesTraites} / {exercicesMaximum} exercices traités ·{" "}
+              </span>
+            )}
             {reponsesMaximum !== null && (
               <span className={auDelaDuMaximum ? "font-bold text-negatif" : ""}>
                 {Math.min(donnees, reponsesMaximum)} / {reponsesMaximum} réponses comptées ·{" "}
@@ -217,6 +230,19 @@ export function Composer({
       </header>
 
       <main className="flex-1 py-6">
+        {auDelaDesExercices && (
+          <p
+            role="alert"
+            className="mb-4 rounded-carte border-2 border-negatif bg-negatif/5 p-3 text-sm text-encre"
+          >
+            <strong className="text-negatif">
+              Tu as traité {exercicesTraites} exercices : seuls les {exercicesMaximum}{" "}
+              premiers, dans l&apos;ordre du sujet, seront corrigés.
+            </strong>{" "}
+            Pour en faire compter un autre, retire tes réponses d&apos;un exercice plus haut
+            (« Je ne réponds pas » sur chaque affirmation).
+          </p>
+        )}
         {auDelaDuMaximum && (
           <p
             role="alert"

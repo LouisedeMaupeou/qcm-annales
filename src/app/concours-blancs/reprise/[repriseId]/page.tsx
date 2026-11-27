@@ -50,6 +50,7 @@ export default async function ReprisePage({
         finLe={null}
         questions={etat.questions}
         reponsesMaximum={etat.reponsesMaximum}
+        exercicesMaximum={etat.exercicesMaximum}
         reprise={{
           id: etat.repriseId,
           commenceeLe: etat.commenceeLe,
