@@ -43,6 +43,35 @@ de passe, email et téléphone du parent.
 **Reste à surveiller :** la délivrabilité réelle (tester une vraie adresse Gmail
 ou Outlook, envisager DMARC et un `Reply-To` vers la boîte de la prépa).
 
+### Travailler depuis une session cloud, sans le PC (depuis le 27/11/2026)
+
+L'utilisateur accède difficilement au PC qui portait jusqu'ici les migrations et
+les scripts. Une session Claude Code cloud peut désormais tout faire :
+
+- **Environnement cloud « qcm-annales »** (personnel) : hôtes autorisés
+  `cdn.sheetjs.com` (sans lui, `npm ci` échoue sur `xlsx`) et l'hôte du projet
+  Supabase (`<ref>.supabase.co`, la référence se lit avec
+  `GET https://api.supabase.com/v1/projects`).
+- **Jeton d'accès personnel Supabase** enregistré comme secret réseau pour
+  `api.supabase.com` (jamais dans le dépôt ni dans le chat). Il donne l'API de
+  gestion : `POST /v1/projects/<ref>/database/query` exécute du SQL.
+- **Migrations** : appliquer le fichier dans une transaction, **et** l'inscrire
+  dans `supabase_migrations.schema_migrations (version, name, statements)`,
+  sinon un futur `supabase db push` la rejouerait. Toujours lire l'historique
+  avant, pour vérifier que la base est au niveau de `main`.
+- **Faire tourner le site sur les vraies données** (aperçus de bilans) : les clés
+  s'obtiennent par `GET /v1/projects/<ref>/api-keys?reveal=true`, écrites dans
+  `.env.local` (ignoré par git) sans jamais les afficher ; lancer `next dev` avec
+  `NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt`, sinon le
+  `fetch` de Node ne passe pas par le proxy et la base semble vide. Les pages
+  d'aperçu temporaires se placent sous `/auth/…` (préfixe public du proxy
+  d'authentification) et ne se commitent jamais.
+- **Déploiement** : un push sur `main` déploie en production (deux projets
+  Vercel, « qcm-annales » et « admissibleparkours »). L'utilisateur valide chaque
+  mise en ligne explicitement ; le travail avance sur une branche en attendant.
+  L'état du déploiement se lit sans accès Vercel :
+  `gh api repos/LouisedeMaupeou/qcm-annales/commits/<sha>/status`.
+
 ---
 
 ## 2. Module concours blancs (prépa Parkours)
@@ -76,6 +105,48 @@ lit. Elles sont notées par la même règle que la copie officielle
 (`chargerCadreCorrection`), et servies par le même chemin expurgé
 (`chargerQuestionsJouables`). Une rédaction n'est pas notée en reprise : on
 montre l'attendu.
+
+**Bilan V11 (27/11/2026, retours de la responsable des prépas sur les bilans
+de Noël).** Écran (`src/components/bilan-v10.tsx`) et PDF (`src/lib/bilan-pdf.tsx`)
+ont la même structure ; le calcul est dans `src/lib/bilan-cb.ts`, testé.
+
+- **Hiérarchie du référentiel SÉSAME** : domaine = « Chapitre / compétence »
+  (`questions.chapitre`), chapitre = « Notion commune » (`sous_chapitre`),
+  notion = « Sous-notion précise » (`notions`), erreur commise = « Feedback
+  réponse X » de la proposition cochée (`reponses_possibles.retroaction`),
+  à reprendre = « Révision ciblée » (`travail_a_realiser`), méthode =
+  « Méthode de résolution » (`questions.methode`). Chargés en base le 27/11 pour
+  la session de Noël (220 questions, 876 retours ; 4 propositions réécrites
+  depuis le référentiel n'ont pas de retour, volontairement).
+- **Page 1** : bandeau, « En quelques mots », tableau de synthèse — une ligne
+  par épreuve : note, moyenne du groupe, place, questions attendues /
+  réussies / ratées / sans réponse (« sans réponse » n'est pas « ratée »),
+  acquis, à reprendre. Toutes filières. Portrait, police **Rubik**.
+- **Un thème n'est classé qu'à partir de 3 questions.** Acquis : ≥ 3
+  réussites et ≥ 75 %, au plus 4. À reprendre : faux plus de 2 fois. Constat
+  sur Noël : 10 chapitres de maths sur 11 n'ont qu'une ou deux questions — en
+  maths, presque rien n'est classable ; **les prochains référentiels devraient
+  viser 3 questions par chapitre**.
+- **Langues** (FR, ANG, DE, ES) : analyse par **domaine** (Grammaire, Lexique,
+  Compréhension, Civilisation…) et non par chapitre, pour que « Grammaire »
+  apparaisse dès 3 fautes toutes notions confondues. Décision « à tester »
+  de la responsable.
+- **Plan de travail** : une section **par épreuve composée**, dans l'ordre du
+  tableau ; les **3 points** les plus fautifs, **2 exemples** chacun (notion,
+  erreur, à reprendre, méthode). Sans point faux plus de 2 fois : les fautes
+  en « points à surveiller » (ambre). Constats calculés une fois
+  (`constatsEpreuve`) : épreuve non traitée, aucune faute, > 25 % sans
+  réponse. **Aucune faute ne disparaît** : à l'écran, chaque point déplie
+  toutes ses fautes ; le PDF renvoie au bilan en ligne. Tout détailler donnait
+  20 pages pour un élève en difficulté.
+- **Oraux à la fin**, après le plan. « À travailler en priorité » supprimé
+  (doublon du plan).
+- **« En quelques mots »** se pré-remplit depuis le tableau (résultat,
+  points solides, à reprendre — maths et français d'abord —, alerte sans
+  réponse). Un texte enregistré par la responsable le remplace ; vider le
+  champ pour revenir au calcul.
+- **Back-office** : bouton « Bilans » sur chaque fiche cohorte →
+  `/admin/prepa/<cohorte>/bilans` (Voir / modifier, PDF).
 
 ---
 
@@ -257,7 +328,18 @@ Note technique : la table `epreuves` utilise **`ordre_affichage`**, pas `ordre`.
 - **Aucun contrôle local du SQL** : voir la règle 3 de [`CLAUDE.md`](../CLAUDE.md),
   avec le piège des `$$` et de `String.replace()`.
 - **Le rendu d'images de PDF n'est pas disponible par défaut** sur cette machine :
-  il faut installer poppler dans le dossier temporaire de session.
+  il faut installer poppler dans le dossier temporaire de session. (En session
+  cloud, `pdftoppm` est présent.)
+- **@react-pdf : un bloc insécable (`wrap={false}`) dans un bloc sécable fait
+  superposer le texte en bas de page.** Rendre insécable la carte entière.
+- **Polices du PDF** : la version « latin » de Rubik n'a ni flèches, ni grec,
+  ni opérateurs (√, ≤, ℝ) — repli sur Noto Sans Math ; exposants, indices et
+  « ≠ » restent mal rendus par les deux et sont réécrits par `pourPdf`
+  (u(n+1), x^(-1)). Les fichiers sont lus sur disque au rendu : ils doivent
+  figurer dans `outputFileTracingIncludes` (`next.config.ts`), sinon Vercel ne
+  les déploie pas.
+- **Un CSV sans BOM UTF-8 est lu en Latin-1 par SheetJS** : accents abîmés à
+  l'import (« RÃ©soudre »). Les XLSX ne sont pas touchés. Non corrigé.
 
 ---
 
@@ -266,8 +348,11 @@ Note technique : la table `epreuves` utilise **`ordre_affichage`**, pas `ordre`.
 - **Documenter par écrit les droits de reproduction** obtenus auprès des
   concours (Puissance Alpha et Avenir au minimum) **avant toute publication
   publique** de leurs questions — §8.9 des specs du socle.
-- **Mettre à jour le README** : sa section « Concours examinés mais non
-  importés » est dépassée pour GEIPI.
+- **Copie corrigée en ligne** : afficher l'erreur commise propre à la réponse
+  cochée (`reponses_possibles.retroaction`), comme le plan du bilan ; elle ne
+  montre aujourd'hui que la correction générale.
+- **Bilan de Beatriz (Noël)** : son « En quelques mots » enregistré suit
+  l'ancienne logique ; le vider pour qu'il se régénère.
 - **Vérifier en relecture** toutes les réponses déterminées automatiquement, en
   priorité celles d'« Enjeux contemporains » de SÉSAME.
 - La liste complète de ce qui reste avant une vraie mise en production est dans
