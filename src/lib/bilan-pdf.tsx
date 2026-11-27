@@ -8,11 +8,7 @@ import {
   View,
   renderToBuffer,
 } from "@react-pdf/renderer";
-import {
-  grouperChapitresParEpreuve,
-  LIBELLE_CHAPITRE,
-  type ChapitreClasse,
-} from "@/lib/bilan-cb";
+import type { PointAnalyse } from "@/lib/bilan-cb";
 import type { BilanAssemble } from "@/lib/bilans-generation";
 
 /**
@@ -35,6 +31,8 @@ const COULEURS = {
   ligne: "#E2E8F3",
   doux: "#F5F8FD",
   primaire: "#2563EB",
+  negatif: "#C43D2F",
+  positif: "#15713C",
 };
 
 const s = StyleSheet.create({
@@ -134,15 +132,18 @@ function Ligne({
 }
 
 /**
- * Les chapitres d'une épreuve, puis le commentaire de la responsable.
+ * Les points d'une épreuve (chapitres, domaines en langues), puis le
+ * commentaire de la responsable.
  *
- * Les chapitres viennent de la correction ; elle n'a pas à les recopier, elle
+ * Les points viennent de la correction ; elle n'a pas à les recopier, elle
  * ajoute ce que les chiffres ne disent pas.
  */
-function celluleChapitres(chapitres: ChapitreClasse[], commentaire: string): string {
-  const lignes = chapitres.map(
-    (c) => `• ${c.chapitre} — ${LIBELLE_CHAPITRE[c.niveau]} (${c.tauxReussite} %)`,
-  );
+function cellulePoints(
+  points: PointAnalyse[],
+  detail: (p: PointAnalyse) => string,
+  commentaire: string,
+): string {
+  const lignes = points.map((p) => `• ${p.libelle} — ${detail(p)}`);
   const texte = commentaire.trim();
   if (texte) lignes.push(texte);
   return lignes.join("\n");
@@ -183,46 +184,42 @@ function DocumentBilan({ bilan }: { bilan: BilanAssemble }) {
             valeurs={c.map((x) => (x.absent ? "non composée" : nombre(x.noteSur20, "/20")))}
           />
           <Ligne
-            titre={detaille ? "Moyenne groupe" : "Moyenne de la classe"}
+            titre="Moyenne du groupe"
             valeurs={c.map((x) => nombre(x.moyenneGroupe, "/20"))}
           />
-
-          {detaille && (
-            <>
-              <Ligne
-                titre="Classement"
-                valeurs={c.map((x) => (x.rang === null ? "—" : `${x.rang}/${x.participants}`))}
-              />
-              <Ligne
-                titre="% de bonnes réponses"
-                valeurs={c.map((x) => nombre(x.tauxBonnesReponses, " %"))}
-              />
-              <Ligne
-                titre="Réponses justes"
-                valeurs={c.map((x) => (x.absent ? "—" : String(x.nbBonnes)))}
-              />
-              <Ligne
-                titre="Réponses fausses"
-                valeurs={c.map((x) => (x.absent ? "—" : String(x.nbFausses)))}
-              />
-              <Ligne
-                titre="Pas de réponse"
-                valeurs={c.map((x) => (x.absent ? "—" : String(x.nbAbstentions)))}
-              />
-            </>
-          )}
+          <Ligne
+            titre="Ta place dans le groupe"
+            valeurs={c.map((x) => (x.rang === null ? "—" : `${x.rang}/${x.participants}`))}
+          />
+          <Ligne titre="Questions attendues" valeurs={c.map((x) => String(x.nbQuestions))} />
+          <Ligne
+            titre="Questions réussies"
+            valeurs={c.map((x) => (x.absent ? "—" : String(x.nbBonnes)))}
+          />
+          <Ligne
+            titre="Questions ratées"
+            valeurs={c.map((x) => (x.absent ? "—" : String(x.nbFausses)))}
+          />
+          <Ligne
+            titre="Sans réponse"
+            valeurs={c.map((x) => (x.absent ? "—" : String(x.nbAbstentions)))}
+          />
 
           <Ligne titre="Niveau de maîtrise" valeurs={c.map((x) => x.niveau ?? "—")} />
 
           {/* Calculées, donc valables pour les deux filières. */}
           <Ligne
             titre="Forces identifiées"
-            valeurs={c.map((x) => celluleChapitres(x.chapitresForces, x.forces))}
+            valeurs={c.map((x) =>
+              cellulePoints(x.forcesPoints, (p) => `${p.justes}/${p.posees} réussies`, x.forces),
+            )}
             masquerSiVide
           />
           <Ligne
-            titre="Points d'amélioration"
-            valeurs={c.map((x) => celluleChapitres(x.chapitresAmeliorer, x.ameliorations))}
+            titre="Points d'amélioration (faux plus de 2 fois)"
+            valeurs={c.map((x) =>
+              cellulePoints(x.ameliorationsPoints, (p) => `${p.fausses} fautes`, x.ameliorations),
+            )}
             masquerSiVide
           />
 
@@ -329,28 +326,60 @@ function DocumentBilan({ bilan }: { bilan: BilanAssemble }) {
           </View>
         )}
 
-        {bilan.chapitres.length > 0 && (
+        {bilan.plan.length > 0 && (
           <View style={s.section} break>
-            <Text style={s.sectionTitre}>Détail par chapitre</Text>
-            <View style={s.ligne}>
-              <Text style={[s.celluleTitre, { flexGrow: 4 }]}>Chapitre</Text>
-              <Text style={s.celluleTitre}>Réussite</Text>
-              <Text style={s.celluleTitre}>Niveau</Text>
-            </View>
-            {/* Une épreuve, puis ses chapitres : le parent sait de quelle
-                matière chaque ligne parle. */}
-            {grouperChapitresParEpreuve(bilan.chapitres).map((g) => (
-              <View key={g.epreuve} wrap={false}>
-                <View style={s.ligne}>
-                  <Text style={[s.celluleTitre, { flexGrow: 6 }]}>{g.epreuve}</Text>
-                </View>
-                {g.chapitres.map((ch) => (
-                  <View key={`${g.epreuve}-${ch.chapitre}`} style={s.ligne} wrap={false}>
-                    <Text style={[s.cellule, { flexGrow: 4 }]}>   {ch.chapitre}</Text>
-                    <Text style={s.cellule}>
-                      {ch.justes}/{ch.posees} ({ch.tauxReussite} %)
+            <Text style={s.sectionTitre}>Ton plan de travail</Text>
+            <Text style={{ marginBottom: 6 }}>
+              Tes points d&apos;amélioration, du plus fréquent au moins fréquent, avec des exemples
+              tirés de tes copies : la notion, l&apos;erreur commise, et comment ne plus la refaire.
+              Toutes tes fautes sont dans tes copies corrigées, sur ton espace.
+            </Text>
+            {bilan.plan.map((e) => (
+              <View key={e.epreuve} style={{ marginTop: 6 }}>
+                <Text style={[s.gras, { fontSize: 10, marginBottom: 2 }]}>{e.epreuve}</Text>
+                {e.points.map((p) => (
+                  <View key={`${p.domaine}-${p.libelle}`} style={s.bloc} wrap={false}>
+                    <Text style={s.gras}>
+                      {p.libelle !== p.domaine ? `${p.domaine} › ` : ""}
+                      {p.libelle}
+                      <Text style={{ color: COULEURS.negatif }}> — {p.fautes} fautes</Text>
                     </Text>
-                    <Text style={s.cellule}>{LIBELLE_CHAPITRE[ch.niveau]}</Text>
+                    {p.detail.map((f) => (
+                      <View
+                        key={f.numero}
+                        style={{ marginTop: 3, paddingLeft: 6, borderLeftWidth: 2, borderLeftColor: "#E7B3AD" }}
+                      >
+                        <Text>
+                          <Text style={s.gras}>Question {f.numero}</Text>
+                          {f.chapitre ? ` · ${f.chapitre}` : ""}
+                          {f.notion ? ` · ${f.notion}` : ""}
+                        </Text>
+                        {f.erreur && (
+                          <Text>
+                            <Text style={[s.gras, { color: COULEURS.negatif }]}>Erreur : </Text>
+                            {f.erreur}
+                          </Text>
+                        )}
+                        {f.amelioration && (
+                          <Text>
+                            <Text style={[s.gras, { color: COULEURS.positif }]}>À reprendre : </Text>
+                            {f.amelioration}
+                          </Text>
+                        )}
+                        {f.methode && (
+                          <Text>
+                            <Text style={[s.gras, { color: COULEURS.primaire }]}>Méthode : </Text>
+                            {f.methode}
+                          </Text>
+                        )}
+                      </View>
+                    ))}
+                    {p.autres > 0 && (
+                      <Text style={[s.petit, { marginTop: 2 }]}>
+                        + {p.autres} autre{p.autres > 1 ? "s" : ""} faute{p.autres > 1 ? "s" : ""} sur ce
+                        point : voir ta copie corrigée.
+                      </Text>
+                    )}
                   </View>
                 ))}
               </View>

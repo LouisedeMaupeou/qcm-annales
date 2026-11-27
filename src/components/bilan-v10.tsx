@@ -1,9 +1,4 @@
-import { Fragment } from "react";
-import {
-  grouperChapitresParEpreuve,
-  LIBELLE_CHAPITRE,
-  type ChapitreClasse,
-} from "@/lib/bilan-cb";
+import type { PointAnalyse } from "@/lib/bilan-cb";
 import type { BilanAssemble } from "@/lib/bilans-generation";
 
 /**
@@ -21,6 +16,12 @@ import type { BilanAssemble } from "@/lib/bilans-generation";
  *
  * Rendu pour l'écran et pour l'impression : c'est l'impression navigateur qui
  * produit le PDF, il n'y a pas de seconde mise en page à maintenir.
+ *
+ * V11 (retours de la responsable des prépas, novembre 2026) : le tableau
+ * montre à toutes les filières le détail attendues / réussies / ratées / sans
+ * réponse ; forces et points d'amélioration nomment les chapitres (les
+ * domaines en langues) ; la suite du bilan devient un plan de travail, faute
+ * par faute.
  */
 
 const nombre = (n: number | null, suffixe = "") =>
@@ -83,42 +84,37 @@ export function BilanV10({ bilan }: { bilan: BilanAssemble }) {
             } fort />
 
             <Ligne
-              titre={detaille ? "Moyenne groupe" : "Moyenne de la classe"}
+              titre="Moyenne du groupe"
               colonnes={colonnes}
               valeur={(c) => nombre(c.moyenneGroupe, "/20")}
             />
-
-            {detaille && (
-              <>
-                <Ligne
-                  titre="Ton classement par rapport au groupe"
-                  colonnes={colonnes}
-                  valeur={(c) =>
-                    c.rang === null ? "—" : `${c.rang}/${c.participants}`
-                  }
-                />
-                <Ligne
-                  titre="% de bonnes réponses"
-                  colonnes={colonnes}
-                  valeur={(c) => nombre(c.tauxBonnesReponses, " %")}
-                />
-                <Ligne
-                  titre="Réponses justes"
-                  colonnes={colonnes}
-                  valeur={(c) => (c.absent ? "—" : String(c.nbBonnes))}
-                />
-                <Ligne
-                  titre="Réponses fausses"
-                  colonnes={colonnes}
-                  valeur={(c) => (c.absent ? "—" : String(c.nbFausses))}
-                />
-                <Ligne
-                  titre="Pas de réponse"
-                  colonnes={colonnes}
-                  valeur={(c) => (c.absent ? "—" : String(c.nbAbstentions))}
-                />
-              </>
-            )}
+            <Ligne
+              titre="Ta place dans le groupe"
+              colonnes={colonnes}
+              valeur={(c) => (c.rang === null ? "—" : `${c.rang}/${c.participants}`)}
+            />
+            <Ligne
+              titre="Questions attendues"
+              colonnes={colonnes}
+              valeur={(c) => String(c.nbQuestions)}
+            />
+            <Ligne
+              titre="Questions réussies"
+              colonnes={colonnes}
+              valeur={(c) => (c.absent ? "—" : String(c.nbBonnes))}
+            />
+            <Ligne
+              titre="Questions ratées"
+              colonnes={colonnes}
+              valeur={(c) => (c.absent ? "—" : String(c.nbFausses))}
+            />
+            {/* Ne pas répondre n'est pas rater : avec des points négatifs,
+                c'est parfois la bonne stratégie. */}
+            <Ligne
+              titre="Sans réponse"
+              colonnes={colonnes}
+              valeur={(c) => (c.absent ? "—" : String(c.nbAbstentions))}
+            />
 
             <Ligne
               titre="Niveau de maîtrise de l'épreuve"
@@ -131,16 +127,19 @@ export function BilanV10({ bilan }: { bilan: BilanAssemble }) {
                 pour les deux filières. Elles disparaissent si l'épreuve n'a
                 aucun chapitre classé. */}
             <LigneTexte
-              titre="Forces identifiées (chapitres et méthode)"
+              titre="Forces identifiées"
               colonnes={colonnes}
               texte={(c) => c.forces}
-              chapitres={(c) => c.chapitresForces}
+              points={(c) => c.forcesPoints}
+              detailPoint={(p) => `${p.justes}/${p.posees} réussies`}
             />
             <LigneTexte
-              titre="Points d'amélioration (chapitres et méthode)"
+              titre="Points d'amélioration (faux plus de 2 fois)"
               colonnes={colonnes}
               texte={(c) => c.ameliorations}
-              chapitres={(c) => c.chapitresAmeliorer}
+              points={(c) => c.ameliorationsPoints}
+              detailPoint={(p) => `${p.fausses} fautes`}
+              alerte
             />
 
             {detaille ? (
@@ -192,49 +191,7 @@ export function BilanV10({ bilan }: { bilan: BilanAssemble }) {
         </section>
       )}
 
-      {bilan.chapitres.length > 0 && (
-        <section>
-          <h2 className="mb-3 text-sm font-extrabold tracking-[.08em] text-primaire-fonce uppercase">
-            Détail par chapitre
-          </h2>
-          <table className="w-full border-collapse text-[0.85rem]">
-            <thead>
-              <tr className="bg-fond-doux text-left">
-                <th className="border border-ligne p-2">Chapitre</th>
-                <th className="border border-ligne p-2">Réussite</th>
-                <th className="border border-ligne p-2">Niveau</th>
-              </tr>
-            </thead>
-            <tbody>
-              {/* Chaque épreuve ouvre son bloc : un même intitulé de chapitre
-                  peut venir de deux matières, et la table les mêlait. */}
-              {grouperChapitresParEpreuve(bilan.chapitres).map((g) => (
-                <Fragment key={g.epreuve}>
-                  <tr>
-                    <th
-                      colSpan={3}
-                      className="border border-ligne bg-fond-doux p-2 text-left font-extrabold text-encre"
-                    >
-                      {g.epreuve}
-                    </th>
-                  </tr>
-                  {g.chapitres.map((c) => (
-                    <tr key={`${g.epreuve}-${c.chapitre}`}>
-                      <td className="border border-ligne p-2 pl-4">{c.chapitre}</td>
-                      <td className="border border-ligne p-2 tabular-nums">
-                        {c.justes}/{c.posees} ({c.tauxReussite} %)
-                      </td>
-                      <td className="border border-ligne p-2">
-                        {LIBELLE_CHAPITRE[c.niveau]}
-                      </td>
-                    </tr>
-                  ))}
-                </Fragment>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      )}
+      {bilan.plan.length > 0 && <PlanDeTravail plan={bilan.plan} />}
     </article>
   );
 }
@@ -279,15 +236,19 @@ function LigneTexte({
   titre,
   colonnes,
   texte,
-  chapitres,
+  points,
+  detailPoint,
+  alerte = false,
 }: {
   titre: string;
   colonnes: BilanAssemble["colonnes"];
   texte: (c: BilanAssemble["colonnes"][number]) => string;
-  chapitres?: (c: BilanAssemble["colonnes"][number]) => ChapitreClasse[];
+  points?: (c: BilanAssemble["colonnes"][number]) => PointAnalyse[];
+  detailPoint?: (p: PointAnalyse) => string;
+  alerte?: boolean;
 }) {
   const vide = colonnes.every(
-    (c) => !texte(c).trim() && (chapitres?.(c).length ?? 0) === 0,
+    (c) => !texte(c).trim() && (points?.(c).length ?? 0) === 0,
   );
   if (vide) return null;
 
@@ -297,7 +258,7 @@ function LigneTexte({
         {titre}
       </th>
       {colonnes.map((c) => {
-        const liste = chapitres?.(c) ?? [];
+        const liste = points?.(c) ?? [];
         const commentaire = texte(c).trim();
         return (
           <td
@@ -306,12 +267,15 @@ function LigneTexte({
           >
             {liste.length > 0 && (
               <ul className="mb-1.5 space-y-0.5">
-                {liste.map((ch) => (
-                  <li key={ch.chapitre}>
-                    {ch.chapitre}{" "}
-                    <span className="opacity-70">
-                      — {LIBELLE_CHAPITRE[ch.niveau]} ({ch.tauxReussite} %)
-                    </span>
+                {liste.map((p) => (
+                  <li key={`${p.domaine}-${p.libelle}`}>
+                    {p.libelle}
+                    {detailPoint && (
+                      <span className={alerte ? "font-bold text-negatif" : "opacity-70"}>
+                        {" "}
+                        — {detailPoint(p)}
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -423,5 +387,80 @@ function Retour({ titre, texte }: { titre: string; texte: string | null }) {
       </dt>
       <dd className="whitespace-pre-line">{texte}</dd>
     </div>
+  );
+}
+
+/**
+ * La suite du bilan : un plan de travail.
+ *
+ * Les points d'amélioration du tableau, épreuve par épreuve, le plus fautif
+ * d'abord, chacun illustré par deux fautes de la copie — la notion, l'erreur
+ * commise, ce qu'il faut reprendre, la méthode. La copie corrigée, en ligne,
+ * porte les autres, et le renvoi le dit.
+ */
+function PlanDeTravail({ plan }: { plan: BilanAssemble["plan"] }) {
+  return (
+    <section className="space-y-5">
+      <h2 className="text-sm font-extrabold tracking-[.08em] text-primaire-fonce uppercase">
+        Ton plan de travail
+      </h2>
+      <p className="text-[0.9rem] opacity-80">
+        Tes points d&apos;amélioration, du plus fréquent au moins fréquent, avec des
+        exemples tirés de tes copies : la notion, l&apos;erreur commise, et comment ne
+        plus la refaire. Toutes tes fautes sont dans tes copies corrigées, sur ton
+        espace.
+      </p>
+      {plan.map((e) => (
+        <div key={e.epreuve} className="space-y-3">
+          <h3 className="font-black text-encre">{e.epreuve}</h3>
+          {e.points.map((p) => (
+            <div key={`${p.domaine}-${p.libelle}`} className="rounded-carte border border-ligne p-4">
+              <p className="mb-2 font-extrabold text-encre">
+                {p.libelle !== p.domaine && (
+                  <span className="font-bold opacity-70">{p.domaine} › </span>
+                )}
+                {p.libelle}{" "}
+                <span className="font-bold text-negatif">— {p.fautes} fautes</span>
+              </p>
+              <ul className="space-y-2.5 border-l-4 border-negatif/40 pl-3 text-[0.88rem]">
+                {p.detail.map((f) => (
+                  <li key={f.numero}>
+                    <p>
+                      <span className="font-bold">Question {f.numero}</span>
+                      {f.chapitre && <> · {f.chapitre}</>}
+                      {f.notion && <> · {f.notion}</>}
+                    </p>
+                    {f.erreur && (
+                      <p>
+                        <span className="font-bold text-negatif">Erreur : </span>
+                        {f.erreur}
+                      </p>
+                    )}
+                    {f.amelioration && (
+                      <p>
+                        <span className="font-bold text-positif">À reprendre : </span>
+                        {f.amelioration}
+                      </p>
+                    )}
+                    {f.methode && (
+                      <p>
+                        <span className="font-bold text-primaire-fonce">Méthode : </span>
+                        {f.methode}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              {p.autres > 0 && (
+                <p className="mt-2 text-[0.82rem] opacity-70">
+                  + {p.autres} autre{p.autres > 1 ? "s" : ""} faute{p.autres > 1 ? "s" : ""} sur
+                  ce point : voir ta copie corrigée.
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      ))}
+    </section>
   );
 }

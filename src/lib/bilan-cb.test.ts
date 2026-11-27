@@ -294,3 +294,121 @@ test("un chapitre sans épreuve connue n'est pas perdu", () => {
   assert.equal(groupes.length, 1);
   assert.equal(groupes[0].epreuve, "Autres");
 });
+
+// ---------------------------------------------------------------------------
+// Analyse V11
+// ---------------------------------------------------------------------------
+
+import {
+  erreurCommise,
+  forcesEtAmeliorations,
+  planDeTravail,
+  pointsDeLEpreuve,
+  type ReponseAnalysee,
+} from "./bilan-cb.ts";
+
+let numero = 0;
+function rep(
+  matiere: string,
+  domaine: string,
+  chapitre: string | null,
+  statut: ReponseAnalysee["statut"],
+  extra: Partial<ReponseAnalysee> = {},
+): ReponseAnalysee {
+  numero += 1;
+  return {
+    epreuve: `SÉSAME ${matiere}`,
+    matiere,
+    numero,
+    domaine,
+    chapitre,
+    notion: null,
+    statut,
+    retourReponse: null,
+    methode: null,
+    travail: null,
+    ...extra,
+  };
+}
+const n = (k: number, f: () => ReponseAnalysee) => Array.from({ length: k }, f);
+
+test("hors langues, un point est un chapitre ; faux plus de deux fois = amélioration", () => {
+  const points = pointsDeLEpreuve([
+    ...n(3, () => rep("MAT", "Géométrie", "Aires et distances", "incorrecte")),
+    ...n(2, () => rep("MAT", "Algèbre", "Inéquations", "incorrecte")),
+    ...n(3, () => rep("MAT", "Statistiques", "Dispersion", "correcte")),
+  ]);
+  const { ameliorations, forces } = forcesEtAmeliorations(points);
+  assert.deepEqual(ameliorations.map((p) => [p.libelle, p.fausses]), [["Aires et distances", 3]]);
+  assert.deepEqual(forces.map((p) => p.libelle), ["Dispersion"]);
+});
+
+test("en langues, la grammaire se compte toutes notions confondues, dès trois fautes", () => {
+  const points = pointsDeLEpreuve([
+    rep("FR", "Grammaire", "Accord du participe passé", "incorrecte"),
+    rep("FR", "Grammaire", "Pronoms et déterminants", "incorrecte"),
+    rep("FR", "Grammaire", "Construction de la phrase", "incorrecte"),
+    ...n(2, () => rep("FR", "Lexique", "Sens précis", "incorrecte")),
+  ]);
+  const { ameliorations } = forcesEtAmeliorations(points);
+  assert.deepEqual(ameliorations.map((p) => [p.libelle, p.fausses]), [["Grammaire", 3]]);
+  // Le lexique garde son nombre de fautes, sous le seuil.
+  assert.equal(points.find((p) => p.libelle === "Lexique")?.fausses, 2);
+});
+
+test("au plus quatre forces, les moins fautives d'abord, et jamais un point à peine tenté", () => {
+  const points = pointsDeLEpreuve([
+    ...["A", "B", "C", "D", "E"].flatMap((c, i) => [
+      ...n(4, () => rep("DIG", "Outils", c, "correcte")),
+      ...n(i % 2, () => rep("DIG", "Outils", c, "incorrecte")),
+    ]),
+    // Une réussite sur cinq, le reste sans réponse : pas une force.
+    rep("DIG", "Outils", "F", "correcte"),
+    ...n(4, () => rep("DIG", "Outils", "F", "abstention")),
+  ]);
+  const { forces } = forcesEtAmeliorations(points);
+  assert.deepEqual(forces.map((p) => p.libelle), ["A", "C", "E", "B"]);
+});
+
+test("l'erreur commise est extraite du retour, sans préfixe ni méthode", () => {
+  assert.equal(
+    erreurCommise("À corriger — Oublie toutes les solutions x<−1. Méthode de vérification : Factoriser."),
+    "Oublie toutes les solutions x<−1.",
+  );
+  assert.equal(
+    erreurCommise("Réponse non retenue — « cenan » suppose un sujet pluriel. Règle à appliquer : Identifier le noyau."),
+    "« cenan » suppose un sujet pluriel.",
+  );
+  assert.equal(erreurCommise(null), null);
+});
+
+test("le plan reprend les points d'amélioration, deux fautes variées chacun", () => {
+  const plan = planDeTravail([
+    // Sous le seuil : pas dans le plan.
+    ...n(2, () => rep("FR", "Lexique", "Sens précis", "incorrecte", { notion: "disgrâce" })),
+    ...[
+      ["Accord du participe passé", "avec avoir"],
+      ["Accord du participe passé", "avec avoir"],
+      ["Accord du participe passé", "pronominaux"],
+      ["Pronoms et déterminants", "leur / leurs"],
+    ].map(([chapitre, notion]) =>
+      rep("FR", "Grammaire", chapitre, "incorrecte", {
+        notion,
+        retourReponse: "À corriger — Mauvais accord. Méthode de vérification : chercher le COD.",
+        travail: "Refaire 5 phrases",
+        methode: "Repérer l'auxiliaire puis le COD",
+      }),
+    ),
+    rep("FR", "Grammaire", "Accord du participe passé", "correcte"),
+  ]);
+  assert.equal(plan.length, 1);
+  const [grammaire] = plan[0].points;
+  assert.deepEqual([grammaire.libelle, grammaire.fautes, grammaire.autres], ["Grammaire", 4, 2]);
+  // Deux chapitres différents plutôt que deux fois le même.
+  assert.deepEqual(
+    grammaire.detail.map((f) => f.chapitre).sort(),
+    ["Accord du participe passé", "Pronoms et déterminants"],
+  );
+  assert.equal(grammaire.detail[0].erreur, "Mauvais accord.");
+  assert.equal(grammaire.detail[0].methode, "Repérer l'auxiliaire puis le COD");
+});

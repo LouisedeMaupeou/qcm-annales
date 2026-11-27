@@ -302,3 +302,230 @@ export function grouperChapitresParEpreuve(
     .map(([epreuve, liste]) => ({ epreuve, chapitres: liste }))
     .sort((a, b) => a.epreuve.localeCompare(b.epreuve, "fr"));
 }
+
+// ---------------------------------------------------------------------------
+// Analyse V11 : domaine › chapitre › notion › erreur › amélioration
+// ---------------------------------------------------------------------------
+//
+// Retours de la responsable des prépas sur les bilans de Noël 2026. Le
+// tableau doit dire, épreuve par épreuve, ce qui est acquis et ce qui ne l'est
+// pas ; la suite du bilan devient un plan de travail, qui nomme pour chaque
+// faute la notion, l'erreur commise et comment ne plus la refaire.
+//
+// La hiérarchie est celle du référentiel SÉSAME :
+//   domaine  = « Chapitre / compétence » (colonne `questions.chapitre`)
+//   chapitre = « Notion commune »        (colonne `questions.sous_chapitre`)
+//   notion   = « Sous-notion précise »   (colonne `questions.notions`)
+
+/** Une réponse de copie, avec ce que le référentiel dit de la question. */
+export type ReponseAnalysee = {
+  /** Épreuve telle qu'on la nomme aux familles. */
+  epreuve: string;
+  /** Code matière de l'identifiant d'épreuve : FR, ANG, MAT, DE… */
+  matiere: string;
+  /** Numéro de la question dans l'épreuve. */
+  numero: number;
+  domaine: string;
+  chapitre: string | null;
+  notion: string | null;
+  statut: "correcte" | "incorrecte" | "abstention" | "a_corriger";
+  /** Retour propre à la proposition cochée, quand elle est fausse. */
+  retourReponse: string | null;
+  methode: string | null;
+  travail: string | null;
+};
+
+/** Un point du tableau : un chapitre, ou un domaine entier en langues. */
+export type PointAnalyse = {
+  libelle: string;
+  domaine: string;
+  posees: number;
+  justes: number;
+  fausses: number;
+  abstentions: number;
+};
+
+/** « Faux plus de 2 fois » : le seuil des points d'amélioration. */
+export const SEUIL_AMELIORATION = 2;
+/** Au plus quatre forces par épreuve. */
+export const FORCES_MAX = 4;
+
+/**
+ * Les épreuves de langue s'analysent par domaine, pas par chapitre.
+ *
+ * Leurs questions de grammaire portent sur des notions bien plus nombreuses
+ * et diverses que les chapitres du programme : découpées, elles dépassent
+ * rarement le seuil une à une, alors que l'élève en accumule dix. Par domaine
+ * — Grammaire, Lexique, Compréhension, Civilisation —, « Grammaire » apparaît
+ * dès trois fautes toutes notions confondues, et chaque type de question
+ * montre son nombre de fautes.
+ */
+const LANGUES = /^(FR|FRA|ANG|EN|DE|ALL|ES|ESP|IT|LV\d?)$/i;
+export const estLangue = (matiere: string) => LANGUES.test(matiere.trim());
+
+function unite(r: ReponseAnalysee): { cle: string; libelle: string } {
+  if (estLangue(r.matiere) || !r.chapitre) return { cle: r.domaine, libelle: r.domaine };
+  return { cle: `${r.domaine}›${r.chapitre}`, libelle: r.chapitre };
+}
+
+/** Compte les réponses d'une épreuve par point (chapitre, ou domaine en langues). */
+export function pointsDeLEpreuve(reponses: ReponseAnalysee[]): PointAnalyse[] {
+  const points = new Map<string, PointAnalyse>();
+  for (const r of reponses) {
+    if (r.statut === "a_corriger") continue;
+    const { cle, libelle } = unite(r);
+    const p =
+      points.get(cle) ??
+      ({ libelle, domaine: r.domaine, posees: 0, justes: 0, fausses: 0, abstentions: 0 } satisfies PointAnalyse);
+    p.posees += 1;
+    if (r.statut === "correcte") p.justes += 1;
+    else if (r.statut === "incorrecte") p.fausses += 1;
+    else p.abstentions += 1;
+    points.set(cle, p);
+  }
+  return [...points.values()];
+}
+
+/**
+ * Forces et points d'amélioration d'une épreuve.
+ *
+ * Amélioration : faux plus de deux fois, le plus fautif d'abord.
+ * Forces : au plus quatre, parmi les points majoritairement réussis, ceux qui
+ * comptent le moins de fautes — à fautes égales, le plus de réussites. Un
+ * point à peine tenté (une réponse juste sur cinq, le reste sans réponse)
+ * n'est pas une force : il faut plus de réussites que d'échecs et
+ * d'abstentions réunis.
+ */
+export function forcesEtAmeliorations(points: PointAnalyse[]): {
+  forces: PointAnalyse[];
+  ameliorations: PointAnalyse[];
+} {
+  const ameliorations = points
+    .filter((p) => p.fausses > SEUIL_AMELIORATION)
+    .sort((a, b) => b.fausses - a.fausses || a.libelle.localeCompare(b.libelle, "fr"));
+  const forces = points
+    .filter((p) => p.justes > p.fausses + p.abstentions && p.fausses <= SEUIL_AMELIORATION)
+    .sort(
+      (a, b) =>
+        a.fausses - b.fausses || b.justes - a.justes || a.libelle.localeCompare(b.libelle, "fr"),
+    )
+    .slice(0, FORCES_MAX);
+  return { forces, ameliorations };
+}
+
+/**
+ * L'erreur commise, sans son habillage.
+ *
+ * Le retour du référentiel s'écrit « À corriger — <l'erreur>. Méthode de
+ * vérification : <…> » ou « Réponse non retenue — <l'erreur>. Règle à
+ * appliquer : <…> ». Le bilan affiche la méthode à part : on n'en garde ici
+ * que l'erreur elle-même.
+ */
+export function erreurCommise(retour: string | null): string | null {
+  if (!retour?.trim()) return null;
+  let texte = retour.trim();
+  const tiret = texte.indexOf(" — ");
+  if (tiret >= 0 && tiret < 40) texte = texte.slice(tiret + 3);
+  texte = texte.split(/\s*(?:Méthode de vérification|Règle à appliquer)\s*:/i)[0].trim();
+  return texte || null;
+}
+
+export type FauteDetaillee = {
+  numero: number;
+  /** Chapitre de la faute, quand le point regroupe tout un domaine (langues). */
+  chapitre: string | null;
+  notion: string | null;
+  erreur: string | null;
+  amelioration: string | null;
+  methode: string | null;
+};
+
+/** Un point d'amélioration du tableau, et ce qu'il faut en retenir. */
+export type PointDuPlan = {
+  libelle: string;
+  domaine: string;
+  fautes: number;
+  /** Au plus `FAUTES_DETAILLEES_MAX`, de chapitres et de notions différents d'abord. */
+  detail: FauteDetaillee[];
+  /** Fautes non détaillées ici, à retrouver dans la copie corrigée. */
+  autres: number;
+};
+
+export type PlanEpreuve = {
+  epreuve: string;
+  points: PointDuPlan[];
+};
+
+/**
+ * Deux fautes détaillées par point : au-delà, le bilan devient un catalogue
+ * — vingt pages pour un élève en difficulté, que personne ne lit. La copie
+ * corrigée, consultable en ligne, porte toutes les autres.
+ */
+export const FAUTES_DETAILLEES_MAX = 2;
+
+/**
+ * La suite du bilan : un plan de travail.
+ *
+ * Il reprend, épreuve par épreuve, les points d'amélioration du tableau
+ * (faux plus de deux fois), le plus fautif d'abord. Chacun est illustré par
+ * des fautes de la copie : la notion, l'erreur commise, ce qu'il faut
+ * reprendre et la méthode. Une abstention n'a pas d'erreur à expliquer : elle
+ * compte dans le tableau, pas ici.
+ */
+export function planDeTravail(reponses: ReponseAnalysee[]): PlanEpreuve[] {
+  const parEpreuve = new Map<string, ReponseAnalysee[]>();
+  for (const r of reponses) {
+    parEpreuve.set(r.epreuve, [...(parEpreuve.get(r.epreuve) ?? []), r]);
+  }
+
+  const plans: PlanEpreuve[] = [];
+  for (const [epreuve, siennes] of parEpreuve) {
+    const { ameliorations } = forcesEtAmeliorations(pointsDeLEpreuve(siennes));
+    if (ameliorations.length === 0) continue;
+
+    const points = ameliorations.map((p) => {
+      const fautes = siennes
+        .filter((r) => r.statut === "incorrecte" && unite(r).libelle === p.libelle && r.domaine === p.domaine)
+        .sort((a, b) => a.numero - b.numero);
+
+      // Varier les exemples : un chapitre, puis une notion, pas encore vus.
+      const retenues: ReponseAnalysee[] = [];
+      const chapitresVus = new Set<string>();
+      const notionsVues = new Set<string>();
+      const passes: ((f: ReponseAnalysee) => boolean)[] = [
+        (f) => !chapitresVus.has(f.chapitre ?? "") && !notionsVues.has(f.notion ?? `#${f.numero}`),
+        (f) => !notionsVues.has(f.notion ?? `#${f.numero}`),
+        () => true,
+      ];
+      for (const accepte of passes) {
+        for (const f of fautes) {
+          if (retenues.length >= FAUTES_DETAILLEES_MAX) break;
+          if (retenues.includes(f) || !accepte(f)) continue;
+          retenues.push(f);
+          chapitresVus.add(f.chapitre ?? "");
+          notionsVues.add(f.notion ?? `#${f.numero}`);
+        }
+      }
+
+      const regroupe = estLangue(siennes[0]?.matiere ?? "");
+      return {
+        libelle: p.libelle,
+        domaine: p.domaine,
+        fautes: p.fausses,
+        detail: retenues
+          .sort((a, b) => a.numero - b.numero)
+          .map((f) => ({
+            numero: f.numero,
+            chapitre: regroupe ? f.chapitre : null,
+            notion: f.notion,
+            erreur: erreurCommise(f.retourReponse),
+            amelioration: f.travail,
+            methode: f.methode,
+          })),
+        autres: fautes.length - retenues.length,
+      };
+    });
+    plans.push({ epreuve, points });
+  }
+  return plans;
+}

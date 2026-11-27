@@ -7,14 +7,20 @@ import {
   grouperChapitresParEpreuve,
   matieresATravailler,
   classerChapitres,
+  planDeTravail,
   enQuelquesMots,
+  forcesEtAmeliorations,
+  pointsDeLEpreuve,
   moyenne,
   niveauEpreuve,
   prioriser,
   rang,
   SEUILS_PAR_DEFAUT,
   type ChapitreClasse,
+  type PlanEpreuve,
+  type PointAnalyse,
   type Priorite,
+  type ReponseAnalysee,
   type SeuilsChapitre,
   type StatsChapitre,
 } from "@/lib/bilan-cb";
@@ -44,10 +50,18 @@ export type ColonneBilan = {
   moyenneGroupe: number | null;
   rang: number | null;
   participants: number;
+  /** Questions de l'épreuve : ce qui était attendu de l'élève. */
+  nbQuestions: number;
   nbBonnes: number;
   nbFausses: number;
   nbAbstentions: number;
   niveau: string | null;
+  /**
+   * Forces (au plus quatre, les moins fautives) et points d'amélioration
+   * (faux plus de deux fois) de l'épreuve : chapitres, ou domaines en langues.
+   */
+  forcesPoints: PointAnalyse[];
+  ameliorationsPoints: PointAnalyse[];
   /**
    * Chapitres de l'épreuve, classés par la correction.
    *
@@ -76,6 +90,8 @@ export type BilanAssemble = {
   session: string;
   colonnes: ColonneBilan[];
   chapitres: ChapitreClasse[];
+  /** Plan de travail : chaque point d'amélioration, illustré par des fautes de la copie. */
+  plan: PlanEpreuve[];
   priorites: Priorite[];
   /** §5.5 : section « Oraux blancs », après les résultats des écrits. */
   oraux: SectionOrauxBilan;
@@ -230,6 +246,9 @@ export async function assemblerBilan(
       moyenneGroupe: moyenne(duGroupe),
       rang: note === null ? null : rang(note, duGroupe),
       participants: duGroupe.length,
+      nbQuestions: 0,
+      forcesPoints: [],
+      ameliorationsPoints: [],
       nbBonnes: mien?.nb_bonnes ?? 0,
       nbFausses: mien?.nb_fausses ?? 0,
       nbAbstentions: mien?.nb_abstentions ?? 0,
@@ -265,6 +284,17 @@ export async function assemblerBilan(
       ...groupe.chapitres.filter((c) => c.niveau === "a_consolider"),
     ];
   }
+  // --- Analyse V11 : points par épreuve, et détail des fautes ---------------
+  const { reponses: analysees, volumes } = await reponsesAnalysees(userId, epreuveIds);
+  for (const colonne of colonnes) {
+    colonne.nbQuestions = volumes.get(colonne.epreuveCbId) ?? 0;
+    const siennesIci = analysees.filter((r) => r.epreuveCbId === colonne.epreuveCbId);
+    const { forces, ameliorations } = forcesEtAmeliorations(pointsDeLEpreuve(siennesIci));
+    colonne.forcesPoints = forces;
+    colonne.ameliorationsPoints = ameliorations;
+  }
+  const plan = planDeTravail(analysees);
+
   const prioritesCalculees = prioriser(classes);
 
   const prioritesEditees = (bilan?.priorites ?? []) as Priorite[];
@@ -293,6 +323,7 @@ export async function assemblerBilan(
     colonnes,
     oraux: await orauxDuBilan(sessionCbId, userId),
     chapitres: classes,
+    plan,
     priorites,
     enQuelquesMots:
       (bilan?.en_quelques_mots as string | null) ||
@@ -387,4 +418,122 @@ async function statsParChapitre(
   }
 
   return [...parChapitre.values()];
+}
+
+/**
+ * Les réponses de l'élève, chacune avec ce que le référentiel dit de sa
+ * question et le retour propre à la proposition cochée — c'est lui qui nomme
+ * l'erreur commise.
+ *
+ * Le numéro est le rang de la question dans l'épreuve, tel que l'élève l'a vu
+ * à l'écran et le retrouve dans sa copie corrigée.
+ */
+async function reponsesAnalysees(
+  userId: string,
+  epreuveIds: string[],
+): Promise<{
+  reponses: (ReponseAnalysee & { epreuveCbId: string })[];
+  volumes: Map<string, number>;
+}> {
+  const volumes = new Map<string, number>();
+  if (epreuveIds.length === 0) return { reponses: [], volumes };
+  const admin = createAdminClient();
+
+  const [{ data: liens }, { data: passages }] = await Promise.all([
+    admin
+      .from("epreuve_cb_questions")
+      .select("epreuve_cb_id, question_id, ordre")
+      .in("epreuve_cb_id", epreuveIds)
+      .limit(5000),
+    admin
+      .from("passages")
+      .select("id, epreuve_cb_id")
+      .eq("user_id", userId)
+      .in("epreuve_cb_id", epreuveIds),
+  ]);
+
+  // Rang de chaque question dans son épreuve, et volume de l'épreuve.
+  const numeros = new Map<string, number>();
+  const parEpreuve = new Map<string, { question_id: string; ordre: number }[]>();
+  for (const l of liens ?? []) {
+    const e = l.epreuve_cb_id as string;
+    parEpreuve.set(e, [
+      ...(parEpreuve.get(e) ?? []),
+      { question_id: l.question_id as string, ordre: Number(l.ordre) },
+    ]);
+  }
+  for (const [e, liste] of parEpreuve) {
+    volumes.set(e, liste.length);
+    liste
+      .sort((a, b) => a.ordre - b.ordre)
+      .forEach((l, i) => numeros.set(`${e}#${l.question_id}`, i + 1));
+  }
+
+  const epreuveDuPassage = new Map(
+    (passages ?? []).map((p) => [p.id as string, p.epreuve_cb_id as string]),
+  );
+  if (epreuveDuPassage.size === 0) return { reponses: [], volumes };
+
+  const { data: lignes } = await admin
+    .from("passage_reponses")
+    .select(
+      "passage_id, question_id, statut, reponse, questions(chapitre, sous_chapitre, notions, methode, travail_a_realiser, epreuve_id_externe)",
+    )
+    .in("passage_id", [...epreuveDuPassage.keys()])
+    .limit(5000);
+
+  // Le retour des propositions cochées, en une fois.
+  const cochees = new Set<string>();
+  for (const l of lignes ?? []) {
+    const r = (l.reponse ?? {}) as { reponseId?: string; reponseIds?: string[] };
+    for (const id of [r.reponseId, ...(r.reponseIds ?? [])]) if (id) cochees.add(id);
+  }
+  const retours = new Map<string, string | null>();
+  const ids = [...cochees];
+  for (let i = 0; i < ids.length; i += 100) {
+    const { data } = await admin
+      .from("reponses_possibles")
+      .select("id, retroaction, est_correcte")
+      .in("id", ids.slice(i, i + 100));
+    for (const p of data ?? []) {
+      // Seul le retour d'une proposition fausse décrit une erreur.
+      if (!p.est_correcte) retours.set(p.id as string, (p.retroaction as string | null) ?? null);
+    }
+  }
+
+  const reponses: (ReponseAnalysee & { epreuveCbId: string })[] = [];
+  for (const l of lignes ?? []) {
+    const q = l.questions as unknown as {
+      chapitre: string | null;
+      sous_chapitre: string | null;
+      notions: string | null;
+      methode: string | null;
+      travail_a_realiser: string | null;
+      epreuve_id_externe: string | null;
+    } | null;
+    if (!q?.chapitre) continue;
+    const epreuveCbId = epreuveDuPassage.get(l.passage_id as string)!;
+    const r = (l.reponse ?? {}) as { reponseId?: string; reponseIds?: string[] };
+    const retour =
+      [r.reponseId, ...(r.reponseIds ?? [])]
+        .map((id) => (id ? retours.get(id) : null))
+        .find(Boolean) ?? null;
+
+    reponses.push({
+      epreuveCbId,
+      epreuve: q.epreuve_id_externe
+        ? (libelleEpreuveImportee(q.epreuve_id_externe) ?? q.epreuve_id_externe)
+        : "",
+      matiere: (q.epreuve_id_externe ?? "").split("-")[1] ?? "",
+      numero: numeros.get(`${epreuveCbId}#${l.question_id as string}`) ?? 0,
+      domaine: q.chapitre,
+      chapitre: q.sous_chapitre,
+      notion: q.notions,
+      statut: (l.statut as ReponseAnalysee["statut"] | null) ?? "abstention",
+      retourReponse: retour,
+      methode: q.methode,
+      travail: q.travail_a_realiser,
+    });
+  }
+  return { reponses, volumes };
 }
