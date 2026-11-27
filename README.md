@@ -71,6 +71,10 @@ node --env-file=.env.local scripts/recette-concours-blancs.mjs
 # Concours blancs : importer le CSV et ses images — même chemin de code que le
 # back-office. Toujours passer par --simulation d'abord : rien n'est écrit.
 node --env-file=.env.local scripts/importer-concours-blancs.mjs      <fichier.csv> [zip-images...] --simulation
+
+# Concours blancs : compléter une session déjà passée avec la méthode, la révision
+# ciblée et le retour de chaque proposition, sans réimporter. Simule par défaut.
+node --env-file=.env.local scripts/enrichir-referentiel-sesame.mjs   <referentiel.xlsx> [--ecrire]
 ```
 
 ### Ce qui s'extrait d'un PDF, et ce qui ne s'extrait pas

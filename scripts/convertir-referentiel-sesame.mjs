@@ -175,8 +175,9 @@ const TYPES = {
 const COLONNES = [
   "id_question", "epreuve_id", "ordre", "bloc_id", "type", "enonce_commun", "enonce",
   "proposition_a", "proposition_b", "proposition_c", "proposition_d",
-  "cle", "points", "chapitre", "sous_chapitre", "notions",
-  "retroaction", "fichier_image", "document_associe", "statut_extraction", "commentaire",
+  "cle", "points", "chapitre", "sous_chapitre", "notions", "travail_a_realiser", "methode",
+  "retroaction", "retroaction_a", "retroaction_b", "retroaction_c", "retroaction_d",
+  "fichier_image", "document_associe", "statut_extraction", "commentaire",
 ];
 
 const txt = (v) => String(v ?? "").replace(/\s+/g, " ").trim();
@@ -206,18 +207,20 @@ for (const l of XLSX.utils.sheet_to_json(wb.Sheets["POINTS À CORRIGER"], { defv
  * la réécriture.
  */
 function appliquerCorrection(ligne, defaut) {
-  if (!defaut) return { applique: null, cle: null };
+  if (!defaut) return { applique: null, cle: null, reecrite: null };
 
   const c = defaut.correction;
   const citation = /[«"]\s*([^»"]+?)\s*[»"]/;
   const applique = [];
   let cle = defaut.prevue.replace(/AUCUNE/i, "").trim().toUpperCase();
+  let reecrite = null;
 
   const proposition = c.match(/Remplacer\s+([A-F])\s+par\s*[«"]\s*([^»"]+?)\s*[»"]/i);
   if (proposition) {
     const lettre = proposition[1].toUpperCase();
     ligne[`Réponse ${lettre}`] = proposition[2];
     applique.push(`proposition ${lettre} réécrite`);
+    reecrite = lettre;
     if (!cle) cle = lettre;
   }
 
@@ -231,7 +234,11 @@ function appliquerCorrection(ligne, defaut) {
   const reponseDite = c.match(/réponse\s+([A-F])\b/i);
   if (!cle && reponseDite) cle = reponseDite[1].toUpperCase();
 
-  return { applique: applique.length ? applique.join(" et ") : null, cle: cle || null };
+  return {
+    applique: applique.length ? applique.join(" et ") : null,
+    cle: cle || null,
+    reecrite,
+  };
 }
 
 /** « Texte 2, encart C » → ["texte-2.png", "encart-C.png"] */
@@ -339,7 +346,19 @@ for (const [feuille, epreuve] of Object.entries(EPREUVES)) {
       chapitre: txt(l["Chapitre / compétence"]),
       sous_chapitre: txt(l["Notion commune"]),
       notions: txt(l["Sous-notion précise"]) || txt(l["Code notion"]),
+      // Ce que le bilan restitue à l'élève : comment s'y prendre, et quoi
+      // refaire pour ne plus commettre l'erreur.
+      travail_a_realiser: txt(l["Révision ciblée + exercice de transfert"]),
+      methode: txt(l["Méthode de résolution (étapes)"]),
       retroaction: txt(l["Feedback général Moodle"]) || txt(l["Correction expliquée - élève"]),
+      // Le retour d'une proposition réécrite parlait de l'ancien texte : il
+      // ne la décrit plus, on ne le garde pas.
+      ...Object.fromEntries(
+        ["A", "B", "C", "D"].map((x) => [
+          `retroaction_${x.toLowerCase()}`,
+          correction.reecrite === x ? "" : txt(l[`Feedback réponse ${x}`]),
+        ]),
+      ),
       document_associe: doc.fichiers.join("|"),
       // Capture de la question telle qu'elle est imprimée. Elle vaut surtout
       // pour l'analyse documentaire, dont certains énoncés sont des textes à

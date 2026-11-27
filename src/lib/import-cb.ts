@@ -44,8 +44,17 @@ export const COLONNES_CB_FACULTATIVES = [
   "sous_chapitre",
   "notions",
   "travail_a_realiser",
+  "methode",
   "auto_correction",
   "retroaction",
+  // Retour propre à chaque proposition : il nomme l'erreur de l'élève qui
+  // l'a cochée, et c'est ce que le bilan lui restitue.
+  "retroaction_a",
+  "retroaction_b",
+  "retroaction_c",
+  "retroaction_d",
+  "retroaction_e",
+  "retroaction_f",
   "fichier_image",
   "document_associe",
   // Hors tableau du §3, mais indispensables : sans elles, une question dont
@@ -78,12 +87,20 @@ export type QuestionCb = {
   typeStocke: Exclude<TypeCb, "vrai_faux">;
   enonceCommun: string | null;
   enonce: string;
-  propositions: { texte: string; estCorrecte: boolean; ordre: number }[];
+  propositions: {
+    texte: string;
+    estCorrecte: boolean;
+    ordre: number;
+    /** Retour propre à cette proposition, s'il est fourni. */
+    retroaction: string | null;
+  }[];
   points: number;
   chapitre: string;
   sousChapitre: string | null;
   notions: string | null;
   travail: string | null;
+  /** Méthode de résolution, étape par étape. */
+  methode: string | null;
   autoCorrection: boolean;
   retroaction: string | null;
   fichierImage: string | null;
@@ -253,8 +270,8 @@ export function analyserFichierCb(donnees: ArrayBuffer): RapportCb {
         return rejeter(`${idExterne} : clé « ${cle} » attendue VRAI ou FAUX.`);
       }
       propositions = [
-        { texte: "Vrai", estCorrecte: cle === "VRAI", ordre: 1 },
-        { texte: "Faux", estCorrecte: cle === "FAUX", ordre: 2 },
+        { texte: "Vrai", estCorrecte: cle === "VRAI", ordre: 1, retroaction: nettoyer(l.retroaction_a) || null },
+        { texte: "Faux", estCorrecte: cle === "FAUX", ordre: 2, retroaction: nettoyer(l.retroaction_b) || null },
       ];
     } else {
       typeStocke = type;
@@ -292,6 +309,7 @@ export function analyserFichierCb(donnees: ArrayBuffer): RapportCb {
         texte,
         estCorrecte: correctes.has(rang),
         ordre: rang + 1,
+        retroaction: nettoyer(l[`retroaction_${"abcdef"[rang]}`]) || null,
       }));
 
       // Une proposition « (voir image) » n'est pas une erreur — les sujets
@@ -335,6 +353,7 @@ export function analyserFichierCb(donnees: ArrayBuffer): RapportCb {
       sousChapitre: nettoyer(l.sous_chapitre) || null,
       notions: nettoyer(l.notions) || null,
       travail: nettoyer(l.travail_a_realiser) || null,
+      methode: nettoyer(l.methode) || null,
       autoCorrection,
       retroaction: nettoyer(l.retroaction) || null,
       fichierImage: nettoyer(l.fichier_image) || null,

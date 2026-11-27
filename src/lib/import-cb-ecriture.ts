@@ -213,6 +213,7 @@ export async function ecrireQuestionsCb(
           sous_chapitre: q.sousChapitre,
           notions: q.notions,
           travail_a_realiser: q.travail,
+          methode: q.methode,
           auto_correction: q.autoCorrection,
           retroaction_ciblee: q.retroaction,
           points_defaut: q.points,
@@ -250,25 +251,50 @@ export async function ecrireQuestionsCb(
   }
 
   // --- Propositions --------------------------------------------------------
-  // Remplacées en bloc : une clé corrigée en relecture doit effacer l'ancienne,
-  // pas s'y ajouter.
+  // Mises à jour en place, rang par rang. Une copie d'élève retient
+  // l'identifiant de la proposition cochée : supprimer puis recréer les
+  // propositions — ce que faisait cet import — détachait toutes les copies
+  // déjà rendues de leurs réponses, et le bilan ne pouvait plus dire quelle
+  // erreur l'élève avait commise. Une clé corrigée remplace toujours
+  // l'ancienne : `est_correcte` est réécrit sur chaque rang.
   const idsQuestions = [...idParExterne.values()];
-  for (const lot of decouper(idsQuestions, 200)) {
-    const { error } = await admin.from("reponses_possibles").delete().in("question_id", lot);
-    if (error) throw new Error(`Propositions (nettoyage) : ${error.message}`);
+  const existantes: { id: string; question_id: string; ordre: number }[] = [];
+  // Lots de 100 : au-delà, l'URL dépasse la limite de PostgREST.
+  for (const lot of decouper(idsQuestions, 100)) {
+    const { data, error } = await admin
+      .from("reponses_possibles")
+      .select("id, question_id, ordre")
+      .in("question_id", lot);
+    if (error) throw new Error(`Propositions existantes : ${error.message}`);
+    existantes.push(...((data ?? []) as typeof existantes));
   }
+  const idParRang = new Map(existantes.map((p) => [`${p.question_id}#${p.ordre}`, p.id]));
 
   const propositions = importables.flatMap((q) =>
-    q.propositions.map((p) => ({
-      question_id: idParExterne.get(q.idExterne)!,
-      texte: p.texte,
-      est_correcte: p.estCorrecte,
-      ordre: p.ordre,
-    })),
+    q.propositions.map((p) => {
+      const questionId = idParExterne.get(q.idExterne)!;
+      return {
+        id: idParRang.get(`${questionId}#${p.ordre}`) ?? crypto.randomUUID(),
+        question_id: questionId,
+        texte: p.texte,
+        est_correcte: p.estCorrecte,
+        ordre: p.ordre,
+        retroaction: p.retroaction,
+      };
+    }),
   );
   for (const lot of decouper(propositions, 500)) {
-    const { error } = await admin.from("reponses_possibles").insert(lot);
+    const { error } = await admin.from("reponses_possibles").upsert(lot, { onConflict: "id" });
     if (error) throw new Error(`Propositions : ${error.message}`);
+  }
+
+  // Les rangs que le fichier ne porte plus — une question passée de cinq à
+  // quatre propositions — disparaissent, eux seuls.
+  const gardees = new Set(propositions.map((p) => p.id));
+  const enTrop = existantes.map((p) => p.id).filter((id) => !gardees.has(id));
+  for (const lot of decouper(enTrop, 100)) {
+    const { error } = await admin.from("reponses_possibles").delete().in("id", lot);
+    if (error) throw new Error(`Propositions (surplus) : ${error.message}`);
   }
 
   // --- Documents de bloc ---------------------------------------------------

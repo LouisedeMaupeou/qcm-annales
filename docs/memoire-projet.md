@@ -244,6 +244,15 @@ Note technique : la table `epreuves` utilise **`ordre_affichage`**, pas `ordre`.
   doublons. Supprimer par lots de 100 au plus, ou par `.eq(colonne, …)`.
 - **Une question déjà jouée n'est pas supprimable** : `session_questions` la
   référence.
+- **Une copie de concours blanc retient l'identifiant de la proposition
+  cochée** (`passage_reponses.reponse.reponseId`), sans clé étrangère. Jusqu'au
+  27/11/2026, l'import concours blancs supprimait et recréait les propositions :
+  un réimport après une session détachait silencieusement les copies de leurs
+  réponses (les points déjà calculés restaient, mais plus moyen de dire quelle
+  réponse l'élève avait cochée). L'import met désormais à jour en place, rang
+  par rang. Pour compléter une session passée, préférer
+  `scripts/enrichir-referentiel-sesame.mjs`, qui vérifie aussi les copies
+  orphelines.
 - **`next dev` ne type-checke pas** : voir la règle 1 de [`CLAUDE.md`](../CLAUDE.md).
 - **Aucun contrôle local du SQL** : voir la règle 3 de [`CLAUDE.md`](../CLAUDE.md),
   avec le piège des `$$` et de `String.replace()`.
