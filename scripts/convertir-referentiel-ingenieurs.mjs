@@ -98,7 +98,23 @@ const COLONNES = [
  * question de ces épreuves a été refaite à partir du PDF. Le doute levé, le
  * statut ne bloque plus.
  */
-const CLES_VERIFIEES = new Set([`AV-PHY-${PERIODE}`, `PA-PHY-${PERIODE}`]);
+const CLES_VERIFIEES = new Set([
+  `AV-PHY-${PERIODE}`,
+  `PA-PHY-${PERIODE}`,
+  // Anglais Advance : le référentiel s'écartait du corrigé officiel sur les
+  // questions 45 à 60 (« ÉCART CORRIGÉ »). Confronté au sujet, c'est le
+  // corrigé officiel qui se trompe — « her heart stopped » n'appelle pas
+  // « besoin de soins médicaux », ni « went on ___ in protest » « rebellion » :
+  // à partir de la question 45, la grille ne correspond plus aux questions.
+  // Les clés du référentiel sont retenues.
+  `ADV-ANG-${PERIODE}`,
+]);
+
+/**
+ * Titres de section collés à la dernière proposition qui les précède par la
+ * transcription : « No correct answer Reading Comprehension ».
+ */
+const TITRES_DE_SECTION = /\s+(Reading Comprehension|Vocabulary)$/i;
 
 /**
  * Clés fausses dans le référentiel, et pourquoi. L'auteur ne voyait pas la
@@ -196,7 +212,9 @@ for (const l of lignes) {
   const statut = txt(l["Contrôle / statut"]);
   const correctionCle = CLES_CORRIGEES[id];
   const reponse = correctionCle ? correctionCle[0] : txt(l["Réponse de référence"]);
-  const propositions = ["A", "B", "C", "D", "E"].map((x) => txt(l[`Proposition ${x}`]));
+  const propositions = ["A", "B", "C", "D", "E"].map((x) =>
+    txt(l[`Proposition ${x}`]).replace(TITRES_DE_SECTION, ""),
+  );
   const nbPropositions = propositions.filter(Boolean).length;
 
   // Forme de la question.
@@ -253,7 +271,7 @@ for (const l of lignes) {
   // La transcription recopie les propositions à la suite de l'énoncé : elles
   // ont leurs propres colonnes, et l'écran les affiche déjà en boutons.
   const amorce = txt(l["Énoncé / propositions transcrits"])
-    .split(/\s+A[.)]\s/)[0]
+    .split(/\s+[Aa][.)]\s/)[0]
     .replace(/^\d+\s*[-–.)]\s*/, "");
   const ouEstCe = `${page ? `page ${page}` : "le sujet"}`;
   // La question découpée dans le sujet : l'image porte l'énoncé exact.
