@@ -45,10 +45,18 @@ export type EpreuveEleve = {
   aUneCopie: boolean;
 };
 
+export type BilanEleve = {
+  id: string;
+  session: string;
+  envoyeLe: string | null;
+};
+
 export type MesConcoursBlancs = {
   /** Null quand l'élève n'appartient à aucune cohorte de la prépa. */
   cohorte: string | null;
   epreuves: EpreuveEleve[];
+  /** Ses bilans envoyés, le plus récent d'abord. */
+  bilans: BilanEleve[];
 };
 
 export async function chargerMesConcoursBlancs(
@@ -63,7 +71,7 @@ export async function chargerMesConcoursBlancs(
     .maybeSingle();
 
   const cohorte = (profil?.cohortes as unknown as { nom: string } | null)?.nom ?? null;
-  if (!profil?.cohorte_id) return { cohorte: null, epreuves: [] };
+  if (!profil?.cohorte_id) return { cohorte: null, epreuves: [], bilans: [] };
 
   const { data: epreuves } = await supabase
     .from("epreuves_cb")
@@ -71,7 +79,7 @@ export async function chargerMesConcoursBlancs(
     .eq("statut", "publiee")
     .order("fenetre_debut", { nullsFirst: false });
 
-  if (!epreuves || epreuves.length === 0) return { cohorte, epreuves: [] };
+  if (!epreuves || epreuves.length === 0) return { cohorte, epreuves: [], bilans: [] };
 
   const ids = epreuves.map((e) => e.id as string);
 
@@ -83,9 +91,25 @@ export async function chargerMesConcoursBlancs(
       .from("epreuve_cb_questions")
       .select("epreuve_cb_id")
       .in("epreuve_cb_id", ids),
-    supabase.from("bilans").select("session_cb_id").eq("user_id", userId).eq("statut", "envoye"),
+    supabase
+      .from("bilans")
+      .select("id, session_cb_id, envoye_le")
+      .eq("user_id", userId)
+      .eq("statut", "envoye")
+      .order("envoye_le", { ascending: false }),
   ]);
   const sessionsOuvertes = new Set((bilans ?? []).map((b) => b.session_cb_id as string));
+
+  // Le nom de la session, pour intituler le lien. `sessions_cb` est fermée
+  // aux élèves ; on ne lit ici que le nom de sessions dont la RLS vient de
+  // nous rendre le bilan.
+  const { data: sessions } = sessionsOuvertes.size
+    ? await createAdminClient()
+        .from("sessions_cb")
+        .select("id, nom")
+        .in("id", [...sessionsOuvertes])
+    : { data: [] };
+  const nomSession = new Map((sessions ?? []).map((s) => [s.id as string, s.nom as string]));
 
   const parPassage = new Map(
     (passages ?? []).map((p) => [p.epreuve_cb_id as string, p]),
@@ -100,6 +124,11 @@ export async function chargerMesConcoursBlancs(
 
   return {
     cohorte,
+    bilans: (bilans ?? []).map((b) => ({
+      id: b.id as string,
+      session: nomSession.get(b.session_cb_id as string) ?? "Concours blancs",
+      envoyeLe: (b.envoye_le as string | null) ?? null,
+    })),
     epreuves: epreuves.map((e) => {
       const passage = parPassage.get(e.id as string);
       const debut = e.fenetre_debut ? new Date(e.fenetre_debut).getTime() : null;

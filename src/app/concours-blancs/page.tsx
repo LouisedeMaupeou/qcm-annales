@@ -51,7 +51,7 @@ export default async function MesConcoursBlancs() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/connexion?suite=/concours-blancs");
 
-  const { cohorte, epreuves } = await chargerMesConcoursBlancs(user.id);
+  const { cohorte, epreuves, bilans } = await chargerMesConcoursBlancs(user.id);
 
   return (
     <div className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col px-4 sm:px-6">
@@ -88,6 +88,38 @@ export default async function MesConcoursBlancs() {
               l&apos;as reçu, chaque épreuve se rouvre : tu peux relire ta copie
               corrigée et la refaire autant de fois que tu veux.
             </p>
+
+            {bilans.length > 0 && (
+              <section className="mb-8 rounded-carte border-2 border-positif/30 bg-positif/5 p-5">
+                <h2 className="mb-3 text-sm font-extrabold tracking-[.08em] text-positif uppercase">
+                  {bilans.length > 1 ? "Mes bilans" : "Mon bilan"}
+                </h2>
+                <ul className="space-y-2">
+                  {bilans.map((b) => (
+                    <li key={b.id} className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                      <Link
+                        href={`/concours-blancs/bilan/${b.id}`}
+                        className="rounded-full bg-positif px-6 py-2.5 font-extrabold text-white transition hover:opacity-90"
+                      >
+                        Voir mon bilan — {b.session}
+                      </Link>
+                      <a
+                        href={`/concours-blancs/bilan/${b.id}/pdf`}
+                        className="text-[0.9rem] font-bold text-positif hover:underline"
+                      >
+                        Télécharger le PDF
+                      </a>
+                      {b.envoyeLe && (
+                        <span className="text-[0.85rem] opacity-75">
+                          envoyé le{" "}
+                          {new Date(b.envoyeLe).toLocaleDateString("fr-FR", { dateStyle: "long" })}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
 
             {epreuves.length === 0 ? (
               <p className="rounded-carte border border-dashed border-ligne p-8 text-center">
