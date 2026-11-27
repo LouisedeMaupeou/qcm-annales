@@ -90,8 +90,8 @@ officiels. Les questions dont la compréhension dépend d'une figure portent
 ### GEIPI Polytech
 
 **QCM de maths 2023–2026 importé le 04/08/2026** : 115 questions, 33 exercices,
-publiées, `origine=extraite`. Cela **contredit le README** qui le classait parmi
-les concours non importés.
+publiées, `origine=extraite`. (Une ancienne version du README le classait parmi
+les concours non importés ; c'est corrigé.)
 
 - Périmètre : **le QCM de maths seulement**. Les épreuves maths-problèmes, NSI,
   PC, SI, SVT sont rédactionnelles (type `redaction`, V2).

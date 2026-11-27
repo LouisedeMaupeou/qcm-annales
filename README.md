@@ -75,7 +75,7 @@ node --env-file=.env.local scripts/importer-concours-blancs.mjs      <fichier.cs
 
 ### Ce qui s'extrait d'un PDF, et ce qui ne s'extrait pas
 
-Trois concours importés, une même leçon : **les épreuves de langue passent, les
+Plusieurs concours importés, une même leçon : **les épreuves de langue passent, les
 épreuves scientifiques non.**
 
 | Cas | Exemple | Verdict |
@@ -92,14 +92,19 @@ une épreuve scientifique** — le diagnostic automatique ne suffit pas.
 
 ### Concours importés en base (hors seed committé)
 
-Ces imports ont été faits **directement en base** (scripts service_role ad hoc, non
-committés) : contrairement au seed ACCÈS, ils ne sont pas reproductibles depuis le
-dépôt seul.
+Ces imports ont été faits **directement en base**. Une partie des scripts est
+committée sous `scripts/`, mais ils relisent des PDF ou des transcriptions JSON
+restés hors dépôt : contrairement au seed ACCÈS, ces imports ne sont pas
+reproductibles depuis le dépôt seul. Le détail concours par concours (dates,
+décomptes, pièges) est dans [`docs/memoire-projet.md`](docs/memoire-projet.md).
 
 | Concours | Contenu | Modélisation · barème |
 |---|---|---|
 | GEIPI Polytech | QCM maths 2023-2026 (115 questions), reconstruit depuis les corrigés officiels | 1 affirmation = 1 question `choix_unique` Vrai/Faux ; +1/−1. Le plancher de points par exercice de GEIPI n'est pas exprimable (écart assumé). |
-| Puissance Alpha | QCM maths : générale 2022 & 2025 (saisie manuelle depuis les corrigés), technologique 2024 (reconstruction partielle du texte extractible), banque « entraînement inédit » 2026 | Filières = épreuves distinctes ; +1/−0,5. Droits de reproduction autorisés par le responsable projet, à documenter (§8.9). |
+| GEIPI Polytech — sciences | **QCM dérivés, pas des annales** : 97 affirmations Vrai/Faux rédigées (`origine=manuelle`) d'après les thèmes des épreuves rédactionnelles NSI, PC, SI, SVT 2023-2026, en relecture | Même modélisation que le QCM maths. |
+| Avenir | Anglais 90 ; Mathématiques 171 (sujets A 2026, A 2025, B 2025 réunis en une épreuve) ; sciences éclatées en Physique 120, NSI 80, SI 74, SVT 75 ; questions à figure écartées | +1/−1 (voir le point ouvert sur le barème 2025). |
+| ACCÈS | Anglais 2021-2025 (274 questions Vrai/Faux à 4 items, en relecture) ; maths complètes hors questions à figure, dont l'annale 2020 tirée du cahier 2021 | — |
+| Puissance Alpha | QCM maths : générale 2022 & 2025 (saisie manuelle depuis les corrigés), technologique 2024 (reconstruction partielle du texte extractible), banque « entraînement inédit » 2026 ; sciences filière générale 2022 & 2025 en trois épreuves (NSI 33, SVT 51, Physique-Chimie 41, en relecture), SI non importé | Filières = épreuves distinctes ; +1/−0,5. Droits de reproduction autorisés par le responsable projet, à documenter (§8.9). |
 | SÉSAME | QCM « aptitudes numériques » 2019 (30 questions), étiqueté **entraînement** | `choix_unique` à 4 options ; +1/0. |
 
 **Restent non importés** : les épreuves rédactionnelles (type `redaction`, V2), les
@@ -303,9 +308,9 @@ Ces points sont connus et documentés, aucun n'est un oubli :
       plafonnés par la règle « pour chaque exercice, le total ne peut être
       strictement négatif ». Ce plancher **par exercice** n'est pas exprimable
       dans le modèle actuel, qui ne plafonne qu'au niveau de la session.
-      Appliquer les points négatifs sans ce plancher surpénaliserait les élèves,
-      donc le barème reste sans point négatif et non vérifié. À trancher :
-      implémenter un plancher par bloc, ou assumer l'écart.
+      Le QCM importé applique +1/−1/0 par affirmation **sans ce plancher**
+      (écart assumé), ce qui peut surpénaliser un élève sur un exercice. À
+      trancher : implémenter un plancher par bloc, ou documenter l'écart.
 - [ ] **Pages légales** — mentions légales, CGU et politique de confidentialité
       sont des trames. Les passages surlignés (raison sociale, SIRET, directeur
       de publication, hébergeur, durées de conservation, clause de
@@ -336,9 +341,10 @@ Ces points sont connus et documentés, aucun n'est un oubli :
       les deux énoncés dans les sujets officiels. Le schéma ne portant qu'un
       barème par concours × épreuve, c'est celui de 2026 qui s'applique à tout.
       Si l'écart devient gênant, il faudra une dimension année sur `baremes`.
-- [ ] **Avenir : mathématiques, sciences et physique non transcrites** — leur
-      notation scientifique ne survit pas à la linéarisation du texte et les
-      figures sont absentes. PDF archivés, saisie manuelle à prévoir.
+- [ ] **Avenir : questions à figure** — maths et sciences ont été transcrites
+      (import du 27/08/2026), mais les questions dépendant d'une figure absente
+      ont été écartées (20 en sciences). À reprendre si les figures sont
+      fournies.
 
 ## Périmètre livré
 
