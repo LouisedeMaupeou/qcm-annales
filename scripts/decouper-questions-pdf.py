@@ -8,6 +8,9 @@ Découpe chaque question d'un sujet PDF en une image (concours blancs).
                           l'ordre du sujet, doublons de numéro compris.
     mode « affirmations »: exercices « EXERCICE n : » et affirmations « a. … »
                           (Puissance Alpha). Images PREFIXE-01a.png…
+    mode « titres »     : sujet scanné dont seul le titre « Question 12 » est du
+                          texte (Advance) : chaque question va de son titre au
+                          suivant, ou au bas de la page. Images PREFIXE-01.png…
 
 Pourquoi : les formules des sujets scientifiques sont des images dans le PDF,
 que la transcription perd. Renvoyer l'élève « au sujet, page 8 » l'oblige à y
@@ -91,6 +94,27 @@ def main():
         subprocess.run(["pdftoppm", "-r", str(DPI), "-png", pdf, os.path.join(tmp, "p")], check=True)
         fichiers = sorted(os.listdir(tmp), key=lambda f: int(re.search(r"(\d+)", f).group(1)))
         images = {i + 1: Image.open(os.path.join(tmp, f)).convert("RGB") for i, f in enumerate(fichiers)}
+
+        if mode == "titres":
+            entete = re.compile(r"^Question\s+(\d+)")
+            titres = [l for l in lignes if entete.match(l["texte"])]
+            for k, l in enumerate(titres):
+                image = images[l["page"]]
+                x0, x1 = int(40 * ECHELLE), image.width - int(40 * ECHELLE)
+                haut = max(0, int((l["y0"] - MARGE_HAUT) * ECHELLE))
+                suivant = titres[k + 1] if k + 1 < len(titres) else None
+                bas_page = int((l["hauteur_page"] - MARGE_PAGE) * ECHELLE)
+                limite = (
+                    int((suivant["y0"] - 4) * ECHELLE)
+                    if suivant and suivant["page"] == l["page"]
+                    else bas_page
+                )
+                bas = derniere_ligne_pleine(image, haut, limite, x0, x1)
+                n = int(entete.match(l["texte"]).group(1))
+                nom = f"{prefixe}-{n:02d}.png"
+                image.crop((x0, haut, x1, bas)).save(os.path.join(sortie, nom), optimize=True)
+                print(nom, f"page {l['page']}", f"{x1 - x0}×{bas - haut}")
+            return
 
         if mode == "qcm":
             entete = re.compile(r"^(\d{1,2})\s*-")
