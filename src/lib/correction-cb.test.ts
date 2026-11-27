@@ -372,6 +372,8 @@ test("Avenir sciences : au-delà de la limite, une réponse ne compte plus", () 
   // Comptées : m1 (+3) et m3 (−1). m4, troisième réponse, est ignorée.
   assert.equal(r.points, 2);
   assert.equal(r.parQuestion.find((q) => q.questionId === "m4")?.points, 0);
+  assert.equal(r.parQuestion.find((q) => q.questionId === "m4")?.nonComptee, "au_dela_reponses");
+  assert.equal(r.parQuestion.find((q) => q.questionId === "m3")?.nonComptee, null);
   // Maximum : 2 questions × 3 points, pas 4 × 3.
   assert.equal(r.pointsMax, 6);
   assert.equal(r.noteSur20, 6.67);
@@ -417,4 +419,5 @@ test("Puissance Alpha physique : au-delà de 6 exercices, les premiers comptent,
   // Les deux premiers (−0,5 chacun), pas le meilleur, troisième.
   assert.equal(r.points, -1);
   assert.equal(r.parQuestion.find((q) => q.questionId === "x3")?.points, 0);
+  assert.equal(r.parQuestion.find((q) => q.questionId === "x3")?.nonComptee, "exercice_non_retenu");
 });

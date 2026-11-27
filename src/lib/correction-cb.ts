@@ -78,10 +78,19 @@ export type Bareme = {
 
 export type StatutReponseCb = "correcte" | "incorrecte" | "abstention" | "a_corriger";
 
+/**
+ * Pourquoi une réponse donnée n'a pas compté : au-delà du nombre de réponses
+ * autorisé (sciences Avenir), ou dans un exercice au-delà du nombre autorisé
+ * (Puissance Alpha). La copie corrigée le dit à l'élève.
+ */
+export type RaisonNonComptee = "au_dela_reponses" | "exercice_non_retenu";
+
 export type ResultatQuestion = {
   questionId: string;
   statut: StatutReponseCb;
   points: number;
+  /** Nulle si la réponse a compté, ou s'il n'y avait pas de réponse. */
+  nonComptee: RaisonNonComptee | null;
 };
 
 export type ResultatCopie = {
@@ -286,6 +295,12 @@ export function corriger(
       points: retenus.has(q.blocId) || statuts.get(q.id) === "a_corriger"
         ? arrondir(points.get(q.id) ?? 0)
         : 0,
+      nonComptee: ignorees.has(q.id)
+        ? "au_dela_reponses"
+        : !retenus.has(q.blocId) &&
+            (statuts.get(q.id) === "correcte" || statuts.get(q.id) === "incorrecte")
+          ? "exercice_non_retenu"
+          : null,
     })),
     points: arrondir(totalPoints),
     pointsMax: arrondir(pointsMax),

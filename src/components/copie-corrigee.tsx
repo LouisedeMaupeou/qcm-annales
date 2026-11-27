@@ -166,6 +166,11 @@ function QuestionCorrection({
                 : "Corrigée à la main"
             : verdict.libelle}
         </span>
+        {q.nonComptee && (
+          <span className="rounded-full bg-ligne px-2.5 py-0.5 text-[0.75rem] font-bold text-encre">
+            Non comptée
+          </span>
+        )}
         {q.points !== null && !reprise && (
           <span className="text-[0.8rem] tabular-nums opacity-75">
             {q.points > 0 ? "+" : ""}
@@ -188,6 +193,14 @@ function QuestionCorrection({
             className="w-full max-w-[720px] rounded-carte border border-ligne bg-white"
           />
         </figure>
+      )}
+
+      {q.nonComptee && (
+        <p className="mb-3 rounded-[10px] border-l-4 border-ligne bg-fond-doux px-3 py-2 text-[0.9rem]">
+          {q.nonComptee === "au_dela_reponses"
+            ? "Cette réponse n'a pas été notée : elle venait après le nombre de réponses autorisé (seules les premières, dans l'ordre du sujet, comptent)."
+            : "Cette réponse n'a pas été notée : son exercice venait après le nombre d'exercices autorisé (seuls les premiers traités, dans l'ordre du sujet, comptent)."}
+        </p>
       )}
 
       <p className="mb-3 whitespace-pre-line text-encre">{formaterMath(q.enonce)}</p>

@@ -2,7 +2,12 @@ import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { erreurCommise } from "@/lib/bilan-cb";
-import { corriger, type ReponseCopie, type StatutReponseCb } from "@/lib/correction-cb";
+import {
+  corriger,
+  type RaisonNonComptee,
+  type ReponseCopie,
+  type StatutReponseCb,
+} from "@/lib/correction-cb";
 import { chargerCadreCorrection } from "@/lib/correction-cb-execution";
 import {
   chargerQuestionsJouables,
@@ -123,6 +128,12 @@ export type QuestionCorrigee = Omit<QuestionPassage, "propositions" | "reponse">
   points: number | null;
   /** Annotation de la correctrice, sur une copie officielle. */
   annotation: string | null;
+  /**
+   * Réponse donnée mais non comptée : au-delà des N premières réponses
+   * (sciences Avenir), ou dans un exercice au-delà des N premiers (Puissance
+   * Alpha).
+   */
+  nonComptee: RaisonNonComptee | null;
   chapitre: string | null;
   notion: string | null;
   /** Explication de la bonne réponse, telle que le référentiel la donne. */
@@ -148,7 +159,12 @@ export type Corrige = {
   questions: QuestionCorrigee[];
 };
 
-type Verdict = { statut: StatutReponseCb; points: number | null; annotation?: string | null };
+type Verdict = {
+  statut: StatutReponseCb;
+  points: number | null;
+  annotation?: string | null;
+  nonComptee?: RaisonNonComptee | null;
+};
 
 /**
  * Assemble le corrigé : l'énoncé tel qu'il a été servi, ce que l'élève a
@@ -234,6 +250,7 @@ async function assemblerCorrige(
       statut: verdict.statut,
       points: verdict.points,
       annotation: verdict.annotation ?? null,
+      nonComptee: verdict.nonComptee ?? null,
       chapitre: peda?.chapitre ?? null,
       notion: peda?.notion ?? null,
       correction: peda?.correction ?? null,
@@ -284,6 +301,18 @@ export async function chargerCopieCorrigee(
       points: l.points === null ? null : Number(l.points),
       annotation: (l.annotation as string | null) ?? null,
     });
+  }
+
+  // Ce qui n'a pas compté ne se stocke pas : la correction le redit, à partir
+  // de la copie et de la règle de l'épreuve. Les points restent ceux qui ont
+  // été enregistrés, notes manuelles comprises.
+  const cadre = await chargerCadreCorrection(epreuveCbId);
+  if (cadre) {
+    const resultat = corriger(cadre.questions, reponses as Map<string, ReponseCopie>, cadre.bareme);
+    for (const r of resultat.parQuestion) {
+      const v = verdicts.get(r.questionId);
+      if (v && r.nonComptee) v.nonComptee = r.nonComptee;
+    }
   }
 
   return {
@@ -445,6 +474,7 @@ export async function chargerReprise(
       verdicts.set(r.questionId, {
         statut: r.statut,
         points: r.statut === "a_corriger" ? null : r.points,
+        nonComptee: r.nonComptee,
       });
     }
   }

@@ -191,12 +191,15 @@ export function Composer({
           <p className="text-[0.85rem] opacity-70">
             {reprise && "Entraînement, sans effet sur ta note · "}
             {repondues} / {questions.length} traitées ·{" "}
-            {exercicesMaximum !== null && (
+            {/* Compteurs en reprise seulement : pendant l'épreuve officielle,
+                l'élève gère seul le nombre de réponses, comme sur papier ; un
+                rappel ne vient qu'à la remise. */}
+            {reprise && exercicesMaximum !== null && (
               <span className={auDelaDesExercices ? "font-bold text-negatif" : ""}>
                 {exercicesTraites} / {exercicesMaximum} exercices traités ·{" "}
               </span>
             )}
-            {reponsesMaximum !== null && (
+            {reprise && reponsesMaximum !== null && (
               <span className={auDelaDuMaximum ? "font-bold text-negatif" : ""}>
                 {Math.min(donnees, reponsesMaximum)} / {reponsesMaximum} réponses comptées ·{" "}
               </span>
@@ -230,7 +233,7 @@ export function Composer({
       </header>
 
       <main className="flex-1 py-6">
-        {auDelaDesExercices && (
+        {reprise && auDelaDesExercices && (
           <p
             role="alert"
             className="mb-4 rounded-carte border-2 border-negatif bg-negatif/5 p-3 text-sm text-encre"
@@ -243,7 +246,7 @@ export function Composer({
             (« Je ne réponds pas » sur chaque affirmation).
           </p>
         )}
-        {auDelaDuMaximum && (
+        {reprise && auDelaDuMaximum && (
           <p
             role="alert"
             className="mb-4 rounded-carte border-2 border-negatif bg-negatif/5 p-3 text-sm text-encre"
@@ -359,6 +362,24 @@ export function Composer({
                 <strong className="text-encre">La remise est définitive.</strong>{" "}
                 Tu ne pourras plus revenir sur tes réponses, et ni score ni corrigé
                 ne s&apos;afficheront : ton bilan arrive après la correction.
+                {auDelaDuMaximum && (
+                  <>
+                    {" "}
+                    <strong className="text-negatif">
+                      Tu as donné {donnees} réponses : seules les {reponsesMaximum}{" "}
+                      premières, dans l&apos;ordre du sujet, seront notées.
+                    </strong>
+                  </>
+                )}
+                {auDelaDesExercices && (
+                  <>
+                    {" "}
+                    <strong className="text-negatif">
+                      Tu as traité {exercicesTraites} exercices : seuls les{" "}
+                      {exercicesMaximum} premiers, dans l&apos;ordre du sujet, seront corrigés.
+                    </strong>
+                  </>
+                )}
               </>
             )}
             {repondues < questions.length && (
