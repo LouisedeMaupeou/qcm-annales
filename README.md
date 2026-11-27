@@ -11,6 +11,13 @@ sections. Le module concours blancs de la prépa a ses propres spécifications,
 les commentaires qui s'y rapportent le disent explicitement
 (« module concours blancs, §5 »).
 
+Deux documents complètent ces specs :
+[`CLAUDE.md`](CLAUDE.md) donne les règles de travail sur ce dépôt (où est le
+code, quoi lancer avant de pousser, les invariants à ne pas casser), et
+[`docs/memoire-projet.md`](docs/memoire-projet.md) consigne l'état réel des
+imports concours par concours, les décisions prises hors specs et les pièges
+déjà rencontrés.
+
 ## Stack
 
 Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · Supabase
