@@ -151,21 +151,6 @@ function estPrioritaire(c: { matiere: string; epreuve?: string }): boolean {
   );
 }
 
-/** Les matières prioritaires présentes, dans l'ordre maths puis français. */
-export function matieresATravailler(chapitres: ChapitreClasse[]): string[] {
-  const noms = new Set<string>();
-  for (const c of chapitres.filter(estPrioritaire)) {
-    const texte = `${c.matiere} ${c.epreuve ?? ""}`;
-    if (/^MAT$|MATH/i.test(c.matiere.trim()) || /MATH/i.test(texte)) {
-      noms.add("mathématiques");
-    }
-    if (/^FR$/i.test(c.matiere.trim()) || /FRAN[CÇ]AIS/i.test(texte)) {
-      noms.add("français");
-    }
-  }
-  return ["mathématiques", "français"].filter((n) => noms.has(n));
-}
-
 /**
  * « À travailler en priorité » : le tiers le moins réussi, en maths et en
  * français.
@@ -223,57 +208,83 @@ export type ResumeEpreuve = {
   moyenneGroupe: number | null;
   rang: number;
   participants: number;
+  nbQuestions: number;
+  nbAbstentions: number;
+  /** Acquis et points à reprendre de l'épreuve, tels que le tableau les montre. */
+  forces: PointAnalyse[];
+  ameliorations: PointAnalyse[];
 };
 
+/** Maths et français passent devant : ils pèsent le plus, et se rattrapent par le fond. */
+const MATIERE_PRIORITAIRE = /MATH|FRAN[CÇ]AIS/i;
+
 /**
- * Pré-remplit l'encadré « En quelques mots » — deux phrases, pas plus (§5.4).
+ * Pré-remplit « En quelques mots » à partir du tableau du bilan.
  *
- * Ce texte est fait pour être réécrit : il donne à la responsable un point de
- * départ factuel, jamais un jugement. D'où des constats chiffrés plutôt que
- * des adjectifs.
+ * Trois ou quatre phrases, chiffrées, sans jugement : le résultat d'ensemble,
+ * ce qui est solide, ce qu'il faut reprendre en priorité — maths et français
+ * d'abord, comme la prépa l'a demandé —, et, s'il y a lieu, les questions
+ * laissées sans réponse. Les mots sont ceux du tableau, pour que la famille
+ * retrouve dans la suite du bilan ce que ce paragraphe annonce.
+ *
+ * Un point de départ pour la responsable, qui le réécrit si elle veut : le
+ * texte qu'elle enregistre remplace celui-ci.
  */
-export function enQuelquesMots(
-  prenom: string,
-  epreuves: ResumeEpreuve[],
-  priorites: Priorite[],
-  matieres: string[] = [],
-): string {
+export function enQuelquesMots(prenom: string, epreuves: ResumeEpreuve[]): string {
   if (epreuves.length === 0) {
     return `${prenom} n'a composé aucune épreuve de cette session.`;
   }
+  const v = (n: number) => n.toString().replace(".", ",");
+  const liste = (mots: string[]) =>
+    mots.length > 1 ? `${mots.slice(0, -1).join(", ")} et ${mots[mots.length - 1]}` : (mots[0] ?? "");
 
-  const notes = epreuves.map((e) => e.noteSur20);
-  const moyenneEleve = moyenne(notes) ?? 0;
+  const moyenneEleve = moyenne(epreuves.map((e) => e.noteSur20)) ?? 0;
   const meilleure = [...epreuves].sort((a, b) => b.noteSur20 - a.noteSur20)[0];
   const auDessus = epreuves.filter(
     (e) => e.moyenneGroupe !== null && e.noteSur20 >= e.moyenneGroupe,
   ).length;
+  const phrases = [
+    `${prenom} obtient une moyenne de ${v(moyenneEleve)}/20 sur ${epreuves.length} épreuve` +
+      `${epreuves.length > 1 ? "s" : ""}, dont ${auDessus} au niveau de la moyenne du groupe ou ` +
+      `au-dessus ; son meilleur résultat est en ${meilleure.matiere} (${v(meilleure.noteSur20)}/20).`,
+  ];
 
-  const phrase1 =
-    `${prenom} obtient une moyenne de ${moyenneEleve.toString().replace(".", ",")}/20 sur ` +
-    `${epreuves.length} épreuve${epreuves.length > 1 ? "s" : ""}, dont ${auDessus} ` +
-    `au niveau de la moyenne du groupe ou au-dessus, avec un point haut en ` +
-    `${meilleure.matiere} (${meilleure.noteSur20.toString().replace(".", ",")}/20).`;
+  const forces = epreuves
+    .flatMap((e) => e.forces.map((p) => ({ p, matiere: e.matiere })))
+    .sort((a, b) => b.p.justes - a.p.justes || a.p.fausses - b.p.fausses)
+    .slice(0, 3);
+  if (forces.length > 0) {
+    phrases.push(
+      `Points solides : ${liste(forces.map((f) => `${f.p.libelle} (${f.matiere})`))}.`,
+    );
+  }
 
-  // On nomme d'abord les matières, puis les chapitres : un parent retient
-  // « les maths et le français » mieux qu'une liste de chapitres, et c'est
-  // sur ces deux matières que la prépa veut voir porter l'effort.
-  const liste = (mots: string[]) =>
-    mots.length > 1
-      ? `${mots.slice(0, -1).join(", ")} et ${mots[mots.length - 1]}`
-      : (mots[0] ?? "");
+  const aReprendre = epreuves
+    .flatMap((e) => e.ameliorations.map((p) => ({ p, matiere: e.matiere })))
+    .sort(
+      (a, b) =>
+        Number(MATIERE_PRIORITAIRE.test(b.matiere)) - Number(MATIERE_PRIORITAIRE.test(a.matiere)) ||
+        b.p.fausses - a.p.fausses,
+    )
+    .slice(0, 3);
+  phrases.push(
+    aReprendre.length > 0
+      ? `À reprendre en priorité : ${liste(
+          aReprendre.map((a) => `${a.p.libelle} (${a.matiere}, ${a.p.fausses} fautes)`),
+        )} — le plan de travail détaille chaque erreur.`
+      : "Aucun point n'est faux plus de deux fois : le travail peut porter sur la régularité et la méthode.",
+  );
 
-  const phrase2 =
-    matieres.length > 0
-      ? `L'effort doit porter en priorité sur ${liste(matieres)}.`
-      : "";
+  const attendues = epreuves.reduce((s, e) => s + e.nbQuestions, 0);
+  const sansReponse = epreuves.reduce((s, e) => s + e.nbAbstentions, 0);
+  if (attendues > 0 && sansReponse / attendues >= 0.25) {
+    phrases.push(
+      `${sansReponse} questions sur ${attendues} sont restées sans réponse : refaire les épreuves ` +
+        `en entier, en ligne, permet de travailler le rythme.`,
+    );
+  }
 
-  const phrase3 =
-    priorites.length > 0
-      ? `Les chapitres à reprendre sont ${liste(priorites.map((p) => p.chapitre))}.`
-      : "Aucun chapitre ne ressort comme prioritaire : le travail peut porter sur la régularité et la méthode.";
-
-  return [phrase1, phrase2, phrase3].filter(Boolean).join(" ");
+  return phrases.join(" ");
 }
 
 /**

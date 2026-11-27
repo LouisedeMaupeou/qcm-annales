@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   grouperChapitresParEpreuve,
-  matieresATravailler,
   classerChapitre,
   classerChapitres,
   enQuelquesMots,
@@ -169,15 +168,6 @@ test("priorités : un chapitre entièrement réussi n'est jamais à retravailler
   assert.deepEqual(prioriser(classes), []);
 });
 
-test("matières à travailler : maths avant français, et rien d'autre", () => {
-  const classes = classerChapitres([
-    chapitre({ chapitre: "X", matiere: "FR", posees: 10, justes: 4, fausses: 6 }),
-    chapitre({ chapitre: "Y", matiere: "ANG", posees: 10, justes: 1, fausses: 9 }),
-    chapitre({ chapitre: "Z", matiere: "MAT", posees: 10, justes: 3, fausses: 7 }),
-  ]);
-  assert.deepEqual(matieresATravailler(classes), ["mathématiques", "français"]);
-});
-
 test("priorités : l'action vient du référentiel quand il en fournit une", () => {
   const classes = classerChapitres([
     chapitre({
@@ -202,42 +192,47 @@ test("priorités : sans action au référentiel, une consigne par défaut est po
 // « En quelques mots »
 // ---------------------------------------------------------------------------
 
-test("en quelques mots : deux phrases, chiffrées, sans jugement", () => {
-  const texte = enQuelquesMots(
-    "Camille",
-    [
-      {
-        concours: "Avenir",
-        matiere: "Mathématiques",
-        noteSur20: 14,
-        moyenneGroupe: 11,
-        rang: 2,
-        participants: 12,
-      },
-      {
-        concours: "Advance",
-        matiere: "Anglais",
-        noteSur20: 8,
-        moyenneGroupe: 10,
-        rang: 9,
-        participants: 12,
-      },
-    ],
-    [
-      {
-        chapitre: "Suites",
-        matiere: "Mathématiques",
-        erreurs: 6,
-        tauxReussite: 30,
-        action: "Refaire des exercices.",
-      },
-    ],
-  );
-  assert.match(texte, /Camille obtient une moyenne de 11\/20/);
-  assert.match(texte, /1 au niveau de la moyenne du groupe/);
-  assert.match(texte, /Mathématiques \(14\/20\)/);
-  assert.match(texte, /Suites/);
-  assert.equal(texte.split(". ").length, 2);
+const point = (libelle: string, justes: number, fausses: number) => ({
+  libelle,
+  domaine: libelle,
+  posees: justes + fausses,
+  justes,
+  fausses,
+  abstentions: 0,
+});
+
+test("en quelques mots : résultat, acquis, priorités maths et français d'abord", () => {
+  const texte = enQuelquesMots("Camille", [
+    {
+      concours: "SÉSAME", matiere: "Anglais", noteSur20: 8, moyenneGroupe: 10, rang: 9, participants: 12,
+      nbQuestions: 40, nbAbstentions: 2,
+      forces: [point("Communication", 5, 0)],
+      ameliorations: [point("Grammaire", 2, 13)],
+    },
+    {
+      concours: "SÉSAME", matiere: "Mathématiques", noteSur20: 14, moyenneGroupe: 11, rang: 2, participants: 12,
+      nbQuestions: 20, nbAbstentions: 0,
+      forces: [],
+      ameliorations: [point("Aires et distances", 0, 4)],
+    },
+  ]);
+  assert.match(texte, /Camille obtient une moyenne de 11\/20 sur 2 épreuves, dont 1 au niveau/);
+  assert.match(texte, /meilleur résultat est en Mathématiques \(14\/20\)/);
+  assert.match(texte, /Points solides : Communication \(Anglais\)/);
+  // Les maths passent devant l'anglais, même avec moins de fautes.
+  assert.match(texte, /À reprendre en priorité : Aires et distances \(Mathématiques, 4 fautes\) et Grammaire/);
+  assert.doesNotMatch(texte, /sans réponse/);
+});
+
+test("en quelques mots : signale les questions laissées sans réponse", () => {
+  const texte = enQuelquesMots("Lou", [
+    {
+      concours: "SÉSAME", matiere: "Mathématiques", noteSur20: 1, moyenneGroupe: 3, rang: 2, participants: 2,
+      nbQuestions: 20, nbAbstentions: 19, forces: [], ameliorations: [],
+    },
+  ]);
+  assert.match(texte, /Aucun point n'est faux plus de deux fois/);
+  assert.match(texte, /19 questions sur 20 sont restées sans réponse/);
 });
 
 test("en quelques mots : une session sans copie se dit, elle ne s'invente pas", () => {
@@ -245,24 +240,6 @@ test("en quelques mots : une session sans copie se dit, elle ne s'invente pas", 
     enQuelquesMots("Noé", [], []),
     "Noé n'a composé aucune épreuve de cette session.",
   );
-});
-
-test("en quelques mots : sans priorité, la seconde phrase reste utile", () => {
-  const texte = enQuelquesMots(
-    "Lou",
-    [
-      {
-        concours: "SÉSAME",
-        matiere: "Français",
-        noteSur20: 17,
-        moyenneGroupe: 14,
-        rang: 1,
-        participants: 8,
-      },
-    ],
-    [],
-  );
-  assert.match(texte, /Aucun chapitre ne ressort comme prioritaire/);
 });
 
 test("le détail par chapitre se range sous son épreuve", () => {

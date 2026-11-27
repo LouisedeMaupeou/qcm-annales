@@ -5,7 +5,6 @@ import { libelleEpreuveImportee } from "@/lib/epreuves-cb";
 import { orauxDuBilan, type SectionOrauxBilan } from "@/lib/oraux-donnees";
 import {
   grouperChapitresParEpreuve,
-  matieresATravailler,
   classerChapitres,
   planDeTravail,
   enQuelquesMots,
@@ -336,9 +335,11 @@ export async function assemblerBilan(
           moyenneGroupe: c.moyenneGroupe,
           rang: c.rang ?? 0,
           participants: c.participants,
+          nbQuestions: c.nbQuestions,
+          nbAbstentions: c.nbAbstentions,
+          forces: c.forcesPoints,
+          ameliorations: c.ameliorationsPoints,
         })),
-        priorites,
-        matieresATravailler(classes),
       ),
     bloqueParCorrection,
     valideLe: (bilan?.valide_le as string | null) ?? null,
