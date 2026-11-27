@@ -292,7 +292,13 @@ export async function assemblerBilan(
     colonne.forcesPoints = forces;
     colonne.ameliorationsPoints = ameliorations;
   }
-  const plan = planDeTravail(analysees);
+  // Le plan suit le tableau : mêmes intitulés, même ordre, une section par
+  // épreuve composée.
+  const intitule = new Map(colonnes.map((c) => [c.epreuveCbId, `${c.concours} — ${c.matiere}`]));
+  const rangColonne = new Map(colonnes.map((c, i) => [intitule.get(c.epreuveCbId)!, i]));
+  const plan = planDeTravail(
+    analysees.map((r) => ({ ...r, epreuve: intitule.get(r.epreuveCbId) ?? r.epreuve })),
+  ).sort((a, b) => (rangColonne.get(a.epreuve) ?? 99) - (rangColonne.get(b.epreuve) ?? 99));
 
   const prioritesCalculees = prioriser(classes);
 

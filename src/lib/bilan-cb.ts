@@ -488,11 +488,24 @@ export type PointDuPlan = {
 
 export type PlanEpreuve = {
   epreuve: string;
+  /**
+   * `a_reprendre` : les points faux plus de deux fois. `a_surveiller` : aucun
+   * ne l'est, mais l'épreuve a des fautes — ses thèmes fautifs les plus
+   * fréquents, pour que chaque épreuve ait son analyse.
+   */
+  nature: "a_reprendre" | "a_surveiller";
   /** Les `POINTS_DU_PLAN_MAX` points les plus fautifs, illustrés. */
   points: PointDuPlan[];
-  /** Les points d'amélioration suivants, moins fautifs. */
+  /** Les points suivants, moins fautifs. */
   autresPoints: PointDuPlan[];
+  posees: number;
+  justes: number;
+  fausses: number;
+  abstentions: number;
 };
+
+/** À partir d'une question sur quatre laissée sans réponse, le plan le signale. */
+export const PART_SANS_REPONSE_SIGNALEE = 0.25;
 
 /** Le plan s'en tient aux trois points les plus fautifs de chaque épreuve. */
 export const POINTS_DU_PLAN_MAX = 3;
@@ -505,7 +518,7 @@ export const POINTS_DU_PLAN_MAX = 3;
 export const FAUTES_DETAILLEES_MAX = 2;
 
 /**
- * La suite du bilan : un plan de travail.
+ * La suite du bilan : un plan de travail, une section par épreuve composée.
  *
  * Il reprend, épreuve par épreuve, les points d'amélioration du tableau
  * (faux plus de deux fois), le plus fautif d'abord. Chacun est illustré par
@@ -521,10 +534,19 @@ export function planDeTravail(reponses: ReponseAnalysee[]): PlanEpreuve[] {
 
   const plans: PlanEpreuve[] = [];
   for (const [epreuve, siennes] of parEpreuve) {
-    const { ameliorations } = forcesEtAmeliorations(pointsDeLEpreuve(siennes));
-    if (ameliorations.length === 0) continue;
+    const tousLesPoints = pointsDeLEpreuve(siennes);
+    const { ameliorations } = forcesEtAmeliorations(tousLesPoints);
+    // Sans point faux plus de deux fois, l'épreuve garde son analyse : ses
+    // thèmes fautifs, le plus fautif d'abord, quelle que soit leur taille.
+    const nature = ameliorations.length > 0 ? "a_reprendre" : "a_surveiller";
+    const retenus =
+      ameliorations.length > 0
+        ? ameliorations
+        : tousLesPoints
+            .filter((p) => p.fausses > 0)
+            .sort((a, b) => b.fausses - a.fausses || a.libelle.localeCompare(b.libelle, "fr"));
 
-    const points = ameliorations.map((p) => {
+    const points = retenus.map((p) => {
       const fautes = siennes
         .filter((r) => r.statut === "incorrecte" && unite(r).libelle === p.libelle && r.domaine === p.domaine)
         .sort((a, b) => a.numero - b.numero);
@@ -566,11 +588,59 @@ export function planDeTravail(reponses: ReponseAnalysee[]): PlanEpreuve[] {
         toutes: fautes.map(detailler),
       };
     });
+    const compte = (statut: ReponseAnalysee["statut"]) =>
+      siennes.filter((r) => r.statut === statut).length;
     plans.push({
       epreuve,
+      nature,
       points: points.slice(0, POINTS_DU_PLAN_MAX),
       autresPoints: points.slice(POINTS_DU_PLAN_MAX),
+      posees: siennes.length,
+      justes: compte("correcte"),
+      fausses: compte("incorrecte"),
+      abstentions: compte("abstention"),
     });
   }
   return plans;
+}
+
+/**
+ * Ce que le plan dit d'une épreuve, en plus de ses points : aucune faute,
+ * épreuve non traitée, ou beaucoup de questions laissées sans réponse.
+ *
+ * Calculé ici, une fois, pour que l'écran et le PDF disent la même chose.
+ */
+export function constatsEpreuve(e: PlanEpreuve): string[] {
+  const constats: string[] = [];
+  if (e.justes === 0 && e.fausses === 0 && e.abstentions > 0) {
+    constats.push(
+      `Épreuve non traitée : aucune réponse sur les ${e.posees} questions. Refais-la en ligne, ` +
+        `sans limite de temps, avec le corrigé à la fin.`,
+    );
+    return constats;
+  }
+  const beaucoupSansReponse =
+    e.posees > 0 && e.abstentions / e.posees >= PART_SANS_REPONSE_SIGNALEE;
+  const sansReponse =
+    `${e.abstentions} questions sur ${e.posees} sont restées sans réponse : refaire l'épreuve ` +
+    `en ligne permet de travailler le rythme et de voir le corrigé de chacune.`;
+
+  if (e.fausses === 0) {
+    // « Aucune faute » seul tromperait quand l'élève n'a presque rien traité.
+    constats.push(
+      beaucoupSansReponse
+        ? `Aucune faute parmi tes réponses, mais ${sansReponse}`
+        : e.abstentions > 0
+          ? `Aucune faute sur cette épreuve ; ${e.abstentions} question${e.abstentions > 1 ? "s" : ""} sans réponse.`
+          : "Aucune faute sur cette épreuve.",
+    );
+    return constats;
+  }
+  if (e.nature === "a_surveiller") {
+    constats.push(
+      "Aucun point n'est faux plus de deux fois. Voici tes fautes, à surveiller pour ne pas les refaire.",
+    );
+  }
+  if (beaucoupSansReponse) constats.push(sansReponse.charAt(0).toUpperCase() + sansReponse.slice(1));
+  return constats;
 }

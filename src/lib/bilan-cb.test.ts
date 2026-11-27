@@ -279,6 +279,7 @@ test("un chapitre sans épreuve connue n'est pas perdu", () => {
 import {
   erreurCommise,
   forcesEtAmeliorations,
+  constatsEpreuve,
   planDeTravail,
   pointsDeLEpreuve,
   type ReponseAnalysee,
@@ -430,3 +431,41 @@ test("le plan garde les trois points les plus fautifs, et ne perd aucune faute",
   const toutes = [...maths.points, ...maths.autresPoints].flatMap((p) => p.toutes);
   assert.equal(toutes.length, 15);
 });
+
+test("chaque épreuve a son analyse, même sans point faux plus de deux fois", () => {
+  const plan = planDeTravail([
+    // Français : deux fautes isolées, aucun point au-dessus du seuil.
+    ...n(5, () => rep("FR", "Lexique", null, "correcte")),
+    rep("FR", "Lexique", null, "incorrecte", { notion: "disgrâce" }),
+    rep("FR", "Orthographe", null, "incorrecte", { notion: "accents" }),
+    // Mathématiques : rien de traité.
+    ...n(4, () => rep("MAT", "Géométrie", "Aires", "abstention")),
+  ]);
+  assert.equal(plan.length, 2);
+  const [francais, maths] = plan;
+  assert.equal(francais.nature, "a_surveiller");
+  assert.deepEqual(francais.points.map((p) => [p.libelle, p.fautes]), [
+    ["Lexique", 1],
+    ["Orthographe", 1],
+  ]);
+  assert.deepEqual([maths.points.length, maths.abstentions, maths.posees], [0, 4, 4]);
+});
+
+test("les constats d'une épreuve : non traitée, sans faute, sans réponse", () => {
+  const base = { epreuve: "E", nature: "a_surveiller" as const, points: [], autresPoints: [] };
+  assert.match(
+    constatsEpreuve({ ...base, posees: 40, justes: 0, fausses: 0, abstentions: 40 })[0],
+    /Épreuve non traitée : aucune réponse sur les 40 questions/,
+  );
+  assert.deepEqual(constatsEpreuve({ ...base, posees: 20, justes: 20, fausses: 0, abstentions: 0 }), [
+    "Aucune faute sur cette épreuve.",
+  ]);
+  assert.deepEqual(constatsEpreuve({ ...base, posees: 20, justes: 1, fausses: 0, abstentions: 19 }), [
+    "Aucune faute parmi tes réponses, mais 19 questions sur 20 sont restées sans réponse : refaire " +
+      "l'épreuve en ligne permet de travailler le rythme et de voir le corrigé de chacune.",
+  ]);
+  const espagnol = constatsEpreuve({ ...base, posees: 40, justes: 9, fausses: 3, abstentions: 28 });
+  assert.match(espagnol[0], /Aucun point n'est faux plus de deux fois/);
+  assert.match(espagnol[1], /28 questions sur 40 sont restées sans réponse/);
+});
+

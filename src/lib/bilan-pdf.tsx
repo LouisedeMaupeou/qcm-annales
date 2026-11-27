@@ -10,7 +10,7 @@ import {
   View,
   renderToBuffer,
 } from "@react-pdf/renderer";
-import type { PointAnalyse } from "@/lib/bilan-cb";
+import { constatsEpreuve, type PointAnalyse } from "@/lib/bilan-cb";
 import type { BilanAssemble, ColonneBilan } from "@/lib/bilans-generation";
 
 /**
@@ -64,6 +64,8 @@ const C = {
   positifDoux: "#E6F2EA",
   negatif: "#C43D2F",
   negatifDoux: "#FAE9E7",
+  soleil: "#E0A31A",
+  soleilDoux: "#FFF4D6",
   gris: "#C9D2DE",
 };
 
@@ -366,12 +368,18 @@ function PointDuPlanPdf({
   p,
   rang,
   epreuve,
+  constats = [],
+  surveiller = false,
 }: {
-  p: Point;
+  p?: Point;
   rang: number;
-  /** Le premier point porte le bandeau de son épreuve. */
+  /** Le premier point porte le bandeau de son épreuve, et ses constats. */
   epreuve?: string;
+  constats?: string[];
+  /** Point à surveiller (sous le seuil) : ambre plutôt que rouge. */
+  surveiller?: boolean;
 }) {
+  const fond = surveiller ? C.soleil : C.negatif;
   return (
     // Un bloc insécable, bandeau d'épreuve compris : aucun titre ne reste
     // seul en bas de page. Imbriquer des blocs insécables dans un bloc qui se
@@ -379,6 +387,15 @@ function PointDuPlanPdf({
     // carte entière tient toujours sur une page.
     <View wrap={false}>
       {epreuve && <BandeauEpreuve epreuve={epreuve} />}
+      {constats.map((c) => (
+        <Text
+          key={c}
+          style={{ backgroundColor: C.doux, borderRadius: 6, padding: 7, marginBottom: 6, color: C.encre }}
+        >
+          {c}
+        </Text>
+      ))}
+      {p && (
       <View style={[s.carte, { padding: 10 }]}>
         <View style={[s.ligne, { alignItems: "center", marginBottom: 2 }]}>
           <View
@@ -386,7 +403,7 @@ function PointDuPlanPdf({
               width: 16,
               height: 16,
               borderRadius: 8,
-              backgroundColor: C.negatif,
+              backgroundColor: fond,
               marginRight: 6,
               justifyContent: "center",
             }}
@@ -401,8 +418,15 @@ function PointDuPlanPdf({
             )}
             {pourPdf(p.libelle)}
           </Text>
-          <Text style={[s.pastille, { backgroundColor: C.negatifDoux, color: C.negatif }]}>
-            {p.fautes} fautes
+          <Text
+            style={[
+              s.pastille,
+              surveiller
+                ? { backgroundColor: C.soleilDoux, color: C.encre }
+                : { backgroundColor: C.negatifDoux, color: C.negatif },
+            ]}
+          >
+            {p.fautes} faute{p.fautes > 1 ? "s" : ""}
           </Text>
         </View>
         {p.detail.map((f) => (
@@ -415,6 +439,7 @@ function PointDuPlanPdf({
           </Text>
         )}
       </View>
+      )}
     </View>
   );
 }
@@ -471,23 +496,31 @@ function DocumentBilan({ bilan }: { bilan: BilanAssemble }) {
             <View break>
               <Text style={[s.titreSection, { fontSize: 14, marginTop: 24 }]}>Ton plan de travail</Text>
               <Text style={s.intro}>
-                Pour chaque épreuve, tes trois points à reprendre les plus fréquents, avec des exemples tirés de tes
+                Pour chaque épreuve, tes points à reprendre les plus fréquents, avec des exemples tirés de tes
                 copies : la notion, l&apos;erreur commise, et comment ne plus la refaire. Toutes tes fautes sont
                 détaillées dans ton bilan en ligne et tes copies corrigées.
               </Text>
               {bilan.plan.map((e) => (
                 <View key={e.epreuve} style={{ marginBottom: 6 }}>
+                  {/* Une épreuve sans point garde son bandeau et ses constats. */}
+                  {e.points.length === 0 && (
+                    <PointDuPlanPdf rang={0} epreuve={e.epreuve} constats={constatsEpreuve(e)} />
+                  )}
                   {e.points.map((p, i) => (
                     <PointDuPlanPdf
                       key={`${p.domaine}-${p.libelle}`}
                       p={p}
                       rang={i + 1}
                       epreuve={i === 0 ? e.epreuve : undefined}
+                      constats={i === 0 ? constatsEpreuve(e) : []}
+                      surveiller={e.nature === "a_surveiller"}
                     />
                   ))}
                   {e.autresPoints.length > 0 && (
                     <Text style={[s.petit, { marginBottom: 6 }]}>
-                      <Text style={{ fontWeight: 700, color: C.texte }}>Autres points à reprendre : </Text>
+                      <Text style={{ fontWeight: 700, color: C.texte }}>
+                        {e.nature === "a_surveiller" ? "Autres points à surveiller : " : "Autres points à reprendre : "}
+                      </Text>
                       {pourPdf(e.autresPoints.map((p) => `${p.libelle} (${p.fautes} fautes)`).join(", "))} — détail dans ton
                       bilan en ligne.
                     </Text>

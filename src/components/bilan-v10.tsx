@@ -1,5 +1,5 @@
 import localFont from "next/font/local";
-import type { PointAnalyse } from "@/lib/bilan-cb";
+import { constatsEpreuve, type PointAnalyse } from "@/lib/bilan-cb";
 import type { BilanAssemble } from "@/lib/bilans-generation";
 
 /**
@@ -329,29 +329,45 @@ function PlanDeTravail({ plan }: { plan: BilanAssemble["plan"] }) {
       <div>
         <h2 className="text-lg font-extrabold text-encre">Ton plan de travail</h2>
         <p className="text-[0.9rem] opacity-75">
-          Pour chaque épreuve, tes trois points à reprendre les plus fréquents, avec des exemples
-          tirés de tes copies : la notion, l&apos;erreur commise, et comment ne plus la refaire.
-          Déplie un point pour voir toutes tes fautes.
+          Pour chaque épreuve, tes points à reprendre les plus fréquents, avec des exemples tirés
+          de tes copies : la notion, l&apos;erreur commise, et comment ne plus la refaire. Déplie
+          un point pour voir toutes tes fautes.
         </p>
       </div>
       {plan.map((e) => (
         <div key={e.epreuve} className="space-y-3">
           <h3 className="rounded-[8px] bg-encre px-4 py-2 font-bold text-white">{e.epreuve}</h3>
+          {constatsEpreuve(e).map((c) => (
+            <p key={c} className="rounded-[8px] bg-fond-doux px-4 py-2.5 text-[0.9rem] text-encre">
+              {c}
+            </p>
+          ))}
           {e.points.map((p, i) => (
-            <PointDuPlanVue key={`${p.domaine}-${p.libelle}`} point={p} rang={i + 1} />
+            <PointDuPlanVue
+              key={`${p.domaine}-${p.libelle}`}
+              point={p}
+              rang={i + 1}
+              surveiller={e.nature === "a_surveiller"}
+            />
           ))}
           {e.autresPoints.length > 0 && (
             <details className="rounded-carte border border-dashed border-ligne p-4">
               <summary className="cursor-pointer text-[0.9rem] font-bold text-encre">
                 {e.autresPoints.length} autre{e.autresPoints.length > 1 ? "s" : ""} point
-                {e.autresPoints.length > 1 ? "s" : ""} à reprendre :{" "}
+                {e.autresPoints.length > 1 ? "s" : ""}{" "}
+                {e.nature === "a_surveiller" ? "à surveiller" : "à reprendre"} :{" "}
                 <span className="font-normal">
                   {e.autresPoints.map((p) => `${p.libelle} (${p.fautes})`).join(", ")}
                 </span>
               </summary>
               <div className="mt-3 space-y-3">
                 {e.autresPoints.map((p) => (
-                  <PointDuPlanVue key={`${p.domaine}-${p.libelle}`} point={p} tout />
+                  <PointDuPlanVue
+                    key={`${p.domaine}-${p.libelle}`}
+                    point={p}
+                    tout
+                    surveiller={e.nature === "a_surveiller"}
+                  />
                 ))}
               </div>
             </details>
@@ -369,10 +385,13 @@ function PointDuPlanVue({
   point: p,
   rang,
   tout = false,
+  surveiller = false,
 }: {
   point: PointPlan;
   rang?: number;
   tout?: boolean;
+  /** Point à surveiller (sous le seuil) : ambre plutôt que rouge. */
+  surveiller?: boolean;
 }) {
   const exemples = tout ? p.toutes : p.detail;
   const montres = new Set(exemples.map((f) => f.numero));
@@ -381,7 +400,11 @@ function PointDuPlanVue({
     <div className="rounded-carte border border-ligne bg-white p-4">
       <div className="flex items-center gap-2.5">
         {rang && (
-          <span className="grid size-6 shrink-0 place-items-center rounded-full bg-negatif text-[0.8rem] font-extrabold text-white">
+          <span
+            className={`grid size-6 shrink-0 place-items-center rounded-full text-[0.8rem] font-extrabold ${
+              surveiller ? "bg-soleil text-encre" : "bg-negatif text-white"
+            }`}
+          >
             {rang}
           </span>
         )}
@@ -389,8 +412,12 @@ function PointDuPlanVue({
           {p.libelle !== p.domaine && <span className="font-medium opacity-60">{p.domaine} › </span>}
           {p.libelle}
         </p>
-        <span className="rounded-full bg-negatif/10 px-2.5 py-0.5 text-[0.78rem] font-bold text-negatif">
-          {p.fautes} fautes
+        <span
+          className={`rounded-full px-2.5 py-0.5 text-[0.78rem] font-bold ${
+            surveiller ? "bg-soleil/25 text-encre" : "bg-negatif/10 text-negatif"
+          }`}
+        >
+          {p.fautes} faute{p.fautes > 1 ? "s" : ""}
         </span>
       </div>
       <ListeFautes fautes={exemples} />
