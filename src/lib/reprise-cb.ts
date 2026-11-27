@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { erreurCommise } from "@/lib/bilan-cb";
 import { corriger, type ReponseCopie, type StatutReponseCb } from "@/lib/correction-cb";
 import { chargerCadreCorrection } from "@/lib/correction-cb-execution";
 import {
@@ -120,6 +121,14 @@ export type QuestionCorrigee = Omit<QuestionPassage, "propositions" | "reponse">
   notion: string | null;
   /** Explication de la bonne réponse, telle que le référentiel la donne. */
   correction: string | null;
+  /**
+   * Sur une réponse fausse : l'erreur commise — le retour propre à la
+   * proposition cochée —, ce qu'il faut reprendre et la méthode. Les mêmes
+   * rubriques que le plan de travail du bilan.
+   */
+  erreur: string | null;
+  aReprendre: string | null;
+  methode: string | null;
 };
 
 export type Corrige = {
@@ -156,18 +165,33 @@ async function assemblerCorrige(
   const cles = new Map<string, Set<string>>();
   const pedagogie = new Map<
     string,
-    { chapitre: string | null; notion: string | null; correction: string | null }
+    {
+      chapitre: string | null;
+      notion: string | null;
+      correction: string | null;
+      aReprendre: string | null;
+      methode: string | null;
+    }
   >();
+  /** Retour propre à chaque proposition fausse : l'erreur de qui la coche. */
+  const retours = new Map<string, string | null>();
   for (let i = 0; i < ids.length; i += 100) {
     const lot = ids.slice(i, i + 100);
     const { data } = await admin
       .from("questions")
       .select(
-        "id, chapitre, sous_chapitre, notions, retroaction_ciblee, explication, reponses_possibles(id, est_correcte)",
+        "id, chapitre, sous_chapitre, notions, retroaction_ciblee, explication, methode, travail_a_realiser, reponses_possibles(id, est_correcte, retroaction)",
       )
       .in("id", lot);
     for (const q of data ?? []) {
-      const propositions = (q.reponses_possibles ?? []) as { id: string; est_correcte: boolean }[];
+      const propositions = (q.reponses_possibles ?? []) as {
+        id: string;
+        est_correcte: boolean;
+        retroaction: string | null;
+      }[];
+      for (const p of propositions) {
+        if (!p.est_correcte) retours.set(p.id, p.retroaction);
+      }
       cles.set(
         q.id as string,
         new Set(propositions.filter((p) => p.est_correcte).map((p) => p.id)),
@@ -176,6 +200,8 @@ async function assemblerCorrige(
         chapitre: (q.chapitre as string | null) ?? null,
         notion: ((q.sous_chapitre ?? q.notions) as string | null) ?? null,
         correction: ((q.retroaction_ciblee ?? q.explication) as string | null) ?? null,
+        aReprendre: (q.travail_a_realiser as string | null) ?? null,
+        methode: (q.methode as string | null) ?? null,
       });
     }
   }
@@ -205,6 +231,18 @@ async function assemblerCorrige(
       chapitre: peda?.chapitre ?? null,
       notion: peda?.notion ?? null,
       correction: peda?.correction ?? null,
+      // Seulement sur une réponse fausse : une abstention n'a pas d'erreur à
+      // nommer, une réponse juste non plus.
+      ...(verdict.statut === "incorrecte"
+        ? {
+            erreur:
+              [...cochees]
+                .map((id) => erreurCommise(retours.get(id as string) ?? null))
+                .find(Boolean) ?? null,
+            aReprendre: peda?.aReprendre ?? null,
+            methode: peda?.methode ?? null,
+          }
+        : { erreur: null, aReprendre: null, methode: null }),
     };
   });
 }

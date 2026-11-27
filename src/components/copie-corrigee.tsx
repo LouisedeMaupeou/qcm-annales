@@ -235,6 +235,37 @@ function QuestionCorrection({
         </p>
       )}
 
+      {/* Sur une réponse fausse : ce qui n'allait pas, et comment ne plus le
+          refaire — les rubriques du plan de travail du bilan. */}
+      {(q.erreur || q.aReprendre || q.methode) && (
+        <div className="mb-3 space-y-1 rounded-[10px] border border-negatif/25 bg-negatif/5 p-3 text-[0.95rem]">
+          {q.erreur && (
+            <p className="flex gap-2">
+              <span className="w-24 shrink-0 pt-0.5 text-[0.72rem] font-bold tracking-[.04em] text-negatif uppercase">
+                Ton erreur
+              </span>
+              <span>{formaterMath(q.erreur)}</span>
+            </p>
+          )}
+          {q.aReprendre && (
+            <p className="flex gap-2">
+              <span className="w-24 shrink-0 pt-0.5 text-[0.72rem] font-bold tracking-[.04em] text-positif uppercase">
+                À reprendre
+              </span>
+              <span>{formaterMath(q.aReprendre)}</span>
+            </p>
+          )}
+          {q.methode && (
+            <p className="flex gap-2">
+              <span className="w-24 shrink-0 pt-0.5 text-[0.72rem] font-bold tracking-[.04em] text-primaire uppercase">
+                Méthode
+              </span>
+              <span>{formaterMath(q.methode)}</span>
+            </p>
+          )}
+        </div>
+      )}
+
       {q.correction && (
         <p className="rounded-[10px] bg-fond-doux p-3 text-[0.95rem] whitespace-pre-line">
           <strong className="text-encre">Correction : </strong>
