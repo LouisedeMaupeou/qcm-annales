@@ -36,6 +36,13 @@ export type EpreuveEleve = {
   remisLe: string | null;
   /** Copie ouverte mais pas encore remise : le chronomètre tourne déjà. */
   enCours: boolean;
+  /**
+   * Le bilan de la session est envoyé : l'épreuve se rouvre en entraînement —
+   * copie corrigée à relire, reprises à volonté.
+   */
+  rouverte: boolean;
+  /** L'élève a une copie officielle remise, donc un corrigé à relire. */
+  aUneCopie: boolean;
 };
 
 export type MesConcoursBlancs = {
@@ -60,7 +67,7 @@ export async function chargerMesConcoursBlancs(
 
   const { data: epreuves } = await supabase
     .from("epreuves_cb")
-    .select("id, matiere, duree_minutes, fenetre_debut, fenetre_fin, concours(nom)")
+    .select("id, session_cb_id, matiere, duree_minutes, fenetre_debut, fenetre_fin, concours(nom)")
     .eq("statut", "publiee")
     .order("fenetre_debut", { nullsFirst: false });
 
@@ -68,13 +75,17 @@ export async function chargerMesConcoursBlancs(
 
   const ids = epreuves.map((e) => e.id as string);
 
-  const [{ data: passages }, { data: liens }] = await Promise.all([
+  // `bilans_sien_envoye` ne laisse lire à l'élève que ses bilans envoyés :
+  // c'est exactement la condition de réouverture.
+  const [{ data: passages }, { data: liens }, { data: bilans }] = await Promise.all([
     supabase.from("passages").select("epreuve_cb_id, statut, remis_at").in("epreuve_cb_id", ids),
     createAdminClient()
       .from("epreuve_cb_questions")
       .select("epreuve_cb_id")
       .in("epreuve_cb_id", ids),
+    supabase.from("bilans").select("session_cb_id").eq("user_id", userId).eq("statut", "envoye"),
   ]);
+  const sessionsOuvertes = new Set((bilans ?? []).map((b) => b.session_cb_id as string));
 
   const parPassage = new Map(
     (passages ?? []).map((p) => [p.epreuve_cb_id as string, p]),
@@ -111,6 +122,8 @@ export async function chargerMesConcoursBlancs(
         statut,
         remisLe: (passage?.remis_at as string | null) ?? null,
         enCours: passage?.statut === "en_cours",
+        rouverte: sessionsOuvertes.has(e.session_cb_id as string),
+        aUneCopie: Boolean(passage) && passage?.statut !== "en_cours",
       };
     }),
   };

@@ -4,6 +4,7 @@ import { EnteteEleve } from "@/components/entete-eleve";
 import { PiedDePage } from "@/components/pied-de-page";
 import { createClient } from "@/lib/supabase/server";
 import { commencer } from "./[epreuveId]/actions";
+import { refaire } from "./reprise/actions";
 import {
   chargerMesConcoursBlancs,
   type StatutEpreuveEleve,
@@ -83,7 +84,9 @@ export default async function MesConcoursBlancs() {
               Promotion <strong className="text-encre">{cohorte}</strong>. Chaque
               épreuve se compose en une seule fois, chronométrée, pendant sa
               fenêtre d&apos;ouverture. Ni score ni corrigé ne s&apos;affichent à
-              la remise : ton bilan arrive après la correction.
+              la remise : ton bilan arrive après la correction. Dès que tu
+              l&apos;as reçu, chaque épreuve se rouvre : tu peux relire ta copie
+              corrigée et la refaire autant de fois que tu veux.
             </p>
 
             {epreuves.length === 0 ? (
@@ -93,7 +96,15 @@ export default async function MesConcoursBlancs() {
             ) : (
               <ul className="space-y-4">
                 {epreuves.map((e) => {
-                  const etat = ETATS[e.statut];
+                  const etat = e.rouverte && e.statut !== "a_composer"
+                    ? {
+                        libelle: e.aUneCopie ? "Corrigé disponible" : "À refaire",
+                        classe: "bg-positif/10 text-positif",
+                        aide: e.aUneCopie
+                          ? "Ton bilan est envoyé : relis ta copie corrigée, puis refais l'épreuve autant de fois que tu veux."
+                          : "Ton bilan est envoyé : tu peux faire cette épreuve en entraînement, corrigé à la fin.",
+                      }
+                    : ETATS[e.statut];
                   return (
                     <li
                       key={e.id}
@@ -142,6 +153,31 @@ export default async function MesConcoursBlancs() {
                       {/* §4.3 : tentative unique et chronométrée. Le bouton
                           n'apparaît que pendant la fenêtre ; l'action
                           revérifie tout côté serveur avant d'ouvrir la copie. */}
+                      {/* Après le bilan : la copie corrigée et les reprises.
+                          Tout est revérifié côté serveur — le bilan doit être
+                          envoyé — avant d'afficher un corrigé. */}
+                      {e.rouverte && e.statut !== "a_composer" && (
+                        <div className="mt-4 flex flex-wrap items-center gap-3">
+                          {e.aUneCopie && (
+                            <Link
+                              href={`/concours-blancs/${e.id}/corrige`}
+                              className="rounded-full bg-primaire px-7 py-3 font-extrabold text-white transition hover:bg-primaire-fonce"
+                            >
+                              Voir ma copie corrigée
+                            </Link>
+                          )}
+                          <form action={refaire}>
+                            <input type="hidden" name="epreuveId" value={e.id} />
+                            <button
+                              type="submit"
+                              className="cursor-pointer rounded-full border-2 border-primaire px-6 py-2.5 font-extrabold text-primaire transition hover:bg-primaire/5"
+                            >
+                              Refaire l&apos;épreuve
+                            </button>
+                          </form>
+                        </div>
+                      )}
+
                       {e.statut === "a_composer" && (
                         <form action={commencer} className="mt-4">
                           <input type="hidden" name="epreuveId" value={e.id} />

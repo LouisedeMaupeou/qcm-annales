@@ -6,6 +6,7 @@ import { libellePiece, rassemblerDossier } from "@/lib/dossier-passage";
 import { grouperParExercice } from "@/lib/groupes-passage";
 import { formaterMath } from "@/lib/notation-math";
 import { remettreCopie, sauvegarder } from "./actions";
+import { sauvegarderReprise, terminer } from "../reprise/actions";
 import type { PieceDossier } from "@/lib/dossier-passage";
 import type { QuestionPassage, ReponseEleveCb } from "@/lib/passage-cb";
 
@@ -22,6 +23,11 @@ import type { QuestionPassage, ReponseEleveCb } from "@/lib/passage-cb";
  * aux autres, et les sous-questions d'une question à trous sont notées tout ou
  * rien : les présenter sur quatre écrans séparés demandait à l'élève de
  * retenir ce qu'il venait de lire, et lui cachait que son barème les liait.
+ *
+ * Le même écran sert aux reprises, une fois le bilan envoyé. Trois choses
+ * changent : pas d'échéance (le chronomètre compte le temps passé, à titre
+ * indicatif, sans jamais remettre), la sauvegarde va dans la reprise, et la
+ * fin mène droit au corrigé.
  */
 
 const estTraitee = (r: ReponseEleveCb | undefined) =>
@@ -33,12 +39,16 @@ export function Composer({
   matiere,
   finLe,
   questions,
+  reprise,
 }: {
   epreuveId: string;
   concours: string;
   matiere: string;
-  finLe: string;
+  /** Échéance de la copie officielle ; nulle pour une reprise. */
+  finLe: string | null;
   questions: QuestionPassage[];
+  /** Présent pour une reprise après bilan : entraînement, sans échéance. */
+  reprise?: { id: string; commenceeLe: string; dureeMinutes: number };
 }) {
   const groupes = useMemo(() => grouperParExercice(questions), [questions]);
 
@@ -53,9 +63,15 @@ export function Composer({
       questions.filter((q) => q.reponse).map((q) => [q.id, q.reponse as ReponseEleveCb]),
     ),
   );
-  const [restant, setRestant] = useState(() =>
-    Math.max(0, new Date(finLe).getTime() - Date.now()),
+  // Copie officielle : le temps restant. Reprise : le temps passé.
+  const mesurer = useCallback(
+    () =>
+      finLe
+        ? Math.max(0, new Date(finLe).getTime() - Date.now())
+        : Math.max(0, Date.now() - new Date(reprise?.commenceeLe ?? Date.now()).getTime()),
+    [finLe, reprise?.commenceeLe],
   );
+  const [restant, setRestant] = useState(mesurer);
   const [etatSauvegarde, setEtatSauvegarde] = useState<"ok" | "en_cours" | "echec">("ok");
   const [confirmeRemise, setConfirmeRemise] = useState(false);
   const [, demarrerTransition] = useTransition();
@@ -68,16 +84,17 @@ export function Composer({
   // --- Chronomètre ---------------------------------------------------------
   useEffect(() => {
     const t = setInterval(() => {
-      const reste = Math.max(0, new Date(finLe).getTime() - Date.now());
+      const reste = mesurer();
       setRestant(reste);
-      // §4.3 : remise automatique à expiration. Une seule fois.
-      if (reste === 0 && !remiseLancee.current) {
+      // §4.3 : remise automatique à expiration. Une seule fois — et jamais
+      // pour une reprise, qui n'a pas d'échéance.
+      if (finLe && reste === 0 && !remiseLancee.current) {
         remiseLancee.current = true;
         formRemise.current?.requestSubmit();
       }
     }, 1000);
     return () => clearInterval(t);
-  }, [finLe]);
+  }, [finLe, mesurer]);
 
   // --- Sauvegarde continue -------------------------------------------------
   const enregistrer = useCallback(
@@ -85,12 +102,19 @@ export function Composer({
       setEtatSauvegarde("en_cours");
       const donnees = new FormData();
       donnees.set("epreuveId", epreuveId);
+      if (reprise) donnees.set("repriseId", reprise.id);
       donnees.set("questionId", questionId);
       donnees.set("reponse", JSON.stringify(valeur));
 
       demarrerTransition(async () => {
-        const resultat = await sauvegarder({}, donnees);
-        if (resultat.refus === "expire" || resultat.refus === "deja_remis") {
+        const resultat = reprise
+          ? await sauvegarderReprise({}, donnees)
+          : await sauvegarder({}, donnees);
+        if (
+          resultat.refus === "expire" ||
+          resultat.refus === "deja_remis" ||
+          resultat.refus === "deja_remise"
+        ) {
           if (!remiseLancee.current) {
             remiseLancee.current = true;
             formRemise.current?.requestSubmit();
@@ -100,7 +124,7 @@ export function Composer({
         setEtatSauvegarde(resultat.refus ? "echec" : "ok");
       });
     },
-    [epreuveId],
+    [epreuveId, reprise],
   );
 
   /** Chaque sous-question garde sa propre réponse : le barème les distingue. */
@@ -113,7 +137,11 @@ export function Composer({
   // --- Décompte ------------------------------------------------------------
   const minutes = Math.floor(restant / 60000);
   const secondes = Math.floor((restant % 60000) / 1000);
-  const urgence = restant < 5 * 60000;
+  const urgence = Boolean(finLe) && restant < 5 * 60000;
+  // Une reprise qui dépasse la durée officielle continue, mais on le dit :
+  // le jour du concours, la copie aurait été ramassée.
+  const auDela = Boolean(reprise) && restant > (reprise?.dureeMinutes ?? 0) * 60000;
+  const heures = Math.floor(restant / 3600000);
 
   const repondues = questions.filter((q) => estTraitee(reponses[q.id])).length;
   const aRevoirIci = groupe.some((q) => reponses[q.id]?.aRevoir);
@@ -144,6 +172,7 @@ export function Composer({
             {concours} — {matiere}
           </p>
           <p className="text-[0.85rem] opacity-70">
+            {reprise && "Entraînement, sans effet sur ta note · "}
             {repondues} / {questions.length} traitées ·{" "}
             {etatSauvegarde === "en_cours"
               ? "enregistrement…"
@@ -154,11 +183,22 @@ export function Composer({
         </div>
         <p
           aria-live="polite"
+          title={
+            reprise
+              ? `Temps passé. Durée officielle : ${reprise.dureeMinutes} minutes.`
+              : "Temps restant"
+          }
           className={`rounded-full px-4 py-2 font-black tabular-nums ${
-            urgence ? "bg-negatif/10 text-negatif" : "bg-fond-doux text-encre"
+            urgence || auDela ? "bg-negatif/10 text-negatif" : "bg-fond-doux text-encre"
           }`}
         >
-          {String(minutes).padStart(2, "0")}:{String(secondes).padStart(2, "0")}
+          {reprise && heures > 0 ? `${heures}:${String(minutes % 60).padStart(2, "0")}` : String(minutes).padStart(2, "0")}
+          :{String(secondes).padStart(2, "0")}
+          {reprise && (
+            <span className="ml-2 text-[0.75rem] font-bold opacity-70">
+              {auDela ? "au-delà du temps officiel" : `sur ${reprise.dureeMinutes} min`}
+            </span>
+          )}
         </p>
       </header>
 
@@ -255,9 +295,19 @@ export function Composer({
             role="alert"
             className="mb-3 rounded-carte border-2 border-soleil bg-soleil/10 p-4 text-sm"
           >
-            <strong className="text-encre">La remise est définitive.</strong>{" "}
-            Tu ne pourras plus revenir sur tes réponses, et ni score ni corrigé
-            ne s&apos;afficheront : ton bilan arrive après la correction.
+            {reprise ? (
+              <>
+                <strong className="text-encre">Tu vas voir le corrigé.</strong>{" "}
+                Cette reprise sera close ; tu pourras en recommencer une autre
+                quand tu veux.
+              </>
+            ) : (
+              <>
+                <strong className="text-encre">La remise est définitive.</strong>{" "}
+                Tu ne pourras plus revenir sur tes réponses, et ni score ni corrigé
+                ne s&apos;afficheront : ton bilan arrive après la correction.
+              </>
+            )}
             {repondues < questions.length && (
               <>
                 {" "}
@@ -295,9 +345,11 @@ export function Composer({
               rattrape avant la remise, jamais après. Le formulaire reste
               monté pour que la remise automatique à l'expiration du
               chronomètre continue de fonctionner sans confirmation. */}
-          <form action={remettreCopie} ref={formRemise} className="ml-auto">
+          <form action={reprise ? terminer : remettreCopie} ref={formRemise} className="ml-auto">
             <input type="hidden" name="epreuveId" value={epreuveId} />
+            {reprise && <input type="hidden" name="repriseId" value={reprise.id} />}
             <ZoneRemise
+              reprise={Boolean(reprise)}
               confirme={confirmeRemise}
               demander={() => setConfirmeRemise(true)}
               annuler={() => setConfirmeRemise(false)}
@@ -512,10 +564,12 @@ function SousQuestion({
  * automatique déclenchée par l'expiration du chronomètre.
  */
 function ZoneRemise({
+  reprise,
   confirme,
   demander,
   annuler,
 }: {
+  reprise: boolean;
   confirme: boolean;
   demander: () => void;
   annuler: () => void;
@@ -532,7 +586,7 @@ function ZoneRemise({
           aria-hidden
           className="size-5 animate-spin rounded-full border-[3px] border-ligne border-t-primaire"
         />
-        Remise en cours…
+        {reprise ? "Correction en cours…" : "Remise en cours…"}
       </p>
     );
   }
@@ -544,7 +598,7 @@ function ZoneRemise({
         onClick={demander}
         className="cursor-pointer rounded-full bg-primaire px-7 py-3 font-extrabold text-white transition hover:bg-primaire-fonce"
       >
-        Remettre ma copie
+        {reprise ? "Terminer et voir le corrigé" : "Remettre ma copie"}
       </button>
     );
   }
@@ -552,7 +606,7 @@ function ZoneRemise({
   return (
     <div className="flex flex-wrap items-center justify-end gap-3">
       <span className="text-sm font-bold text-encre">
-        Es-tu sûr de vouloir remettre ta copie ?
+        {reprise ? "Terminer cette reprise ?" : "Es-tu sûr de vouloir remettre ta copie ?"}
       </span>
       <button
         type="button"
@@ -565,7 +619,7 @@ function ZoneRemise({
         type="submit"
         className="cursor-pointer rounded-full bg-primaire px-7 py-3 font-extrabold text-white transition hover:bg-primaire-fonce"
       >
-        Oui, remettre
+        {reprise ? "Oui, voir le corrigé" : "Oui, remettre"}
       </button>
     </div>
   );

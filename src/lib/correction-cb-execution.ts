@@ -45,48 +45,14 @@ export async function corrigerPassage(
     .maybeSingle();
   if (!passage) return null;
 
-  const { data: epreuve } = await admin
-    .from("epreuves_cb")
-    .select("points_bonne, points_mauvaise, points_abstention, note_sur, regles")
-    .eq("id", passage.epreuve_cb_id)
-    .maybeSingle();
-  if (!epreuve) return null;
-
-  const { data: liens } = await admin
-    .from("epreuve_cb_questions")
-    .select("ordre, points, questions(id, type, bloc_id, auto_correction, reponses_possibles(id, est_correcte))")
-    .eq("epreuve_cb_id", passage.epreuve_cb_id)
-    .limit(1000);
+  const cadre = await chargerCadreCorrection(passage.epreuve_cb_id as string);
+  if (!cadre) return null;
+  const { questions, bareme } = cadre;
 
   const { data: reponses } = await admin
     .from("passage_reponses")
     .select("question_id, reponse, points, statut")
     .eq("passage_id", passageId);
-
-  const questions: QuestionACorriger[] = [];
-  for (const lien of liens ?? []) {
-    const q = lien.questions as unknown as {
-      id: string;
-      type: QuestionACorriger["type"];
-      bloc_id: string;
-      auto_correction: boolean;
-      reponses_possibles: { id: string; est_correcte: boolean }[];
-    } | null;
-    if (!q) continue;
-
-    questions.push({
-      id: q.id,
-      type: q.type,
-      ordre: Number(lien.ordre),
-      blocId: q.bloc_id,
-      poids: Number(lien.points ?? 1),
-      autoCorrection: q.auto_correction !== false,
-      propositions: (q.reponses_possibles ?? []).map((p) => ({
-        id: p.id,
-        estCorrecte: p.est_correcte,
-      })),
-    });
-  }
 
   const copie = new Map<string, ReponseCopie>();
   const manuels: PointsManuels = new Map();
@@ -94,14 +60,6 @@ export async function corrigerPassage(
     copie.set(r.question_id as string, r.reponse as ReponseCopie);
     if (r.points !== null) manuels.set(r.question_id as string, Number(r.points));
   }
-
-  const bareme: Bareme = {
-    pointsBonne: Number(epreuve.points_bonne),
-    pointsMauvaise: Number(epreuve.points_mauvaise),
-    pointsAbstention: Number(epreuve.points_abstention),
-    noteSur: Number(epreuve.note_sur),
-    regles: (epreuve.regles ?? {}) as Bareme["regles"],
-  };
 
   const resultat = corriger(questions, copie, bareme);
 
@@ -173,4 +131,63 @@ export async function corrigerPassage(
     nbAbstentions: resultat.nbAbstentions,
     nbEnAttente: enAttente,
   };
+}
+
+/**
+ * Ce qu'il faut pour corriger une copie de l'épreuve : les questions avec
+ * leurs clés, et le barème. Partagé par la copie officielle et les reprises,
+ * qui sont donc notées par exactement la même règle.
+ */
+export async function chargerCadreCorrection(
+  epreuveCbId: string,
+): Promise<{ questions: QuestionACorriger[]; bareme: Bareme } | null> {
+  const admin = createAdminClient();
+
+  const { data: epreuve } = await admin
+    .from("epreuves_cb")
+    .select("points_bonne, points_mauvaise, points_abstention, note_sur, regles")
+    .eq("id", epreuveCbId)
+    .maybeSingle();
+  if (!epreuve) return null;
+
+  const { data: liens } = await admin
+    .from("epreuve_cb_questions")
+    .select("ordre, points, questions(id, type, bloc_id, auto_correction, reponses_possibles(id, est_correcte))")
+    .eq("epreuve_cb_id", epreuveCbId)
+    .limit(1000);
+
+  const questions: QuestionACorriger[] = [];
+  for (const lien of liens ?? []) {
+    const q = lien.questions as unknown as {
+      id: string;
+      type: QuestionACorriger["type"];
+      bloc_id: string;
+      auto_correction: boolean;
+      reponses_possibles: { id: string; est_correcte: boolean }[];
+    } | null;
+    if (!q) continue;
+
+    questions.push({
+      id: q.id,
+      type: q.type,
+      ordre: Number(lien.ordre),
+      blocId: q.bloc_id,
+      poids: Number(lien.points ?? 1),
+      autoCorrection: q.auto_correction !== false,
+      propositions: (q.reponses_possibles ?? []).map((p) => ({
+        id: p.id,
+        estCorrecte: p.est_correcte,
+      })),
+    });
+  }
+
+  const bareme: Bareme = {
+    pointsBonne: Number(epreuve.points_bonne),
+    pointsMauvaise: Number(epreuve.points_mauvaise),
+    pointsAbstention: Number(epreuve.points_abstention),
+    noteSur: Number(epreuve.note_sur),
+    regles: (epreuve.regles ?? {}) as Bareme["regles"],
+  };
+
+  return { questions, bareme };
 }

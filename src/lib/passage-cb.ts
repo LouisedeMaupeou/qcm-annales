@@ -219,21 +219,65 @@ export async function chargerPassage(
     .maybeSingle();
   if (!passage) return { refus: "introuvable" };
 
+  const { data: reponses } = await admin
+    .from("passage_reponses")
+    .select("question_id, reponse")
+    .eq("passage_id", passage.id);
+
+  // Figures et documents signés pour la durée restante de l'épreuve plus une
+  // marge : une épreuve GEIPI dure trois heures, une URL d'une heure se
+  // périmerait en pleine composition.
+  const finLe = echeance(
+    passage.started_at as string,
+    epreuve.duree_minutes,
+    epreuve.fenetre_fin,
+  );
+  const resteSecondes = Math.max(
+    600,
+    Math.ceil((new Date(finLe).getTime() - Date.now()) / 1000) + 900,
+  );
+
+  const questions = await chargerQuestionsJouables(
+    epreuveCbId,
+    new Map(
+      (reponses ?? []).map((r) => [r.question_id as string, r.reponse as ReponseEleveCb]),
+    ),
+    resteSecondes,
+  );
+
+  return {
+    passageId: passage.id as string,
+    epreuveCbId,
+    concours: epreuve.concours?.nom ?? "—",
+    matiere: epreuve.matiere,
+    dureeMinutes: epreuve.duree_minutes,
+    finLe,
+    remis: passage.statut !== "en_cours",
+    questions,
+  };
+}
+
+/**
+ * Les questions d'une épreuve, expurgées : ni `est_correcte`, ni rétroaction,
+ * ni points. Servies au passage officiel comme aux reprises — un seul chemin,
+ * pour qu'une reprise ne puisse pas laisser filtrer ce que le passage cache.
+ *
+ * `dureeSignature` : durée de validité des URL de figures et de documents, en
+ * secondes.
+ */
+export async function chargerQuestionsJouables(
+  epreuveCbId: string,
+  reponses: Map<string, ReponseEleveCb>,
+  dureeSignature: number,
+): Promise<QuestionPassage[]> {
+  const admin = createAdminClient();
+
   const { data: liens } = await admin
     .from("epreuve_cb_questions")
     .select("ordre, questions(id, type, enonce, image_url, bloc_id, reponses_possibles(id, texte, ordre))")
     .eq("epreuve_cb_id", epreuveCbId)
     .order("ordre")
     .limit(1000);
-
-  const { data: reponses } = await admin
-    .from("passage_reponses")
-    .select("question_id, reponse")
-    .eq("passage_id", passage.id);
-
-  const parQuestion = new Map(
-    (reponses ?? []).map((r) => [r.question_id as string, r.reponse as ReponseEleveCb]),
-  );
 
   // Les énoncés de bloc, en une fois plutôt qu'une requête par question.
   const blocIds = [
@@ -261,18 +305,6 @@ export async function chargerPassage(
         .order("titre")
     : { data: [] };
 
-  // Les figures sont signées en une fois, et pour la durée restante de
-  // l'épreuve plus une marge : une épreuve GEIPI dure trois heures, une URL
-  // d'une heure se périmerait en pleine composition.
-  const finLe = echeance(
-    passage.started_at as string,
-    epreuve.duree_minutes,
-    epreuve.fenetre_fin,
-  );
-  const resteSecondes = Math.max(
-    600,
-    Math.ceil((new Date(finLe).getTime() - Date.now()) / 1000) + 900,
-  );
   const cheminsFigures = (liens ?? [])
     .map((l) => (l.questions as unknown as { image_url: string | null } | null)?.image_url)
     .filter((v): v is string => Boolean(v));
@@ -281,7 +313,7 @@ export async function chargerPassage(
   const cheminsDocuments = (documents ?? []).map((d) => d.fichier_url as string);
   const signees = await urlsSigneesFigures(
     [...cheminsFigures, ...cheminsDocuments],
-    resteSecondes,
+    dureeSignature,
   );
   const figures = signees;
 
@@ -320,20 +352,11 @@ export async function chargerPassage(
       propositions: [...(q.reponses_possibles ?? [])]
         .sort((a, b) => a.ordre - b.ordre)
         .map((p) => ({ id: p.id, texte: p.texte })),
-      reponse: parQuestion.get(q.id) ?? null,
+      reponse: reponses.get(q.id) ?? null,
     });
   }
 
-  return {
-    passageId: passage.id as string,
-    epreuveCbId,
-    concours: epreuve.concours?.nom ?? "—",
-    matiere: epreuve.matiere,
-    dureeMinutes: epreuve.duree_minutes,
-    finLe,
-    remis: passage.statut !== "en_cours",
-    questions,
-  };
+  return questions;
 }
 
 /**

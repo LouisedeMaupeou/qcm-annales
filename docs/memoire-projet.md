@@ -65,6 +65,18 @@ idempotent sur `id_question_externe`.
 Le piège structurel à ne jamais casser (isolation de l'entraînement libre) est
 décrit dans [`CLAUDE.md`](../CLAUDE.md).
 
+**Après le bilan (27/11/2026, demande de la responsable des prépas)** : dès que
+le bilan d'une session est envoyé à un élève, chacune de ses épreuves se
+rouvre. Il relit sa copie corrigée (`/concours-blancs/<épreuve>/corrige` :
+réponse cochée, bonne réponse, chapitre, notion, correction) et refait
+l'épreuve **à volonté**, sans limite de temps, avec le corrigé **à la fin
+seulement**. Les reprises vivent dans `reprises_cb` / `reprise_reponses`, jamais
+dans `passages` : rien de ce qui calcule une note, un rang ou un bilan ne les
+lit. Elles sont notées par la même règle que la copie officielle
+(`chargerCadreCorrection`), et servies par le même chemin expurgé
+(`chargerQuestionsJouables`). Une rédaction n'est pas notée en reprise : on
+montre l'attendu.
+
 ---
 
 ## 3. État des imports, concours par concours
