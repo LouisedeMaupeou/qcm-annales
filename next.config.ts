@@ -6,6 +6,15 @@ import { verifierEnvironnement } from "./src/lib/env";
 verifierEnvironnement();
 
 const nextConfig: NextConfig = {
+  // Les polices du bilan PDF sont lues sur disque par @react-pdf au moment du
+  // rendu : le traçage de Next ne les voit pas, il faut les lui désigner pour
+  // chaque route qui produit un bilan (téléchargement élève, back-office,
+  // envoi par email depuis les actions des bilans).
+  outputFileTracingIncludes: {
+    "/concours-blancs/bilan/**": ["./src/lib/polices/*.woff"],
+    "/admin/prepa/bilans/**": ["./src/lib/polices/*.woff"],
+    "/admin/prepa/bilans": ["./src/lib/polices/*.woff"],
+  },
   experimental: {
     serverActions: {
       // Le zip d'images d'un concours blanc pèse une vingtaine de méga-octets
