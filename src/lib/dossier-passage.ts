@@ -39,6 +39,8 @@ function rang(titre: string | null): [number, number, string] {
   if (texte) return [0, Number(texte[1]), ""];
   const encart = t.match(/encart[ _-]?([a-z])/);
   if (encart) return [1, 0, encart[1]];
+  const page = t.match(/page[ _-]?(\d+)/);
+  if (page) return [1, Number(page[1]), ""];
   return [2, 0, t];
 }
 
@@ -74,5 +76,8 @@ export function libellePiece(titre: string | null): string | null {
   if (texte) return `Texte ${texte[1]}`;
   const encart = sansExtension.match(/^encart[ _-]?([a-z])$/i);
   if (encart) return `Encart ${encart[1].toUpperCase()}`;
+  // Une page de sujet servie en dossier : « AV-PHY-NOEL26-page-03 » → « Page 3 ».
+  const page = sansExtension.match(/(?:^|-)page[ _-]?(\d+)$/i);
+  if (page) return `Page ${Number(page[1])}`;
   return sansExtension;
 }

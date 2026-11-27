@@ -53,3 +53,14 @@ test("les libellés se lisent", () => {
   assert.equal(libellePiece("Annexe 3.png"), "Annexe 3");
   assert.equal(libellePiece(null), null);
 });
+
+test("les pages d'un sujet servi en dossier s'intitulent « Page N », dans l'ordre", () => {
+  assert.equal(libellePiece("AV-PHY-NOEL26-page-03.png"), "Page 3");
+  const ordre = rassemblerDossier([
+    {
+      enonceCommun: null,
+      documents: ["page-10", "page-02", "page-09"].map((t) => ({ titre: `AV-PHY-NOEL26-${t}.png`, url: t })),
+    },
+  ]).map((p) => libellePiece(p.titre));
+  assert.deepEqual(ordre, ["Page 2", "Page 9", "Page 10"]);
+});
