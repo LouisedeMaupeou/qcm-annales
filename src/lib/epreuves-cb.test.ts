@@ -138,3 +138,11 @@ test("libellé : sans session, concours et matière suffisent", () => {
 test("libellé : un identifiant indéchiffrable n'en a pas", () => {
   assert.equal(libelleEpreuveImportee("XX-YY-NOEL26"), null);
 });
+
+test("barème Puissance Alpha anglais : ni bonification ni exercices au choix", () => {
+  const b = baremeOfficiel("Puissance Alpha", "Anglais");
+  assert.equal(b?.pointsBonne, 1);
+  assert.equal(b?.pointsMauvaise, -0.5);
+  assert.deepEqual(b?.regles, {});
+});
+

@@ -241,6 +241,21 @@ export function baremeOfficiel(concours: string, matiere: string): BaremeOfficie
   const base = BAREMES[concours];
   if (!base) return null;
 
+  // Anglais Puissance Alpha (sujet de Noël 2026) : 25 questions à une seule
+  // bonne réponse, sans exercices ni bonification. Le barème par défaut de
+  // Puissance Alpha — celui des maths — donnerait un point de bonus à chaque
+  // bonne réponse, chaque question formant un exercice à elle seule.
+  if (concours === "Puissance Alpha" && /anglais/i.test(matiere)) {
+    return {
+      ...base,
+      regles: {},
+      source:
+        "Chaque question comporte 4 affirmations repérées par les lettres A, B, C et D ; une " +
+        "seule est correcte. Une réponse exacte rapporte 1 point, une réponse inexacte retire " +
+        "0,5 point ; une réponse annulée ou l'abstention ne rapporte ni ne retire rien.",
+    };
+  }
+
   // Mathématiques Puissance Alpha (sujet de Noël 2026) : 8 exercices dont
   // les 4 fondamentaux ; hors fondamentaux, les 4 premiers traités.
   if (concours === "Puissance Alpha" && /math/i.test(matiere)) {

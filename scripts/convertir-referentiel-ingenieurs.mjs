@@ -108,6 +108,10 @@ const CLES_VERIFIEES = new Set([
   // à partir de la question 45, la grille ne correspond plus aux questions.
   // Les clés du référentiel sont retenues.
   `ADV-ANG-${PERIODE}`,
+  // Anglais Avenir : sans corrigé transmis (la « correction » est une grille
+  // de cases cochées), les 45 clés du référentiel ont été confrontées une à
+  // une au sujet ; toutes tiennent, la question 1 comprise.
+  `AV-ANG-${PERIODE}`,
 ]);
 
 /**
@@ -115,6 +119,12 @@ const CLES_VERIFIEES = new Set([
  * transcription : « No correct answer Reading Comprehension ».
  */
 const TITRES_DE_SECTION = /\s+(Reading Comprehension|Vocabulary)$/i;
+
+/**
+ * Pied de page du sujet collé à la dernière proposition d'une page :
+ * « by Page 3 sur 8 https://… » (anglais Avenir).
+ */
+const PIED_DE_PAGE = /\s+Page\s+\d+(\s+sur\s+\d+)?(\s+\S*https?:\S*)?.*$/;
 
 /**
  * Clés fausses dans le référentiel, et pourquoi. L'auteur ne voyait pas la
@@ -213,7 +223,7 @@ for (const l of lignes) {
   const correctionCle = CLES_CORRIGEES[id];
   const reponse = correctionCle ? correctionCle[0] : txt(l["Réponse de référence"]);
   const propositions = ["A", "B", "C", "D", "E"].map((x) =>
-    txt(l[`Proposition ${x}`]).replace(TITRES_DE_SECTION, ""),
+    txt(l[`Proposition ${x}`]).replace(TITRES_DE_SECTION, "").replace(PIED_DE_PAGE, ""),
   );
   const nbPropositions = propositions.filter(Boolean).length;
 
