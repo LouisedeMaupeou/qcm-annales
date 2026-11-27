@@ -44,13 +44,21 @@ export default async function FicheCohorte({
         <Link href="/admin/prepa" className="hover:underline">
           ← Prépa
         </Link>
-        {/* Les résultats se cherchent par promotion, pas par session. */}
-        <Link
-          href={`/admin/prepa/${id}/resultats`}
-          className="rounded-full border-2 border-primaire px-5 py-1.5 font-bold text-primaire no-underline"
-        >
-          Résultats des concours blancs
-        </Link>
+        {/* Les résultats et les bilans se cherchent par promotion, pas par session. */}
+        <span className="flex flex-wrap gap-2">
+          <Link
+            href={`/admin/prepa/${id}/bilans`}
+            className="rounded-full bg-primaire px-5 py-1.5 font-bold text-white no-underline transition hover:bg-primaire-fonce"
+          >
+            Bilans
+          </Link>
+          <Link
+            href={`/admin/prepa/${id}/resultats`}
+            className="rounded-full border-2 border-primaire px-5 py-1.5 font-bold text-primaire no-underline"
+          >
+            Résultats des concours blancs
+          </Link>
+        </span>
       </p>
       <h1 className="mb-1 text-3xl font-black">{cohorte.nom}</h1>
       <p className="mb-8">

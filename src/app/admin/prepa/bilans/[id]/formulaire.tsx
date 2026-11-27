@@ -10,10 +10,11 @@ import {
 } from "../actions";
 
 const RUBRIQUES = [
-  { cle: "forces", libelle: "Forces identifiées (chapitres et méthode)" },
-  { cle: "ameliorations", libelle: "Points d'amélioration (chapitres et méthode)" },
-  { cle: "methode", libelle: "Maîtrise de la méthode" },
-  { cle: "conseils", libelle: "Conseils de reprise de copie" },
+  // Commentaires ajoutés sous les listes calculées du tableau (V11).
+  { cle: "forces", libelle: "Acquis — commentaire" },
+  { cle: "ameliorations", libelle: "À reprendre — commentaire" },
+  { cle: "methode", libelle: "Méthode" },
+  { cle: "conseils", libelle: "Conseils de reprise" },
 ] as const;
 
 export function FormulaireBilan({
