@@ -330,9 +330,10 @@ function DocumentBilan({ bilan }: { bilan: BilanAssemble }) {
           <View style={s.section} break>
             <Text style={s.sectionTitre}>Ton plan de travail</Text>
             <Text style={{ marginBottom: 6 }}>
-              Tes points d&apos;amélioration, du plus fréquent au moins fréquent, avec des exemples
-              tirés de tes copies : la notion, l&apos;erreur commise, et comment ne plus la refaire.
-              Toutes tes fautes sont dans tes copies corrigées, sur ton espace.
+              Pour chaque épreuve, tes trois points d&apos;amélioration les plus fréquents, avec des
+              exemples tirés de tes copies : la notion, l&apos;erreur commise, et comment ne plus la
+              refaire. Toutes tes fautes sont détaillées dans ton bilan en ligne et dans tes copies
+              corrigées, sur ton espace.
             </Text>
             {bilan.plan.map((e) => (
               <View key={e.epreuve} style={{ marginTop: 6 }}>
@@ -377,11 +378,18 @@ function DocumentBilan({ bilan }: { bilan: BilanAssemble }) {
                     {p.autres > 0 && (
                       <Text style={[s.petit, { marginTop: 2 }]}>
                         + {p.autres} autre{p.autres > 1 ? "s" : ""} faute{p.autres > 1 ? "s" : ""} sur ce
-                        point : voir ta copie corrigée.
+                        point : voir ton bilan en ligne.
                       </Text>
                     )}
                   </View>
                 ))}
+                {e.autresPoints.length > 0 && (
+                  <Text style={[s.petit, { marginTop: 4 }]}>
+                    <Text style={s.gras}>Autres points à reprendre : </Text>
+                    {e.autresPoints.map((p) => `${p.libelle} (${p.fautes} fautes)`).join(", ")} — le
+                    détail est dans ton bilan en ligne.
+                  </Text>
+                )}
               </View>
             ))}
           </View>

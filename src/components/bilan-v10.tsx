@@ -393,10 +393,11 @@ function Retour({ titre, texte }: { titre: string; texte: string | null }) {
 /**
  * La suite du bilan : un plan de travail.
  *
- * Les points d'amélioration du tableau, épreuve par épreuve, le plus fautif
- * d'abord, chacun illustré par deux fautes de la copie — la notion, l'erreur
- * commise, ce qu'il faut reprendre, la méthode. La copie corrigée, en ligne,
- * porte les autres, et le renvoi le dit.
+ * Les trois points d'amélioration les plus fautifs de chaque épreuve, chacun
+ * illustré par deux fautes de la copie — la notion, l'erreur commise, ce qu'il
+ * faut reprendre, la méthode. Aucune faute ne disparaît pour autant : chaque
+ * point déplie toutes les siennes, et les points suivants sont repliés en
+ * dessous. Le PDF, lui, s'en tient aux exemples et renvoie ici.
  */
 function PlanDeTravail({ plan }: { plan: BilanAssemble["plan"] }) {
   return (
@@ -405,62 +406,97 @@ function PlanDeTravail({ plan }: { plan: BilanAssemble["plan"] }) {
         Ton plan de travail
       </h2>
       <p className="text-[0.9rem] opacity-80">
-        Tes points d&apos;amélioration, du plus fréquent au moins fréquent, avec des
-        exemples tirés de tes copies : la notion, l&apos;erreur commise, et comment ne
-        plus la refaire. Toutes tes fautes sont dans tes copies corrigées, sur ton
-        espace.
+        Pour chaque épreuve, tes trois points d&apos;amélioration les plus fréquents,
+        avec des exemples tirés de tes copies : la notion, l&apos;erreur commise, et
+        comment ne plus la refaire. Déplie un point pour voir toutes tes fautes.
       </p>
       {plan.map((e) => (
         <div key={e.epreuve} className="space-y-3">
           <h3 className="font-black text-encre">{e.epreuve}</h3>
           {e.points.map((p) => (
-            <div key={`${p.domaine}-${p.libelle}`} className="rounded-carte border border-ligne p-4">
-              <p className="mb-2 font-extrabold text-encre">
-                {p.libelle !== p.domaine && (
-                  <span className="font-bold opacity-70">{p.domaine} › </span>
-                )}
-                {p.libelle}{" "}
-                <span className="font-bold text-negatif">— {p.fautes} fautes</span>
-              </p>
-              <ul className="space-y-2.5 border-l-4 border-negatif/40 pl-3 text-[0.88rem]">
-                {p.detail.map((f) => (
-                  <li key={f.numero}>
-                    <p>
-                      <span className="font-bold">Question {f.numero}</span>
-                      {f.chapitre && <> · {f.chapitre}</>}
-                      {f.notion && <> · {f.notion}</>}
-                    </p>
-                    {f.erreur && (
-                      <p>
-                        <span className="font-bold text-negatif">Erreur : </span>
-                        {f.erreur}
-                      </p>
-                    )}
-                    {f.amelioration && (
-                      <p>
-                        <span className="font-bold text-positif">À reprendre : </span>
-                        {f.amelioration}
-                      </p>
-                    )}
-                    {f.methode && (
-                      <p>
-                        <span className="font-bold text-primaire-fonce">Méthode : </span>
-                        {f.methode}
-                      </p>
-                    )}
-                  </li>
-                ))}
-              </ul>
-              {p.autres > 0 && (
-                <p className="mt-2 text-[0.82rem] opacity-70">
-                  + {p.autres} autre{p.autres > 1 ? "s" : ""} faute{p.autres > 1 ? "s" : ""} sur
-                  ce point : voir ta copie corrigée.
-                </p>
-              )}
-            </div>
+            <PointDuPlanVue key={`${p.domaine}-${p.libelle}`} point={p} />
           ))}
+          {e.autresPoints.length > 0 && (
+            <details className="rounded-carte border border-dashed border-ligne p-4">
+              <summary className="cursor-pointer font-bold text-encre">
+                {e.autresPoints.length} autre{e.autresPoints.length > 1 ? "s" : ""} point
+                {e.autresPoints.length > 1 ? "s" : ""} d&apos;amélioration :{" "}
+                <span className="font-normal">
+                  {e.autresPoints.map((p) => `${p.libelle} (${p.fautes})`).join(", ")}
+                </span>
+              </summary>
+              <div className="mt-3 space-y-3">
+                {e.autresPoints.map((p) => (
+                  <PointDuPlanVue key={`${p.domaine}-${p.libelle}`} point={p} tout />
+                ))}
+              </div>
+            </details>
+          )}
         </div>
       ))}
     </section>
+  );
+}
+
+type PointPlan = BilanAssemble["plan"][number]["points"][number];
+
+/** Un point du plan : ses exemples, puis le reste de ses fautes, à déplier. */
+function PointDuPlanVue({ point: p, tout = false }: { point: PointPlan; tout?: boolean }) {
+  const exemples = tout ? p.toutes : p.detail;
+  const montres = new Set(exemples.map((f) => f.numero));
+  const reste = p.toutes.filter((f) => !montres.has(f.numero));
+  return (
+    <div className="rounded-carte border border-ligne p-4">
+      <p className="mb-2 font-extrabold text-encre">
+        {p.libelle !== p.domaine && <span className="font-bold opacity-70">{p.domaine} › </span>}
+        {p.libelle} <span className="font-bold text-negatif">— {p.fautes} fautes</span>
+      </p>
+      <ListeFautes fautes={exemples} />
+      {reste.length > 0 && (
+        <details className="mt-2">
+          <summary className="cursor-pointer text-[0.85rem] font-bold text-primaire">
+            Voir les {reste.length} autre{reste.length > 1 ? "s" : ""} faute
+            {reste.length > 1 ? "s" : ""} sur ce point
+          </summary>
+          <div className="mt-2">
+            <ListeFautes fautes={reste} />
+          </div>
+        </details>
+      )}
+    </div>
+  );
+}
+
+function ListeFautes({ fautes }: { fautes: PointPlan["toutes"] }) {
+  return (
+    <ul className="space-y-2.5 border-l-4 border-negatif/40 pl-3 text-[0.88rem]">
+      {fautes.map((f) => (
+        <li key={f.numero}>
+          <p>
+            <span className="font-bold">Question {f.numero}</span>
+            {f.chapitre && <> · {f.chapitre}</>}
+            {f.notion && <> · {f.notion}</>}
+          </p>
+          {f.erreur && (
+            <p>
+              <span className="font-bold text-negatif">Erreur : </span>
+              {f.erreur}
+            </p>
+          )}
+          {f.amelioration && (
+            <p>
+              <span className="font-bold text-positif">À reprendre : </span>
+              {f.amelioration}
+            </p>
+          )}
+          {f.methode && (
+            <p>
+              <span className="font-bold text-primaire-fonce">Méthode : </span>
+              {f.methode}
+            </p>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }

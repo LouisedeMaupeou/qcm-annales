@@ -412,3 +412,22 @@ test("le plan reprend les points d'amélioration, deux fautes variées chacun", 
   assert.equal(grammaire.detail[0].erreur, "Mauvais accord.");
   assert.equal(grammaire.detail[0].methode, "Repérer l'auxiliaire puis le COD");
 });
+
+test("le plan garde les trois points les plus fautifs, et ne perd aucune faute", () => {
+  const plan = planDeTravail(
+    [5, 4, 3, 3].flatMap((k, i) =>
+      n(k, () => rep("MAT", "Géométrie", `Chapitre ${i + 1}`, "incorrecte")),
+    ),
+  );
+  const [maths] = plan;
+  assert.deepEqual(maths.points.map((p) => [p.libelle, p.fautes]), [
+    ["Chapitre 1", 5],
+    ["Chapitre 2", 4],
+    ["Chapitre 3", 3],
+  ]);
+  assert.deepEqual(maths.autresPoints.map((p) => p.libelle), ["Chapitre 4"]);
+  // Deux exemples par point, mais toutes les fautes restent dans le bilan.
+  assert.equal(maths.points[0].detail.length, 2);
+  const toutes = [...maths.points, ...maths.autresPoints].flatMap((p) => p.toutes);
+  assert.equal(toutes.length, 15);
+});

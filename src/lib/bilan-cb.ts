@@ -449,12 +449,24 @@ export type PointDuPlan = {
   detail: FauteDetaillee[];
   /** Fautes non détaillées ici, à retrouver dans la copie corrigée. */
   autres: number;
+  /**
+   * Toutes les fautes du point, exemples compris : l'écran les déplie à la
+   * demande. Aucune faute ne doit disparaître du bilan, même quand le plan
+   * n'en montre que deux.
+   */
+  toutes: FauteDetaillee[];
 };
 
 export type PlanEpreuve = {
   epreuve: string;
+  /** Les `POINTS_DU_PLAN_MAX` points les plus fautifs, illustrés. */
   points: PointDuPlan[];
+  /** Les points d'amélioration suivants, moins fautifs. */
+  autresPoints: PointDuPlan[];
 };
+
+/** Le plan s'en tient aux trois points les plus fautifs de chaque épreuve. */
+export const POINTS_DU_PLAN_MAX = 3;
 
 /**
  * Deux fautes détaillées par point : au-delà, le bilan devient un catalogue
@@ -508,24 +520,28 @@ export function planDeTravail(reponses: ReponseAnalysee[]): PlanEpreuve[] {
       }
 
       const regroupe = estLangue(siennes[0]?.matiere ?? "");
+      const detailler = (f: ReponseAnalysee): FauteDetaillee => ({
+        numero: f.numero,
+        chapitre: regroupe ? f.chapitre : null,
+        notion: f.notion,
+        erreur: erreurCommise(f.retourReponse),
+        amelioration: f.travail,
+        methode: f.methode,
+      });
       return {
         libelle: p.libelle,
         domaine: p.domaine,
         fautes: p.fausses,
-        detail: retenues
-          .sort((a, b) => a.numero - b.numero)
-          .map((f) => ({
-            numero: f.numero,
-            chapitre: regroupe ? f.chapitre : null,
-            notion: f.notion,
-            erreur: erreurCommise(f.retourReponse),
-            amelioration: f.travail,
-            methode: f.methode,
-          })),
+        detail: retenues.sort((a, b) => a.numero - b.numero).map(detailler),
         autres: fautes.length - retenues.length,
+        toutes: fautes.map(detailler),
       };
     });
-    plans.push({ epreuve, points });
+    plans.push({
+      epreuve,
+      points: points.slice(0, POINTS_DU_PLAN_MAX),
+      autresPoints: points.slice(POINTS_DU_PLAN_MAX),
+    });
   }
   return plans;
 }
