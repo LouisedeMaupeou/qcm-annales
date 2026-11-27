@@ -65,7 +65,10 @@ les scripts. Une session Claude Code cloud peut désormais tout faire :
   `NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt`, sinon le
   `fetch` de Node ne passe pas par le proxy et la base semble vide. Les pages
   d'aperçu temporaires se placent sous `/auth/…` (préfixe public du proxy
-  d'authentification) et ne se commitent jamais.
+  d'authentification) et ne se commitent jamais. **`src/app/auth/` contient
+  aussi la vraie route `confirmer/`** (confirmation des emails) : ne supprimer
+  que le sous-dossier d'aperçu (`src/app/auth/zz-…`), jamais `src/app/auth`
+  entier — c'est arrivé le 27/11, rattrapé avant la mise en ligne.
 - **Déploiement** : un push sur `main` déploie en production (deux projets
   Vercel, « qcm-annales » et « admissibleparkours »). L'utilisateur valide chaque
   mise en ligne explicitement ; le travail avance sur une branche en attendant.
